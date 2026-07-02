@@ -6,6 +6,7 @@ const SettingsTab: React.FC = () => {
   const [inferenceModels, setInferenceModels] = useState('');
   const [validationModels, setValidationModels] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isApiKeyFocused, setIsApiKeyFocused] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -75,18 +76,20 @@ const SettingsTab: React.FC = () => {
 
   return (
     <div className="tab-panel settings-tab">
-      <h3>API Settings</h3>
       <div className="settings-group">
         <div className="settings-field">
           <label htmlFor="openRouterApiKey">Open Router API Key</label>
           <input
             id="openRouterApiKey"
-            type="text"
+            type={isApiKeyFocused ? 'text' : 'password'}
             value={openRouterApiKey}
             onChange={(e) => setOpenRouterApiKey(e.target.value)}
+            onFocus={() => setIsApiKeyFocused(true)}
+            onBlur={() => setIsApiKeyFocused(false)}
             placeholder="Enter your Open Router API key"
             className="settings-input"
           />
+          <small className="settings-hint">The key is hidden by default and becomes visible only when the field has focus.</small>
         </div>
         <div className="settings-field">
           <label htmlFor="inferenceModels">Models for Inference</label>
