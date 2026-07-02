@@ -31,12 +31,13 @@ declare global {
 
       getFileStats: (path: string) => Promise<{
         size: number;
-        modified: Date;
         isDirectory: boolean;
         isFile: boolean;
+        mtime: number;
+        birthtime: number;
       }>;
 
-      writeFile: (path: string, content: string) => Promise<void>;
+      writeFile: (path: string, content: string) => Promise<{ success: boolean }>;
 
       // Store operations
       getLastOpenedFolder: () => Promise<string | undefined>;

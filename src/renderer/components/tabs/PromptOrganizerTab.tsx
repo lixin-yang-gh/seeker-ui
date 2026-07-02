@@ -34,12 +34,10 @@ const block_replacement_prompt = `\n---\nProvide all changes in separate blocks.
 * **Full File:** If replacing a file in its entirety, state "Full File" and provide only the new content.
 * **Formatting:** Do not include standalone symbols or decorative characters within text/code blocks; all content must be directly copy-pasteable.`;
 
-const block_replacement_prompt_conditional = `\n---\nIf changes are required, provide all changes in separate blocks. Each must begin with a header specifying the **operation type** (Add, Replace, Delete), the **exact file location**, and a one-line **reason** for the change. Use standard Markdown code fences with the appropriate language tag (e.g., \` \` \`python).
-* **Replacements & Deletions:** You must provide the **exact, unique starting and ending lines** from the original file to uniquely anchor the block; intermediate lines may be omitted. For replacements, display the **Original** and **Proposed** content as two separate, clearly labeled blocks.
-* **Additions:** Specify the **precise code snippet or line** after which the new content should be inserted. 
-* **Minimalism (Strict Requirement):** All proposed changes **must be strictly minimal**. Modify only the essential lines; avoid any unnecessary refactoring or rewriting of surrounding text or code.
-* **Full File:** If replacing a file in its entirety, state "Full File" and provide only the new content.
-* **Formatting:** Do not include standalone symbols or decorative characters within text/code blocks; all content must be directly copy-pasteable.`;
+const block_replacement_prompt_conditional = block_replacement_prompt.replace(
+  '\n---\nProvide all changes',
+  '\n---\nIf changes are required, provide all changes'
+);
 
 const APPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Current File', value: '\n---\nProvide the full content of the updated file together with its relative path from the project_root. For deletions, simply provide the relative file path from the project_root. Include a brief reason for each file change.' },
@@ -229,26 +227,10 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     }
   }, [systemPrompt, confirmTimer]);
 
-  // Cancel confirmation (when timer expires or component unmounts)
+  const maskedSubstringsInitRef = React.useRef(true);
   useEffect(() => {
-    return () => {
-      if (confirmTimer) {
-        clearTimeout(confirmTimer);
-      }
-    };
-  }, [confirmTimer]);
-
-  // Cancel confirmation (when timer expires or component unmounts)
-  useEffect(() => {
-    return () => {
-      if (confirmTimer) {
-        clearTimeout(confirmTimer);
-      }
-    };
-  }, [confirmTimer]);
-
-  useEffect(() => {
-    if (maskedSubstrings === '' || !rootFolder) return;
+    if (!rootFolder) return;
+    if (maskedSubstringsInitRef.current) { maskedSubstringsInitRef.current = false; return; }
     const timer = setTimeout(() => {
       saveMaskedSubstrings(maskedSubstrings);
     }, 800);
@@ -285,27 +267,30 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     }
   }, [rootFolder]);
 
-  // Auto-save system prompt (debounced)
+  const systemPromptInitRef = React.useRef(true);
   useEffect(() => {
-    if (systemPrompt === '' || !rootFolder) return;
+    if (!rootFolder) return;
+    if (systemPromptInitRef.current) { systemPromptInitRef.current = false; return; }
     const timer = setTimeout(() => {
       saveSystemPrompt(systemPrompt);
     }, 800);
     return () => clearTimeout(timer);
   }, [systemPrompt, saveSystemPrompt, rootFolder]);
 
-  // Auto-save task (debounced)
+  const taskInitRef = React.useRef(true);
   useEffect(() => {
-    if (task === '' || !rootFolder) return;
+    if (!rootFolder) return;
+    if (taskInitRef.current) { taskInitRef.current = false; return; }
     const timer = setTimeout(() => {
       saveTask(task);
     }, 800);
     return () => clearTimeout(timer);
   }, [task, saveTask, rootFolder]);
 
-  // Auto-save issues (debounced)
+  const issuesInitRef = React.useRef(true);
   useEffect(() => {
-    if (issues === '' || !rootFolder) return;
+    if (!rootFolder) return;
+    if (issuesInitRef.current) { issuesInitRef.current = false; return; }
     const timer = setTimeout(() => {
       saveIssues(issues);
     }, 800);
@@ -333,8 +318,8 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       const filePromises = selectedFilePaths.map(async (filePath) => {
         try {
           const fileData = await window.electronAPI.readFile(filePath);
-          const relativePath =
-            "<project_root>" + getRelativePath(filePath, rootFolder).replace(/\\/g, '/');
+          const relPath = getRelativePath(filePath, rootFolder).replace(/\\/g, '/');
+          const relativePath = "<project_root>/" + relPath;
 
           // Apply sanitization to file content - this will decode HTML entities
           const sanitizedContent = sanitizeText(fileData.content);

@@ -1,5 +1,5 @@
 // FileManager.tsx - UPDATED
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
 import { OverviewTab, PromptOrganizerTab, FileEditorTab } from './tabs';
@@ -29,37 +29,6 @@ const FileManager: React.FC<FileManagerProps> = ({
       setContent(null);
     }
   }, [filePath]);
-
-  useEffect(() => {
-    // Check if selected files still exist
-    const verifySelectedFiles = async () => {
-      if (selectedFilePaths.length === 0) return;
-
-      const existingFiles: string[] = [];
-
-      for (const filePath of selectedFilePaths) {
-        try {
-          const stats = await window.electronAPI.getFileStats(filePath);
-          if (stats.isFile) {
-            existingFiles.push(filePath);
-          }
-        } catch (error) {
-          // File doesn't exist, skip it
-          console.warn(`File no longer exists: ${filePath}`);
-        }
-      }
-
-      // If some files were deleted, notify parent
-      if (existingFiles.length !== selectedFilePaths.length) {
-        // This will trigger the onSelectedPathsChange callback in parent
-        // which will update the selectedFilePaths state
-      }
-    };
-
-    // Run verification every 10 seconds
-    const interval = setInterval(verifySelectedFiles, 10000);
-    return () => clearInterval(interval);
-  }, [selectedFilePaths]);
 
   const handleTabChange = (tabIndex: number) => {
     setActiveTab(tabIndex);

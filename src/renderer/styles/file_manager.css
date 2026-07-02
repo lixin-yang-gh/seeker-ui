@@ -976,22 +976,6 @@ pre::-webkit-scrollbar-thumb:hover,
     width: 100%;
 }
 
-.masked-substrings-input:focus {
-    outline: none;
-    border-color: #0e639c;
-    box-shadow: 0 0 0 1px #0e639c;
-}
-
-.masked-substrings-input::placeholder {
-    color: #666;
-    font-style: italic;
-}
-
-.generate-prompt-button.success {
-    background: #2e7d32;
-    color: white;
-}
-
 /* Reload All Files button - orange variant */
 .reload-files-button {
     padding: 12px 20px;
@@ -1028,11 +1012,6 @@ pre::-webkit-scrollbar-thumb:hover,
   background: #e07000;
   color: white;
   /* keep original padding/width from .toolbar-button */
-}
-
-.masked-substrings-container {
-    padding: 0 20px;
-    width: 100%;
 }
 
 .masked-substrings-input {

@@ -43,7 +43,9 @@ const FileTree: React.FC<FileTreeProps> = ({
   const [recentlyCopied, setRecentlyCopied] = useState<string | null>(null);
 
   const prevSelectedPathsRef = useRef<string[]>([]);
-  const lastSelectedFilesRef = useRef<string[]>([]); // Store selected files for refresh
+  const lastSelectedFilesRef = useRef<string[]>([]);
+  const selectedFilePathsRef = useRef<Set<string>>(selectedFilePaths);
+  selectedFilePathsRef.current = selectedFilePaths;
 
   // Load last opened folder on initial mount
   useEffect(() => {
@@ -104,7 +106,7 @@ const FileTree: React.FC<FileTreeProps> = ({
       const items = await window.electronAPI.readDirectory(dirPath);
       const itemsWithState = items.map(item => ({
         ...item,
-        isChecked: selectedFilePaths.has(item.path),
+        isChecked: selectedFilePathsRef.current.has(item.path),
         isHighlighted: false
       }));
       const sortedItems = sortFileItems(itemsWithState);
@@ -125,7 +127,7 @@ const FileTree: React.FC<FileTreeProps> = ({
 
     try {
       // Step 1: Record all selected files
-      const selectedFilesBeforeRefresh = Array.from(selectedFilePaths);
+      const selectedFilesBeforeRefresh = Array.from(selectedFilePathsRef.current);
 
       // Step 2: Reopen the selected root folder (same as "Open Folder" button)
       await loadDirectory(rootPath);
@@ -175,7 +177,7 @@ const FileTree: React.FC<FileTreeProps> = ({
     } finally {
       setIsRefreshing(false);
     }
-  }, [rootPath, isRefreshing, selectedFilePaths]);
+  }, [rootPath, isRefreshing]);
 
   // Helper to restore expanded folders after refresh
   const restoreExpandedFolders = useCallback(async () => {
@@ -251,22 +253,6 @@ const FileTree: React.FC<FileTreeProps> = ({
     }
     return false;
   };
-
-  // Helper to get ONLY first-level files from a folder
-  const getFirstLevelFilesFromFolder = useCallback((folder: FileItem): string[] => {
-    const paths: string[] = [];
-
-    // Only get immediate file children (not recursively)
-    if (folder.children) {
-      folder.children.forEach(child => {
-        if (child.isFile) {
-          paths.push(child.path);
-        }
-      });
-    }
-
-    return paths;
-  }, []);
 
   // Handle file checkbox change
   const handleFileCheckboxChange = useCallback((item: FileItem, checked: boolean) => {

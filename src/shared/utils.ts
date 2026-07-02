@@ -1,5 +1,4 @@
 // utils.ts
-import path from 'path';
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -18,7 +17,7 @@ export function getErrorMessage(error: unknown): string {
  * Returns full path if rootFolder is missing or computation fails.
  */
 export function getRelativePath(filePath: string | null, rootFolder: string | null | undefined): string {
-  return (filePath ?? '').replace(rootFolder ?? '', '')
+  return (filePath ?? '').replace(rootFolder ?? '', '').replace(/^[\/\\]+/, '')
 }
 
 /**
@@ -31,20 +30,6 @@ export async function checkFileExists(filePath: string): Promise<boolean> {
   } catch (error) {
     return false;
   }
-}
-
-/**
- * Filter out non-existent files from a list
- */
-export async function filterExistingFiles(filePaths: string[]): Promise<string[]> {
-  const results = await Promise.all(
-    filePaths.map(async (path) => {
-      const exists = await checkFileExists(path);
-      return exists ? path : null;
-    })
-  );
-
-  return results.filter((path): path is string => path !== null);
 }
 
 // Re-export sanitization functions from sanitize.ts
