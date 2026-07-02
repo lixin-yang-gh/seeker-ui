@@ -7,6 +7,7 @@ interface FileTreeProps {
   onFileSelect: (filePath: string) => void;
   onFolderOpen?: (path: string) => void;
   onSelectedPathsChange?: (paths: string[]) => void;
+  previewedFilePath?: string | null;
 }
 
 const copyToClipboard = async (text: string) => {
@@ -32,7 +33,8 @@ const FileTree: React.FC<FileTreeProps> = ({
   rootPath,
   onFileSelect,
   onFolderOpen,
-  onSelectedPathsChange
+  onSelectedPathsChange,
+  previewedFilePath
 }) => {
   const [tree, setTree] = useState<FileItem[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -460,35 +462,52 @@ const FileTree: React.FC<FileTreeProps> = ({
       }
       setExpandedFolders(newExpanded);
     } else {
-      // Highlight file on click (for preview)
-      setTree(prevTree => {
-        const clearHighlights = (items: FileItem[]): FileItem[] => {
-          return items.map(treeItem => ({
-            ...treeItem,
-            isHighlighted: false,
-            children: treeItem.children ? clearHighlights(treeItem.children) : undefined
-          }));
-        };
+      // Toggle preview on file click: if already previewed, close it; else open
+      if (item.path === previewedFilePath) {
+        // Close preview: clear highlight and call onFileSelect(null)
+        setTree(prevTree => {
+          const clearHighlights = (items: FileItem[]): FileItem[] => {
+            return items.map(treeItem => ({
+              ...treeItem,
+              isHighlighted: false,
+              children: treeItem.children ? clearHighlights(treeItem.children) : undefined
+            }));
+          };
+          return clearHighlights(prevTree);
+        });
+        setHighlightedFile(null);
+        onFileSelect(null);
+      } else {
+        // Open preview: highlight file and call onFileSelect
+        setTree(prevTree => {
+          const clearHighlights = (items: FileItem[]): FileItem[] => {
+            return items.map(treeItem => ({
+              ...treeItem,
+              isHighlighted: false,
+              children: treeItem.children ? clearHighlights(treeItem.children) : undefined
+            }));
+          };
 
-        const clearedTree = clearHighlights(prevTree);
+          const clearedTree = clearHighlights(prevTree);
 
-        const updateHighlight = (items: FileItem[], targetPath: string): FileItem[] => {
-          return items.map(treeItem => {
-            if (treeItem.path === targetPath) {
-              return { ...treeItem, isHighlighted: true };
-            }
-            if (treeItem.children) {
-              return { ...treeItem, children: updateHighlight(treeItem.children, targetPath) };
-            }
-            return treeItem;
-          });
-        };
+          const updateHighlight = (items: FileItem[], targetPath: string): FileItem[] => {
+            return items.map(treeItem => {
+              if (treeItem.path === targetPath) {
+                return { ...treeItem, isHighlighted: true };
+              }
+              if (treeItem.children) {
+                return { ...treeItem, children: updateHighlight(treeItem.children, targetPath) };
+              }
+              return treeItem;
+            });
+          };
 
-        return updateHighlight(clearedTree, item.path);
-      });
+          return updateHighlight(clearedTree, item.path);
+        });
 
-      setHighlightedFile(item.path);
-      onFileSelect(item.path);
+        setHighlightedFile(item.path);
+        onFileSelect(item.path);
+      }
     }
   };
 
@@ -550,7 +569,11 @@ const FileTree: React.FC<FileTreeProps> = ({
               </span>
             ) : null}
             <span className="item-name">{item.name}</span>
-            {item.isFile && <span className="file-icon eye-icon">👁</span>}
+            {item.isFile && (
+              <span className={`file-icon eye-icon ${item.path === previewedFilePath ? 'previewed' : ''}`}>
+                {item.path === previewedFilePath ? '✕' : '👁'}
+              </span>
+            )}
             {recentlyCopied === item.path && (
               <span className="copied-indicator">✓ path copied</span>
             )}

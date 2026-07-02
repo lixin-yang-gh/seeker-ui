@@ -5,14 +5,16 @@ interface SidebarProps {
   onFileSelect: (filePath: string) => void;
   currentPath: string;
   onFolderOpen: (path: string) => void;
-  onSelectedPathsChange?: (paths: string[]) => void; // Add this
+  onSelectedPathsChange?: (paths: string[]) => void;
+  previewedFile?: string | null;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   onFileSelect,
   currentPath,
   onFolderOpen,
-  onSelectedPathsChange
+  onSelectedPathsChange,
+  previewedFile
 }) => {
   return (
     <div className="sidebar">
@@ -20,7 +22,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         rootPath={currentPath}
         onFileSelect={onFileSelect}
         onFolderOpen={onFolderOpen}
-        onSelectedPathsChange={onSelectedPathsChange} // Pass to FileTree
+        onSelectedPathsChange={onSelectedPathsChange}
+        previewedFilePath={previewedFile}
       />
       <div className="sidebar-footer">
         <div className="current-path">

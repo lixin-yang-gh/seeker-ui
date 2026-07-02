@@ -1,5 +1,5 @@
 // FileManager.tsx - UPDATED
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
 import { OverviewTab, PromptOrganizerTab } from './tabs';
@@ -9,6 +9,7 @@ interface FileManagerProps {
   rootFolder?: string | null;
   selectedFilePaths?: string[];
   onTabChange?: (tabIndex: number) => void;
+  onPreviewChange?: (filePath: string | null) => void;
 }
 
 const FileManager: React.FC<FileManagerProps> = ({
@@ -16,6 +17,7 @@ const FileManager: React.FC<FileManagerProps> = ({
   rootFolder,
   selectedFilePaths = [],
   onTabChange,
+  onPreviewChange,
 }) => {
   const [content, setContent] = useState<FileContent | null>(null);
   const [loading, setLoading] = useState(false);
@@ -23,12 +25,18 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [activeTab, setActiveTab] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
 
+  const closePreview = useCallback(() => {
+    setShowPreview(false);
+    onPreviewChange?.(null);
+  }, [onPreviewChange]);
+
   useEffect(() => {
     if (filePath) {
       loadFile(filePath);
     } else {
       setContent(null);
       setShowPreview(false);
+      onPreviewChange?.(null);
     }
   }, [filePath]);
 
@@ -59,6 +67,7 @@ const FileManager: React.FC<FileManagerProps> = ({
       const fileData = await window.electronAPI.readFile(path);
       setContent(fileData);
       setShowPreview(true);
+      onPreviewChange?.(path);
     } catch (err: unknown) {
       setError(`Error loading file: ${getErrorMessage(err)}`);
       setContent(null);
@@ -130,7 +139,7 @@ const FileManager: React.FC<FileManagerProps> = ({
         </div>
       </div>
       {showPreview && content && (
-        <div className="file-preview-overlay" onClick={() => setShowPreview(false)}>
+        <div className="file-preview-overlay" onClick={closePreview}>
           <div className="file-preview-popup" onClick={(e) => e.stopPropagation()}>
             <div className="file-preview-header">
               <span className="file-preview-title">
@@ -138,7 +147,7 @@ const FileManager: React.FC<FileManagerProps> = ({
               </span>
               <button
                 className="file-preview-close"
-                onClick={() => setShowPreview(false)}
+                onClick={closePreview}
                 title="Close preview"
               >
                 ✕

@@ -8,6 +8,7 @@ import './styles/file_manager.css';
 
 const App: React.FC = () => {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
+  const [previewedFile, setPreviewedFile] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState(300);
@@ -33,15 +34,14 @@ const App: React.FC = () => {
   };
 
   const handleFileSelect = (filePath: string) => {
-    if (filePath === currentFile) {
-      setCurrentFile(null);
-    } else {
-      setCurrentFile(filePath);
-    }
+    setCurrentFile(filePath);
   };
   const handleSelectedPathsChange = (paths: string[]) => {
     setSelectedFilePaths(paths);
   };
+  const handlePreviewChange = useCallback((filePath: string | null) => {
+    setPreviewedFile(filePath);
+  }, []);
 
   return (
     <div
@@ -53,6 +53,7 @@ const App: React.FC = () => {
         currentPath={currentPath}
         onFolderOpen={setCurrentPath}
         onSelectedPathsChange={handleSelectedPathsChange}
+        previewedFile={previewedFile}
       />
       <div
         className="resizer"
@@ -63,12 +64,12 @@ const App: React.FC = () => {
           filePath={currentFile}
           rootFolder={currentPath}
           selectedFilePaths={selectedFilePaths}
+          onPreviewChange={handlePreviewChange}
         />
       </div>
     </div>
   );
 };
-
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

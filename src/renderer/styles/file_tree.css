@@ -235,6 +235,17 @@
     margin-left: 5px;
 }
 
+/* Previewed file icon – always visible, indicates close action */
+.eye-icon.previewed {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  border: 1px dotted #ff6b6b;
+  padding: 0 1px 0 0;
+  border-radius: 4px;
+  color: #ff6b6b;
+}
+
 .item-name {
     font-size: 13px;
     font-family: 'Segoe UI', 'SF Pro Text', -apple-system, sans-serif;
