@@ -33,7 +33,11 @@ const App: React.FC = () => {
   };
 
   const handleFileSelect = (filePath: string) => {
-    setCurrentFile(filePath);
+    if (filePath === currentFile) {
+      setCurrentFile(null);
+    } else {
+      setCurrentFile(filePath);
+    }
   };
   const handleSelectedPathsChange = (paths: string[]) => {
     setSelectedFilePaths(paths);

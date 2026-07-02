@@ -543,14 +543,14 @@ const FileTree: React.FC<FileTreeProps> = ({
             onClick={() => toggleFolder(item)}
             style={{ padding: '2px 4px' }}
           >
+
             {item.isDirectory ? (
               <span className="folder-icon">
                 {isExpanded ? '📂' : '📁'}
               </span>
-            ) : (
-              <span className="file-icon">📄</span>
-            )}
+            ) : null}
             <span className="item-name">{item.name}</span>
+            {item.isFile && <span className="file-icon eye-icon">👁</span>}
             {recentlyCopied === item.path && (
               <span className="copied-indicator">✓ path copied</span>
             )}

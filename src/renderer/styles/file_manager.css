@@ -1046,3 +1046,81 @@ pre::-webkit-scrollbar-thumb:hover,
     color: #666;
     cursor: not-allowed;
 }
+
+/* ────────────────────────────────────────
+   File Preview Popup
+───────────────────────────────────────── */
+
+.file-preview-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    display: flex;
+    padding: 20px 30px 30px 20px;
+}
+
+.file-preview-popup {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #1e1e1e;
+    border: 1px solid #444;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.file-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #a04020;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+
+.file-preview-title {
+    font-size: 15px;
+    color: #cccccc;
+    font-family: 'Consolas', monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-preview-close {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 3px;
+    line-height: 1;
+}
+
+.file-preview-close:hover {
+    background: #c44545;
+    color: white;
+}
+
+.file-preview-textarea {
+    flex: 1;
+    width: 100%;
+    padding: 16px;
+    background: #001a30;
+    color: #dddddd;
+    border: none;
+    resize: none;
+    outline: none;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre;
+    overflow: auto;
+    tab-size: 2;
+}

@@ -223,6 +223,18 @@
     /* Neutral for files */
 }
 
+/* Eye icon – hidden by default, shown on row hover */
+.eye-icon {
+    display: none;
+    font-size: 15px;
+    color: #4ec9b0;
+}
+
+.tree-item:hover .eye-icon {
+    display: inline-block;
+    margin-left: 5px;
+}
+
 .item-name {
     font-size: 13px;
     font-family: 'Segoe UI', 'SF Pro Text', -apple-system, sans-serif;

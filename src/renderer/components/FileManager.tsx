@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
-import { OverviewTab, PromptOrganizerTab, FileEditorTab } from './tabs';
+import { OverviewTab, PromptOrganizerTab } from './tabs';
 
 interface FileManagerProps {
   filePath: string | null;
@@ -21,12 +21,14 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     if (filePath) {
       loadFile(filePath);
     } else {
       setContent(null);
+      setShowPreview(false);
     }
   }, [filePath]);
 
@@ -56,6 +58,7 @@ const FileManager: React.FC<FileManagerProps> = ({
 
       const fileData = await window.electronAPI.readFile(path);
       setContent(fileData);
+      setShowPreview(true);
     } catch (err: unknown) {
       setError(`Error loading file: ${getErrorMessage(err)}`);
       setContent(null);
@@ -73,10 +76,8 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   const promptOrganizerTabName = 'Prompt Organizer';
 
-  const fileEditorTabName = filePath ? getRelativePath(filePath, rootFolder) : 'No file selected';
-
   return (
-    <div className="file-manager">
+    <div className="file-manager" style={{ position: 'relative' }}>
       <div className="header-bar">{headerText}</div>
 
       <div className="tabs-container">
@@ -91,22 +92,13 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 1 ? 'active' : ''}`}
             onClick={() => handleTabChange(1)}
-            disabled={selectedFilePaths.length === 0} // Disable if no files selected
+            disabled={selectedFilePaths.length === 0}
             title={selectedFilePaths.length === 0 ? "Select files to enable this tab" : promptOrganizerTabName}
           >
             {promptOrganizerTabName}
             {selectedFilePaths.length > 0 && (
               <span className="tab-badge">{selectedFilePaths.length}</span>
             )}
-          </button>
-
-          <button
-            className={`tab ${activeTab === 2 ? 'active' : ''}`}
-            onClick={() => handleTabChange(2)}
-            disabled={!filePath}
-            title={filePath ?? undefined}
-          >
-            {fileEditorTabName}
           </button>
         </div>
 
@@ -133,22 +125,34 @@ const FileManager: React.FC<FileManagerProps> = ({
                   onBackToOverview={() => handleTabChange(0)}
                 />
               )}
-
-
-              {activeTab === 2 && filePath && (
-                <FileEditorTab
-                  filePath={filePath}
-                  relativePath={getRelativePath(filePath, rootFolder)}
-                  fileName={fileEditorTabName.split(/[\\/]/).pop() || 'Untitled'}
-                  content={content?.content}
-                  onBackToOverview={() => handleTabChange(0)}
-                  selectedCount={selectedFilePaths.length}
-                />
-              )}
             </>
           )}
         </div>
       </div>
+      {showPreview && content && (
+        <div className="file-preview-overlay" onClick={() => setShowPreview(false)}>
+          <div className="file-preview-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="file-preview-header">
+              <span className="file-preview-title">
+                {getRelativePath(filePath, rootFolder)}
+              </span>
+              <button
+                className="file-preview-close"
+                onClick={() => setShowPreview(false)}
+                title="Close preview"
+              >
+                ✕
+              </button>
+            </div>
+            <textarea
+              className="file-preview-textarea"
+              value={content.content}
+              readOnly
+              spellCheck={false}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
