@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
-import { OverviewTab, PromptOrganizerTab } from './tabs';
+import { OverviewTab, PromptOrganizerTab, InferenceTab, SettingsTab } from './tabs';
 
 interface FileManagerProps {
   filePath: string | null;
@@ -83,7 +83,7 @@ const FileManager: React.FC<FileManagerProps> = ({
     ? 'Overview'
     : `Overview (${selectedFilePaths.length} selected)`;
 
-  const promptOrganizerTabName = 'Prompt Organizer';
+  const promptOrganizerTabName = 'Prompt';
 
   return (
     <div className="file-manager" style={{ position: 'relative' }}>
@@ -108,6 +108,20 @@ const FileManager: React.FC<FileManagerProps> = ({
             {selectedFilePaths.length > 0 && (
               <span className="tab-badge">{selectedFilePaths.length}</span>
             )}
+          </button>
+
+          <button
+            className={`tab ${activeTab === 2 ? 'active' : ''}`}
+            onClick={() => handleTabChange(2)}
+          >
+            Inference
+          </button>
+
+          <button
+            className={`tab ${activeTab === 3 ? 'active' : ''}`}
+            onClick={() => handleTabChange(3)}
+          >
+            Settings
           </button>
         </div>
 
@@ -134,6 +148,10 @@ const FileManager: React.FC<FileManagerProps> = ({
                   onBackToOverview={() => handleTabChange(0)}
                 />
               )}
+
+              {activeTab === 2 && <InferenceTab />}
+
+              {activeTab === 3 && <SettingsTab />}
             </>
           )}
         </div>

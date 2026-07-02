@@ -15,6 +15,8 @@ declare global {
     electronAPI: {
       // Dialog operations
       openDirectory: () => Promise<string | null>;
+      openFileDialog: (options?: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>;
+      saveFileDialog: (options?: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>;
 
       // File system operations
       readDirectory: (path: string) => Promise<Array<{
@@ -62,6 +64,10 @@ declare global {
       // Default System Prompt operations (global)
       getDefaultSystemPrompt: () => Promise<string>;
       saveDefaultSystemPrompt: (value: string) => Promise<{ success: true }>;
+
+      // API Settings (global)
+      getApiSettings: () => Promise<{ openRouterApiKey: string; inferenceModels: string; validationModels: string }>;
+      saveApiSettings: (settings: { openRouterApiKey: string; inferenceModels: string; validationModels: string }) => Promise<{ success: true }>;
 
       redactText: (text: string) => Promise<string>;
 

@@ -25,6 +25,12 @@ interface StoreSchema {
   folderStates?: Record<string, FolderSpecificState>;
   // Global default system prompt
   defaultSystemPrompt?: string;
+  // API settings (global)
+  apiSettings?: {
+    openRouterApiKey: string;
+    inferenceModels: string;
+    validationModels: string;
+  };
 }
 
 // Initialize electron-store
@@ -273,6 +279,32 @@ ipcMain.handle('store:getDefaultSystemPrompt', () => {
 ipcMain.handle('store:saveDefaultSystemPrompt', (_, value: string) => {
   store.set('defaultSystemPrompt', value);
   return { success: true };
+});
+
+// API Settings handlers
+ipcMain.handle('store:getApiSettings', () => {
+  return store.get('apiSettings') || { openRouterApiKey: '', inferenceModels: '', validationModels: '' };
+});
+
+ipcMain.handle('store:saveApiSettings', (_, settings: { openRouterApiKey: string; inferenceModels: string; validationModels: string }) => {
+  store.set('apiSettings', settings);
+  return { success: true };
+});
+
+// File dialog handlers for import/export
+ipcMain.handle('dialog:openFile', async (_, options?: { filters?: { name: string; extensions: string[] }[] }) => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: options?.filters || [{ name: 'JSON', extensions: ['json'] }]
+  });
+  return result.filePaths[0] || null;
+});
+
+ipcMain.handle('dialog:saveFile', async (_, options?: { filters?: { name: string; extensions: string[] }[] }) => {
+  const result = await dialog.showSaveDialog({
+    filters: options?.filters || [{ name: 'JSON', extensions: ['json'] }]
+  });
+  return result.filePath || null;
 });
 
 // App lifecycle

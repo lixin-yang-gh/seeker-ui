@@ -37,6 +37,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDefaultSystemPrompt: () => ipcRenderer.invoke('store:getDefaultSystemPrompt'),
   saveDefaultSystemPrompt: (value) => ipcRenderer.invoke('store:saveDefaultSystemPrompt', value),
 
+  // API Settings (global)
+  getApiSettings: () => ipcRenderer.invoke('store:getApiSettings'),
+  saveApiSettings: (settings) => ipcRenderer.invoke('store:saveApiSettings', settings),
+
+  // File dialogs for import/export
+  openFileDialog: (options) => ipcRenderer.invoke('dialog:openFile', options),
+  saveFileDialog: (options) => ipcRenderer.invoke('dialog:saveFile', options),
+
   redactText: (text) => ipcRenderer.invoke('redact-text', text),
 
   on: (channel, callback) => {

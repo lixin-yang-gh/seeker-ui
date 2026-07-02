@@ -1124,3 +1124,110 @@ pre::-webkit-scrollbar-thumb:hover,
     overflow: auto;
     tab-size: 2;
 }
+
+/* ────────────────────────────────────────
+   Settings Tab
+───────────────────────────────────────── */
+
+.settings-tab {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.settings-tab h3 {
+  margin-bottom: 20px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 600px;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #cccccc;
+}
+
+.settings-input {
+  padding: 8px 12px;
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  color: #d4d4d4;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: #0e639c;
+  box-shadow: 0 0 0 1px rgba(14, 99, 156, 0.3);
+}
+
+.settings-input::placeholder {
+  color: #666;
+  font-style: italic;
+}
+
+.settings-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  align-items: center;
+}
+
+.settings-button {
+  padding: 8px 20px;
+  background: #2a2d2e;
+  border: 1px solid #444;
+  color: #cccccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.settings-button:hover {
+  background: #36393f;
+  border-color: #555;
+}
+
+.settings-button.primary {
+  background: #0e639c;
+  border-color: #007acc;
+  color: white;
+}
+
+.settings-button.primary:hover {
+  background: #1177bb;
+}
+
+.settings-status {
+  margin-left: 8px;
+  font-size: 14px;
+}
+
+.settings-status.success {
+  color: #a5d6a7;
+}
+
+.settings-status.error {
+  color: #ff8a80;
+}
