@@ -1,0 +1,9 @@
+¦ Error: creating Load Balancer (Subscription: "c96c3d3f-9443-4214-9a8b-03a855f9a95b"
+¦ Resource Group Name: "SY-Apps-SQL-Test01-SQLVM-RG"
+¦ Load Balancer Name: "SVSQLAZCLS001NP-ILB"): performing CreateOrUpdate: unexpected status 400 (400 Bad Request) with error: PrivateIPAddressIsAllocated: IP configuration /subscriptions/c96c3d3f-9443-4214-9a8b-03a855f9a95b/resourceGroups/SY-Apps-SQL-Test01-SQLVM-RG/providers/Microsoft.Network/loadBalancers/SVSQLAZCLS001NP-ILB/frontendIPConfigurations/SA-APPS-SQL-Test01-ILB-IP is using the private IP address 10.8.189.132 which is already allocated to resource /subscriptions/c96c3d3f-9443-4214-9a8b-03a855f9a95b/resourceGroups/SY-Apps-SQL-Test01-SQLVM-RG/providers/Microsoft.Network/loadBalancers/SVSQL2AZ10050NP-ILB/frontendIPConfigurations/SA-APPS-SQL-Test01-ILB-IP.
+¦ 
+¦   with module.sqlvm.azurerm_lb.ag_ilb[0],
+¦   on ../modules/sqlvm/networking.tf line 41, in resource "azurerm_lb" "ag_ilb":
+¦   41: resource "azurerm_lb" "ag_ilb" {
+¦ 
+?nbnco

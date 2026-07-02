@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "moduleResolution": "node",
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/shared"
+    ],
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "src/**/*",
+    "src/shared/**/*.d.ts"  // Explicitly include declaration files
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
