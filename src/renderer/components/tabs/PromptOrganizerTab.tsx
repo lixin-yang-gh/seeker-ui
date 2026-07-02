@@ -477,7 +477,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     }
   };
 
-  const canGeneratePrompt = systemPrompt.trim() && task.trim() && selectedFilePaths.length > 0;
+  const canGeneratePrompt = systemPrompt.trim() && task.trim();
 
   return (
     <div className="tab-panel prompt-organizer">

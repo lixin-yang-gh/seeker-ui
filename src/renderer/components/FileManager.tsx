@@ -101,8 +101,6 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 1 ? 'active' : ''}`}
             onClick={() => handleTabChange(1)}
-            disabled={selectedFilePaths.length === 0}
-            title={selectedFilePaths.length === 0 ? "Select files to enable this tab" : promptOrganizerTabName}
           >
             {promptOrganizerTabName}
             {selectedFilePaths.length > 0 && (
