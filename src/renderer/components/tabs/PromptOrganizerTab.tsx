@@ -36,12 +36,35 @@ const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Report', value: 'Please create a report.' },
 ];
 
-const block_replacement_prompt = `\n---\nProvide all changes in separate blocks. Each must begin with a header specifying the **operation type** (Add, Replace, Delete), the **exact file location**, and a one-line **reason** for the change. Use standard Markdown code fences with the appropriate language tag (e.g., \` \` \`python).
-* **Replacements & Deletions:** You must provide the **exact, unique starting and ending lines** from the original file to uniquely anchor the block; intermediate lines may be omitted. For replacements, display the **Original** and **Proposed** content as two separate, clearly labeled blocks.
-* **Additions:** Specify the **precise code snippet or line** after which the new content should be inserted. 
-* **Minimalism (Strict Requirement):** All proposed changes **must be strictly minimal**. Modify only the essential lines; avoid any unnecessary refactoring or rewriting of surrounding text or code.
-* **Full File:** If replacing a file in its entirety, state "Full File" and provide only the new content.
-* **Formatting:** Do not include standalone symbols or decorative characters within text/code blocks; all content must be directly copy-pasteable.`;
+const block_replacement_prompt = `\n---\nFor each file that requires changes, combine all changes of the same operation type into a single block. For a replacement operation, identify the minimal contiguous range of lines that covers all changes (from the earliest start anchor to the latest end anchor). Provide a single fenced code block with the language tag matching the file's language. Above the code block, include a header line of the form [path="<file path>", op="<operation type>"], where op is "add", "replace", or "delete". The path must be relative to project root, prefixed with "<project_root>/".
+
+Inside the block, use the following structure:
+
+- For replacement (op="replace"):
+  [start]
+  <starting anchor, 1-3 lines that uniquely identify the start of the range to be replaced; this must be the earliest line among all changes>
+  [end]
+  <ending anchor, 1-3 lines that uniquely identify the end of the range; this must be the latest line among all changes>
+  [replacement]
+  <new content to replace the entire range from start to end, inclusive, incorporating all modifications>
+
+- For addition (op="add"):
+  [start]
+  <anchor line after which the new content should be inserted>
+  [replacement]
+  <new content to insert>
+
+- For deletion (op="delete"):
+  [start]
+  <starting anchor>
+  [end]
+  <ending anchor>
+  (no replacement section)
+
+- For full file replacement: use op="replace" and include only [replacement] with the full new content, omitting [start] and [end].
+
+All anchors must be unique lines in the file (1-3 lines). Ensure minimal changes; modify only essential lines. Do not include standalone symbols or decorative characters. All content must be directly copy-pasteable.
+`;
 
 const block_replacement_prompt_conditional = block_replacement_prompt.replace(
   '\n---\nProvide all changes',
