@@ -96,3 +96,19 @@ export function applyCustomMasking(text: string, substrings: string[]): string {
 
   return result;
 }
+
+/**
+ * Resolve a path that may start with "<project_root>/" to an absolute path
+ * relative to the given rootFolder.
+ * If the path does not start with the prefix, it is returned unchanged.
+ */
+export function resolveProjectPath(projectPath: string, rootFolder: string): string {
+  const prefix = '<project_root>/';
+  if (projectPath.startsWith(prefix)) {
+    const rel = projectPath.slice(prefix.length).replace(/\\/g, '/');
+    const normalizedRoot = rootFolder.replace(/\\/g, '/');
+    const root = normalizedRoot.endsWith('/') ? normalizedRoot : normalizedRoot + '/';
+    return root + rel;
+  }
+  return projectPath;
+}

@@ -36,7 +36,7 @@ const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Report', value: 'Please create a report.' },
 ];
 
-const block_replacement_prompt = `\n---\nFor each file that requires changes, combine all changes of the same operation type into a single block. For a replacement operation, identify a contiguous range of lines that includes sufficient surrounding context (e.g., 3-5 lines before and after) to maximize the uniqueness of the block, while still covering all changes (from the earliest start anchor to the latest end anchor). Provide a single fenced code block with the language tag matching the file's language. Above the code block, include a header line of the form [path="<file path>", op="<operation type>"], where op is "add", "replace", or "delete". The path must be relative to project root, prefixed with "<project_root>/".
+const block_replacement_prompt = `\n---\nFor each file that requires changes, combine all changes of the same operation type into a single block. For a replacement operation, identify a contiguous range of lines that includes sufficient surrounding context (e.g., 3-5 lines before and after) to maximize the uniqueness of the block, while still covering all changes (from the earliest start anchor to the latest end anchor). Provide a single fenced code block with the language tag matching the file's language. Above the code block, include a header line of the form [path="<file path>", op="<operation type>", scope="<scope>"], where op is "add", "replace", or "delete", and scope is "file" when replacing the entire file content or "block" when replacing a partial block within the file. The path must be relative to project root, prefixed with "<project_root>/".
 
 Inside the block, use the following structure:
 

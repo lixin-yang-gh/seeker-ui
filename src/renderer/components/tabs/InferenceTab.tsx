@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { resolveProjectPath } from '../../../shared/utils';
 
 interface InferenceTabProps {
   rootFolder?: string | null;
@@ -12,7 +13,7 @@ interface InferenceTabProps {
   onClearResult?: () => void;
 }
 
-// ─── Block Replacement Renderer ──────────────────────────────────
+// ─── Block Replacement Parser ─────────────────────────────────────
 
 interface ParsedSection {
   start?: string;
@@ -23,6 +24,7 @@ interface ParsedSection {
 interface BlockReplacementItem {
   path: string;
   op: string;
+  scope: string;
   lang: string;
   sections: ParsedSection;
   raw: string;
@@ -39,14 +41,9 @@ function parseBlockReplacementContent(raw: string): ParsedSection {
   };
 }
 
-/**
- * Parse inference result text into structured block replacement items
- * and remaining markdown segments.
- */
 function parseInferenceResult(text: string): Array<{ type: 'markdown'; content: string } | { type: 'block'; item: BlockReplacementItem }> {
   const segments: Array<{ type: 'markdown'; content: string } | { type: 'block'; item: BlockReplacementItem }> = [];
-  // Match: optional preceding text, then [path="...", op="..."] header, then fenced code block
-  const pattern = /(\[path="([^"]+)",\s*op="([^"]+)"\])\s*\n```(\w*)\n([\s\S]*?)```/g;
+  const pattern = /(\[path="([^"]+)",\s*op="([^"]+)"(?:,\s*scope="([^"]*)")?\])\s*\n```(\w*)\n([\s\S]*?)```/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -54,14 +51,22 @@ function parseInferenceResult(text: string): Array<{ type: 'markdown'; content: 
     if (match.index > lastIndex) {
       segments.push({ type: 'markdown', content: text.slice(lastIndex, match.index) });
     }
-    const [, , filePath, op, lang, body] = match;
+    const [, , filePath, op, scope, lang, body] = match;
+    const sections = parseBlockReplacementContent(body);
+    // If no scope attribute and no [start]/[end] anchors, treat as full-file replacement
+    const resolvedScope = scope ?? (
+      sections.replacement !== undefined && sections.start === undefined && sections.end === undefined
+        ? 'file'
+        : 'block'
+    );
     segments.push({
       type: 'block',
       item: {
         path: filePath,
         op,
+        scope: resolvedScope,
         lang,
-        sections: parseBlockReplacementContent(body),
+        sections,
         raw: body,
       },
     });
@@ -74,6 +79,23 @@ function parseInferenceResult(text: string): Array<{ type: 'markdown'; content: 
 
   return segments;
 }
+
+function extractOriginalCodeBlock(
+  fileContent: string,
+  startAnchor: string,
+  endAnchor: string
+): string | null {
+  const startIdx = fileContent.indexOf(startAnchor);
+  if (startIdx === -1) return null;
+  let endIdx = fileContent.indexOf(endAnchor, startIdx + startAnchor.length);
+  if (endIdx === -1) {
+    if (endAnchor === startAnchor) endIdx = startIdx;
+    else return null;
+  }
+  return fileContent.substring(startIdx, endIdx + endAnchor.length);
+}
+
+// ─── Copy Button ──────────────────────────────────────────────────
 
 const CopyButton: React.FC<{ text: string; label?: string }> = ({ text, label = 'Copy' }) => {
   const [copied, setCopied] = useState(false);
@@ -101,39 +123,62 @@ const CopyButton: React.FC<{ text: string; label?: string }> = ({ text, label = 
   );
 };
 
-const SectionBlock: React.FC<{ title: string; content: string; accent: string }> = ({ title, content, accent }) => (
-  <div style={{ marginBottom: '6px' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-      <span style={{ fontSize: '11px', fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-        {title}
-      </span>
+// ─── Section Block (original / replacement / anchor) ──────────────
+
+const SectionBlock: React.FC<{
+  title: string;
+  content: string;
+  sectionType: 'original' | 'replacement' | 'anchor';
+}> = ({ title, content, sectionType }) => (
+  <div className={`inference-section-block inference-section-${sectionType}`}>
+    <div className="inference-section-header">
+      <span className="inference-section-label">{title}</span>
       <CopyButton text={content} />
     </div>
-    <pre style={{
-      margin: 0,
-      background: '#1a1f2e',
-      border: `1px solid ${accent}44`,
-      borderLeft: `3px solid ${accent}`,
-      borderRadius: '4px',
-      padding: '8px 12px',
-      fontSize: '12px',
-      whiteSpace: 'pre-wrap',
-      wordBreak: 'break-all',
-      color: '#e6edf3',
-    }}>
+    <div className={`inference-code-block inference-code-${sectionType}`}>
       <code>{content}</code>
-    </pre>
+    </div>
   </div>
 );
 
-const BlockReplacementView: React.FC<{ item: BlockReplacementItem }> = ({ item }) => {
+// ─── Block Replacement View ───────────────────────────────────────
+
+const BlockReplacementView: React.FC<{
+  item: BlockReplacementItem;
+  rootFolder?: string | null;
+}> = ({ item, rootFolder }) => {
+  const [originalCode, setOriginalCode] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!rootFolder) return;
+    const absPath = resolveProjectPath(item.path, rootFolder);
+
+    window.electronAPI.readFile(absPath)
+      .then((fileData) => {
+        const content = fileData.content;
+        if (item.scope === 'file') {
+          setOriginalCode(content);
+        } else if (item.sections.start && item.sections.end) {
+          const extracted = extractOriginalCodeBlock(content, item.sections.start, item.sections.end);
+          if (extracted) setOriginalCode(extracted);
+          else setLoadError(`Could not locate anchors in: ${item.path}`);
+        } else {
+          setLoadError(`Missing anchors for scope="block" in: ${item.path}`);
+        }
+      })
+      .catch((err) => {
+        setLoadError(`Failed to read: ${item.path} – ${String(err)}`);
+      });
+  }, [item, rootFolder]);
+
   const opColor: Record<string, string> = {
     replace: '#58b0ff',
     add: '#4ec9b0',
     delete: '#f48771',
   };
   const color = opColor[item.op.toLowerCase()] ?? '#aaa';
-  const { start, end, replacement } = item.sections;
+  const { replacement } = item.sections;
 
   return (
     <div style={{
@@ -167,6 +212,11 @@ const BlockReplacementView: React.FC<{ item: BlockReplacementItem }> = ({ item }
         <span style={{ fontFamily: 'Consolas, monospace', fontSize: '12px', color: '#9cdcfe', flex: 1 }}>
           {item.path}
         </span>
+        {item.scope && (
+          <span style={{ fontSize: '11px', color: item.scope === 'file' ? '#4ec9b0' : '#aaa', padding: '1px 6px', border: '1px solid #444', borderRadius: '3px' }}>
+            {item.scope}
+          </span>
+        )}
         {item.lang && (
           <span style={{ fontSize: '11px', color: '#888' }}>{item.lang}</span>
         )}
@@ -175,24 +225,27 @@ const BlockReplacementView: React.FC<{ item: BlockReplacementItem }> = ({ item }
 
       {/* Sections */}
       <div style={{ padding: '10px 14px' }}>
-        {start !== undefined && (
-          <SectionBlock title="[start]" content={start} accent="#4ec9b0" />
+        {loadError && (
+          <div style={{ color: '#f48771', fontSize: '12px', marginBottom: '8px' }}>⚠️ {loadError}</div>
         )}
-        {end !== undefined && (
-          <SectionBlock title="[end]" content={end} accent="#ce9178" />
+        {originalCode !== null && (
+          <SectionBlock title="[original]" content={originalCode} sectionType="original" />
         )}
         {replacement !== undefined && (
-          <SectionBlock title="[replacement]" content={replacement} accent="#58b0ff" />
+          <SectionBlock title="[replacement]" content={replacement} sectionType="replacement" />
         )}
-        {start === undefined && end === undefined && replacement === undefined && (
-          <pre style={{ margin: 0, color: '#888', fontSize: '12px' }}>{item.raw}</pre>
+        {originalCode === null && !loadError && !rootFolder && (
+          <SectionBlock title="[start/end/replacement]" content={item.raw} sectionType="anchor" />
+        )}
+        {originalCode === null && !loadError && rootFolder && (
+          <div style={{ color: '#888', fontSize: '12px' }}>Loading original…</div>
         )}
       </div>
     </div>
   );
 };
 
-// ─── Generic Code Block (non-structured) ─────────────────────────
+// ─── Generic Code Block ───────────────────────────────────────────
 
 const CodeBlock: React.FC<{ inline?: boolean; className?: string; children?: React.ReactNode }> = ({
   inline,
@@ -242,13 +295,13 @@ const CodeBlock: React.FC<{ inline?: boolean; className?: string; children?: Rea
 
 // ─── Inference Result Renderer ────────────────────────────────────
 
-const InferenceResultRenderer: React.FC<{ text: string }> = ({ text }) => {
+const InferenceResultRenderer: React.FC<{ text: string; rootFolder?: string | null }> = ({ text, rootFolder }) => {
   const segments = parseInferenceResult(text);
   return (
     <>
       {segments.map((seg, i) =>
         seg.type === 'block' ? (
-          <BlockReplacementView key={i} item={seg.item} />
+          <BlockReplacementView key={i} item={seg.item} rootFolder={rootFolder} />
         ) : (
           <ReactMarkdown
             key={i}
@@ -275,7 +328,6 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
 }) => {
   const [model, setModel] = useState<string>('');
   const [temperature, setTemperature] = useState<number | undefined>(undefined);
-  const [models, setModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -293,7 +345,6 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         while ((match = regex.exec(modelsStr)) !== null) {
           if (match[1].trim()) parsedModels.push(match[1].trim());
         }
-        setModels(parsedModels);
         setModel(folderState?.inferenceModel || parsedModels[0] || '');
         setTemperature(folderState?.temperature ?? 0.1);
       } catch (error) {
@@ -365,7 +416,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         </div>
         <div className="inference-result-area">
           {inferenceStatus === 'success' && inferenceResult ? (
-            <InferenceResultRenderer text={inferenceResult} />
+            <InferenceResultRenderer text={inferenceResult} rootFolder={rootFolder} />
           ) : (
             <span style={{ color: '#666', fontStyle: 'italic' }}>No result yet. Run inference from the Prompt tab.</span>
           )}

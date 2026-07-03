@@ -1324,14 +1324,15 @@ pre::-webkit-scrollbar-thumb:hover,
 }
 
 .inference-controls-column {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
+
 .inference-controls-button-column {
-  display: flex;
-  align-items: center;
-  margin-left: 12px;
+    display: flex;
+    align-items: center;
+    margin-left: 12px;
 }
 
 .inference-loading {
@@ -1391,29 +1392,103 @@ pre::-webkit-scrollbar-thumb:hover,
 }
 
 .inference-result-area pre {
-  background: #202a40;          /* darker than surrounding area */
-  border: 1px solid #30363d;
-  border-left: 3px solid #58b0ff;  /* accent stripe */
-  border-radius: 6px;
-  padding: 14px 16px;
-  margin: 10px 0;
-  overflow-x: auto;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 12.5px;
-  line-height: 1.5;
+    background: #202a40;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 .inference-result-area pre code {
-  background: transparent;
-  padding: 0;
-  color: #e6edf3;
+    background: transparent;
+    padding: 0;
+    color: #e6edf3;
 }
 
 .inference-result-area p code {
-  background: #2d333b;          /* inline code distinction */
-  padding: 2px 5px;
-  border-radius: 3px;
-  font-size: 12px;
-  /* color: #79c0ff; */
-  color: orange;
+    background: #2d333b;
+    /* inline code distinction */
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    /* color: #79c0ff; */
+    color: orange;
+}
+
+/* ────────────────────────────────────────
+   Inference Result — Section Blocks
+   (original = blue accent, replacement = green accent)
+───────────────────────────────────────── */
+
+.inference-section-block {
+    margin-bottom: 8px;
+}
+
+.inference-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.inference-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── [original] block — blue accent ── */
+.inference-section-original .inference-section-label {
+    color: #3890df;
+}
+
+.inference-code-original {
+    background: #2a3040;
+    /* dark blue tint */
+    border: 1px solid #58b0ff55;
+    border-left: 3px solid #58b0ff;
+}
+
+/* ── [replacement] block — green accent ── */
+.inference-section-replacement .inference-section-label {
+    color: #f09210;
+}
+
+.inference-code-replacement {
+    background: #4a3e2e;
+    border: 1px solid #f0921055;
+    border-left: 3px solid #f09210;
+}
+
+/* ── anchor / raw fallback block ── */
+.inference-section-anchor .inference-section-label {
+    color: #aaa;
+}
+
+.inference-code-anchor {
+    margin: 0;
+    background: #202020;
+    border: 1px solid #44444455;
+    border-left: 3px solid #666;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #bbb;
+    font-family: 'Consolas', 'Monaco', monospace;
+    overflow-x: auto;
+}
+
+.inference-code-block {
+    margin: 5px 0;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #e6edf3;
+    font-family: 'Consolas', 'Monaco', monospace;
+    overflow-x: auto;
 }
