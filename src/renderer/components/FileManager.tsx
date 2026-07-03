@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
-import { OverviewTab, PromptOrganizerTab, InferenceTab, SettingsTab } from './tabs';
+import { OverviewTab, PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab } from './tabs';
 
 interface FileManagerProps {
   filePath: string | null;
@@ -121,6 +121,13 @@ const FileManager: React.FC<FileManagerProps> = ({
           >
             Settings
           </button>
+
+          <button
+            className={`tab ${activeTab === 4 ? 'active' : ''}`}
+            onClick={() => handleTabChange(4)}
+          >
+            About
+          </button>
         </div>
 
         <div className="tab-content">
@@ -150,6 +157,8 @@ const FileManager: React.FC<FileManagerProps> = ({
               {activeTab === 2 && <InferenceTab />}
 
               {activeTab === 3 && <SettingsTab />}
+
+              {activeTab === 4 && <AboutTab />}
             </>
           )}
         </div>

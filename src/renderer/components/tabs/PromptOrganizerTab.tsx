@@ -85,6 +85,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
   const [showConfirmSave, setShowConfirmSave] = useState(false);
   const [confirmTimer, setConfirmTimer] = useState<NodeJS.Timeout | null>(null);
+  const [redactionApplied, setRedactionApplied] = useState(false);
 
   // Load saved data when rootFolder changes
   useEffect(() => {
@@ -349,11 +350,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     loadFileContents();
   }, [loadFileContents]);
 
-  const handleReloadAll = async () => {
-    await loadFileContents();          // reload fresh file contents
-    await handleGeneratePrompt(false);  // generate and copy prompt (like “Get Prompt”)
-  };
-
   // Handle New Task button - clear Task textarea
   const handleNewTask = () => {
     setTask('');
@@ -410,10 +406,23 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     });
   };
 
+  const handleCopyPrompt = async () => {
+    if (!systemPrompt.trim() || !task.trim()) return;
 
+    setGenerationStatus('generating');
+    try {
+      // Reload files
+      await loadFileContents();
+      // Generate prompt with or without redaction based on checkbox
+      await handleGeneratePrompt(redactionApplied);
+    } catch (error) {
+      console.error('Failed to copy prompt:', error);
+      setGenerationStatus('error');
+    }
+  };
 
   const handleGeneratePrompt = async (applyRedaction: boolean = true) => {
-    if (!systemPrompt.trim() || !task.trim() || selectedFilePaths.length === 0) return;
+    if (!systemPrompt.trim() || !task.trim()) return;
 
     setGenerationStatus('generating');
 
@@ -427,18 +436,15 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
       const customSubstrings = parseMaskedSubstrings(maskedSubstrings);
 
-      // Apply custom substring masking to all fields
-      let processedSystemPrompt = sanitizedSystemPrompt;
-      let processedTask = sanitizedTask;
-      let processedIssues = sanitizedIssues;
-      let processedFiles = filesContent;
-
-      processedIssues = applyCustomMasking(processedIssues, customSubstrings);
-      processedFiles = applyCustomMasking(processedFiles, customSubstrings);
+      // Apply custom substring masking unconditionally to all fields
+      const processedSystemPrompt = applyCustomMasking(sanitizedSystemPrompt, customSubstrings);
+      const processedTask = applyCustomMasking(sanitizedTask, customSubstrings);
+      const processedIssues = applyCustomMasking(sanitizedIssues, customSubstrings);
+      const processedFiles = applyCustomMasking(filesContent, customSubstrings);
 
       // Build the prompt parts
       const promptParts = [];
-      const missingFilesNomination='---\n**Please nominate missing or unselected but still anticipated files if there are any**\n';
+      const missingFilesNomination = '---\n**Please nominate missing or unselected but still anticipated files if there are any**\n';
 
       promptParts.push(`<system_prompt content="System Prompt">\n${processedSystemPrompt}\n</system_prompt>`);
       promptParts.push(`<task content="Task">\n${processedTask}\n${missingFilesNomination}</task>`);
@@ -483,20 +489,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     <div className="tab-panel prompt-organizer">
       <div className="generate-prompt-section">
         <div className="generate-prompt-header">
-          <div className="status-indicator">
-            <span
-              className={`status-dot ${isLoadingFiles ? 'loading' : selectedFilePaths.length > 0 ? 'ready' : 'idle'
-                }`}
-            />
-            <span>
-              {isLoadingFiles
-                ? 'Loading...'
-                : selectedFilePaths.length > 0
-                  ? `${selectedFilePaths.length} files ready`
-                  : 'No files selected'}
-            </span>
-          </div>
-
           <div className="masked-substrings-container">
             <label
               htmlFor="masked-substrings"
@@ -532,34 +524,22 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-            <button
-              className="reload-files-button"
-              onClick={handleReloadAll}
-              disabled={isLoadingFiles || selectedFilePaths.length === 0}
-              title="Reload all referenced file contents"
-            >
-              Reload All<br />Files
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#ccc', fontSize: '13px' }}>
+              <input
+                type="checkbox"
+                checked={redactionApplied}
+                onChange={(e) => setRedactionApplied(e.target.checked)}
+              />
+              Redaction Applied
+            </label>
             <button
               className={`generate-prompt-button ${!canGeneratePrompt ? 'disabled' : ''} ${generationStatus === 'success' ? 'success' : ''
                 }`}
-              onClick={() => handleGeneratePrompt(false)}
+              onClick={handleCopyPrompt}
               disabled={!canGeneratePrompt || generationStatus === 'generating'}
             >
-              Get<br />Prompt
-            </button>
-            <button
-              className={`generate-prompt-button ${!canGeneratePrompt ? 'disabled' : ''} ${generationStatus === 'success' ? 'success' : ''
-                }`}
-              style={{ width: '150px' }}
-              onClick={() => handleGeneratePrompt(true)}
-              disabled={!canGeneratePrompt || generationStatus === 'generating'}
-            >
-              Get Redacted<br />Prompt
+              Copy Prompt
             </button>
           </div>
         </div>
@@ -662,14 +642,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                 Task <span className="required-marker">*</span>
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  className="toolbar-button"
-                  onClick={handleGetStandalonePrompt}
-                  title="Copy task with masked substrings to clipboard"
-                  disabled={!task.trim()}
-                >
-                  Standalone Prompt
-                </button>
                 <button
                   className="toolbar-button"
                   onClick={handleNewTask}
@@ -818,9 +790,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           <div className="referenced-files-header">
             <h4>Referenced Files ({selectedFilePaths.length})</h4>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="toolbar-button reload-files-button-sml" onClick={handleReloadAll} title="Reload all file contents">
-                ↻ Reload All
-              </button>
               <button
                 className="toolbar-button"
                 onClick={onBackToOverview}

@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { parseMaskedSubstrings } from '../../../shared/utils';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const SettingsTab: React.FC = () => {
   const [openRouterApiKey, setOpenRouterApiKey] = useState('');
@@ -7,6 +6,8 @@ const SettingsTab: React.FC = () => {
   const [validationModels, setValidationModels] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isApiKeyFocused, setIsApiKeyFocused] = useState(false);
+  const isInitialLoad = useRef(true);
+  const lastSavedSettingsRef = useRef<{ openRouterApiKey: string; inferenceModels: string; validationModels: string } | null>(null);
 
   // Load settings on mount
   useEffect(() => {
@@ -16,28 +17,64 @@ const SettingsTab: React.FC = () => {
         setOpenRouterApiKey(settings.openRouterApiKey || '');
         setInferenceModels(settings.inferenceModels || '');
         setValidationModels(settings.validationModels || '');
+        // Store loaded values as the baseline for change detection
+        lastSavedSettingsRef.current = {
+          openRouterApiKey: settings.openRouterApiKey || '',
+          inferenceModels: settings.inferenceModels || '',
+          validationModels: settings.validationModels || '',
+        };
       } catch (err) {
         console.error('Failed to load API settings:', err);
+      } finally {
+        isInitialLoad.current = false;
       }
     };
     loadSettings();
   }, []);
 
-  const handleSave = async () => {
+  const doSave = useCallback(async (key: string, inference: string, validation: string) => {
     try {
       await window.electronAPI.saveApiSettings({
-        openRouterApiKey,
-        inferenceModels,
-        validationModels
+        openRouterApiKey: key,
+        inferenceModels: inference,
+        validationModels: validation,
       });
       setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      return; // keep promise resolution
     } catch (err) {
       console.error('Failed to save settings:', err);
       setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      throw err; // re-throw to allow .catch in the effect
     }
-  };
+  }, []);
+
+  // Debounced auto-save only when any field has changed from the last saved state
+  useEffect(() => {
+    if (isInitialLoad.current) return;
+
+    const current = { openRouterApiKey, inferenceModels, validationModels };
+    // Skip save if no changes since last successful save
+    if (lastSavedSettingsRef.current &&
+        current.openRouterApiKey === lastSavedSettingsRef.current.openRouterApiKey &&
+        current.inferenceModels === lastSavedSettingsRef.current.inferenceModels &&
+        current.validationModels === lastSavedSettingsRef.current.validationModels) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      doSave(openRouterApiKey, inferenceModels, validationModels)
+        .then(() => {
+          // Update snapshot on successful save
+          lastSavedSettingsRef.current = { ...current };
+        })
+        .catch(() => {
+          // On error, keep old snapshot so retry may happen on next change
+        });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [openRouterApiKey, inferenceModels, validationModels, doSave]);
 
   const handleImport = async () => {
     try {
@@ -119,9 +156,6 @@ const SettingsTab: React.FC = () => {
         </div>
       </div>
       <div className="settings-actions">
-        <button className="settings-button primary" onClick={handleSave}>
-          Save
-        </button>
         <button className="settings-button" onClick={handleImport}>
           Import
         </button>

@@ -227,7 +227,7 @@
 .eye-icon {
     display: none;
     font-size: 15px;
-    color: #4ec9b0;
+    color: #80e0ff;
 }
 
 .tree-item:hover .eye-icon {
@@ -239,11 +239,12 @@
 .eye-icon.previewed {
   display: inline-block;
   margin-left: 5px;
-  font-size: 10px;
+  font-size: 8px;
   border: 1px dotted #ff6b6b;
-  padding: 0 1px 0 0;
+  padding: 2px 0;
   border-radius: 4px;
-  color: #ff6b6b;
+  background: #a04040;
+  color: #ffffff;
 }
 
 .item-name {

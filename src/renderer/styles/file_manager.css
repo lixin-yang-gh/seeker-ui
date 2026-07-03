@@ -239,6 +239,7 @@
     border-radius: 6px;
     padding: 12px;
     margin-bottom: 20px;
+    display: flex;
 }
 
 .generate-prompt-header {
@@ -972,8 +973,8 @@ pre::-webkit-scrollbar-thumb:hover,
 }
 
 .masked-substrings-container {
-    padding: 0 20px;
-    width: 100%;
+    padding: 0 20px 0 0;
+    max-width: 600px;
 }
 
 /* Reload All Files button - orange variant */
