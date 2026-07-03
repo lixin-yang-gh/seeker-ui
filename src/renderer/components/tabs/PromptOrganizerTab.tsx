@@ -531,7 +531,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                 checked={redactionApplied}
                 onChange={(e) => setRedactionApplied(e.target.checked)}
               />
-              Redaction Applied
+              Redaction<br />Applied
             </label>
             <button
               className={`generate-prompt-button ${!canGeneratePrompt ? 'disabled' : ''} ${generationStatus === 'success' ? 'success' : ''
