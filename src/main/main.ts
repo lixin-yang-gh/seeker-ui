@@ -15,6 +15,8 @@ interface FolderSpecificState {
   issues?: string;
   selectedHeader?: string;
   maskedSubstrings?: string;
+  inferenceModel?: string;
+  temperature?: number;
 }
 
 // Define the store schema
@@ -308,30 +310,24 @@ ipcMain.handle('dialog:saveFile', async (_, options?: { filters?: { name: string
 });
 
 // OpenRouter API call
-ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, deepThinking, webSearch }) => {
+ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, deepThinking, webSearch, temperature, temperature_claude }) => {
   const apiSettings = store.get('apiSettings');
   const apiKey = apiSettings?.openRouterApiKey;
-  if (!apiKey) {
-    throw new Error('OpenRouter API key not configured. Please set it in Settings.');
-  }
+  if (!apiKey) throw new Error('OpenRouter API key not configured. Please set it in Settings.');
+  if (!model) throw new Error('Model name is required');
 
-  if (!model) {
-    throw new Error('Model name is required');
-  }
+  const result = await callOpenRouter({
+    systemPrompt,
+    userPrompt,
+    model,
+    apiKey,
+    deepThinking,
+    webSearch,
+    ...(temperature !== undefined && { temperature }),
+    ...(temperature_claude !== undefined && { temperature_claude }),
+  });
 
-  try {
-    const result = await callOpenRouter({
-      systemPrompt,
-      userPrompt,
-      model,
-      apiKey,
-      deepThinking: !!deepThinking,
-      webSearch: !!webSearch,
-    });
-    return { success: true, content: result.text, reasoning: result.reasoning, usage: result.usage };
-  } catch (error) {
-    throw new Error(`OpenRouter call failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  return { success: true, content: result.text, reasoning: result.reasoning, usage: result.usage };
 });
 
 // App lifecycle

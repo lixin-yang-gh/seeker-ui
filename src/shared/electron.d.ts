@@ -8,6 +8,8 @@ interface FolderSpecificState {
   issues?: string;
   selectedHeader?: string;
   maskedSubstrings?: string;
+  inferenceModel?: string;
+  temperature?: number;
 }
 
 declare global {
@@ -75,8 +77,13 @@ declare global {
         systemPrompt: string,
         userPrompt: string,
         model: string,
-        options?: { deepThinking?: boolean; thinkingBudget?: number; webSearch?: boolean }
-      ) => Promise<{ success: true; content: string; reasoning?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }>;
+        options?: {
+          deepThinking?: { enabled: boolean; budgetTokens?: number };
+          webSearch?: { enabled: boolean; maxResults?: number };
+          temperature?: number;
+          temperature_claude?: number;
+        }
+      ) => Promise<{ success: true; content: string; reasoning?: string; usage?: object }>;
 
       // Events
       on: (channel: string, callback: (...args: any[]) => void) => void;

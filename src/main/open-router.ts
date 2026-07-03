@@ -59,6 +59,7 @@ export interface OpenRouterRequest {
   model: string;
   apiKey: string;
   temperature?: number;
+  temperature_claude?: number;
   maxTokens?: number;
   topP?: number;
   /** Enable deep thinking / extended reasoning when the model supports it */
@@ -128,7 +129,8 @@ export async function callOpenRouter(params: OpenRouterRequest): Promise<OpenRou
     userPrompt,
     model,
     apiKey,
-    temperature = 0.7,
+    temperature = 0.1,
+    temperature_claude = 1,
     maxTokens = 8_192,
     topP = 1.0,
     deepThinking = false,
@@ -143,7 +145,7 @@ export async function callOpenRouter(params: OpenRouterRequest): Promise<OpenRou
   const thinkingActive = deepThinking && (cap.anthropicThinking || cap.nativeReasoning);
   const searchActive = webSearch && cap.webSearch;
 
-  const effectiveTemp = thinkingActive && cap.requiresTempOne ? 1 : temperature;
+  const effectiveTemp = thinkingActive && cap.requiresTempOne ? temperature_claude  : temperature;
   const effectiveMaxTokens = thinkingActive
     ? Math.max(maxTokens, cap.thinkingMinTokens ?? 16_000)
     : maxTokens;

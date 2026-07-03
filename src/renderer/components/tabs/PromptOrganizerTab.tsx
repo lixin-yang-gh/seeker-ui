@@ -7,6 +7,8 @@ import {
   applyCustomMasking
 } from '../../../shared/utils';
 
+import InferenceControls from '../shared/InferenceControls';
+
 interface PromptOrganizerTabProps {
   selectedFilePaths: string[];
   rootFolder?: string | null;
@@ -86,6 +88,11 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   const [showConfirmSave, setShowConfirmSave] = useState(false);
   const [confirmTimer, setConfirmTimer] = useState<NodeJS.Timeout | null>(null);
   const [redactionApplied, setRedactionApplied] = useState(false);
+
+  const [inferenceStatus2, setInferenceStatus2] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [inferenceResult, setInferenceResult] = useState('');
+  const [inferenceReasoning, setInferenceReasoning] = useState('');
+  const [inferenceError, setInferenceError] = useState('');
 
   // Load saved data when rootFolder changes
   useEffect(() => {
@@ -485,6 +492,66 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
   const canGeneratePrompt = systemPrompt.trim() && task.trim();
 
+  const handleStartInference = useCallback(async (model: string, temperature: number) => {
+    if (!canGeneratePrompt) return;
+
+    setInferenceStatus2('running');
+    setInferenceResult('');
+    setInferenceReasoning('');
+    setInferenceError('');
+
+    try {
+      await loadFileContents();
+
+      const sanitizedSystemPrompt = sanitizeText(systemPrompt.trim());
+      const sanitizedTask = sanitizeText(task.trim());
+      const sanitizedIssues = issues.trim() ? sanitizeText(issues.trim()) : '';
+      const filesContent = referencedFilesContent;
+      const customSubstrings = parseMaskedSubstrings(maskedSubstrings);
+
+      const processedSystemPrompt = applyCustomMasking(sanitizedSystemPrompt, customSubstrings);
+      const processedTask = applyCustomMasking(sanitizedTask, customSubstrings);
+      const processedIssues = applyCustomMasking(sanitizedIssues, customSubstrings);
+      const processedFiles = applyCustomMasking(filesContent, customSubstrings);
+
+      const userParts: string[] = [];
+      userParts.push(`<task>${processedTask}</task>`);
+      if (processedIssues) {
+        const xmlTag = selectedHeader || 'issues';
+        userParts.push(`<${xmlTag}>${processedIssues}</${xmlTag}>`);
+      }
+      if (processedFiles.trim()) {
+        userParts.push(`<referenced_files>${processedFiles}</referenced_files>`);
+      }
+
+      let sysPrompt = processedSystemPrompt;
+      let userPrompt = userParts.join('\n\n');
+
+      if (redactionApplied) {
+        try {
+          sysPrompt = await window.electronAPI.redactText(sysPrompt);
+          userPrompt = await window.electronAPI.redactText(userPrompt);
+        } catch (e) {
+          console.error('Redaction failed, using unredacted prompt:', e);
+        }
+      }
+
+      const result = await window.electronAPI.callOpenRouter(
+        sysPrompt,
+        userPrompt,
+        model,
+        { temperature }
+      );
+
+      setInferenceResult(result.content || result.text || '');
+      if (result.reasoning) setInferenceReasoning(result.reasoning);
+      setInferenceStatus2('success');
+    } catch (error) {
+      setInferenceError(getErrorMessage(error));
+      setInferenceStatus2('error');
+    }
+  }, [canGeneratePrompt, systemPrompt, task, issues, selectedHeader, maskedSubstrings, referencedFilesContent, redactionApplied, loadFileContents]);
+
   return (
     <div className="tab-panel prompt-organizer">
       <div className="generate-prompt-section">
@@ -541,6 +608,11 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
             >
               Copy Prompt
             </button>
+            <InferenceControls
+              rootFolder={rootFolder ?? null}
+              onStartInference={handleStartInference}
+              disabled={!canGeneratePrompt || inferenceStatus2 === 'running'}
+            />
           </div>
         </div>
 
@@ -549,6 +621,27 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
         )}
         {generationStatus === 'error' && (
           <div className="alert-message alert-error">Failed to copy prompt</div>
+        )}
+        {inferenceStatus2 === 'running' && (
+          <div className="inference-loading" style={{ padding: '8px 0' }}>Running inference…</div>
+        )}
+        {inferenceStatus2 === 'error' && (
+          <div className="inference-result-area"><span className="error">{inferenceError}</span></div>
+        )}
+        {inferenceStatus2 === 'success' && (
+          <div style={{ marginTop: '8px' }}>
+            {inferenceReasoning && (
+              <div style={{ marginBottom: '6px' }}>
+                <label style={{ fontSize: '11px', color: '#888' }}>Reasoning</label>
+                <div className="inference-result-area" style={{ maxHeight: '120px', color: '#aaa' }}>{inferenceReasoning}</div>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '11px', color: '#888' }}>Inference Result</label>
+              <button className="toolbar-button" onClick={() => navigator.clipboard.writeText(inferenceResult)} style={{ padding: '2px 8px', fontSize: '11px' }}>Copy</button>
+            </div>
+            <div className="inference-result-area" style={{ maxHeight: '250px' }}>{inferenceResult}</div>
+          </div>
         )}
       </div>
 

@@ -154,7 +154,12 @@ const FileManager: React.FC<FileManagerProps> = ({
                 />
               )}
 
-              {activeTab === 2 && <InferenceTab />}
+              {activeTab === 2 && (
+                <InferenceTab
+                  rootFolder={rootFolder}
+                  selectedFilePaths={selectedFilePaths}
+                />
+              )}
 
               {activeTab === 3 && <SettingsTab />}
 
