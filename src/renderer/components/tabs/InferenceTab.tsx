@@ -108,7 +108,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
 
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-          <label style={{ fontSize: '12px', color: '#888' }}>Result</label>
+          <label style={{ fontSize: '16px', color: '#aaa' }}>Result</label>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               className="inference-action-button"
