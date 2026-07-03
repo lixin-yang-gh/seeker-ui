@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { redactContent } from './redaction-config';
-import { callOpenRouter } from './open-router';
+import { callOpenRouter, isMalformedBlockResponse } from './open-router';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -316,7 +316,7 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
   if (!apiKey) throw new Error('OpenRouter API key not configured. Please set it in Settings.');
   if (!model) throw new Error('Model name is required');
 
-  const result = await callOpenRouter({
+  const callParams = {
     systemPrompt,
     userPrompt,
     model,
@@ -325,9 +325,18 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
     webSearch,
     ...(temperature !== undefined && { temperature }),
     ...(temperature_claude !== undefined && { temperature_claude }),
-  });
+  };
 
-  return { success: true, content: result.text, reasoning: result.reasoning, usage: result.usage };
+  const MAX_RETRIES = 3;
+  let result;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    result = await callOpenRouter(callParams);
+    if (!isMalformedBlockResponse(result.text)) break;
+    if (attempt === MAX_RETRIES) throw new Error('OpenRouter returned a malformed block-replacement response after 3 attempts.');
+    console.warn(`[openRouter] Malformed response on attempt ${attempt}, retrying…`);
+  }
+
+  return { success: true, content: result!.text, reasoning: result!.reasoning, usage: result!.usage };
 });
 
 // App lifecycle

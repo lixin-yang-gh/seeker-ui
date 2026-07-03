@@ -123,6 +123,20 @@ function extractContent(choice: OpenRouterChoice): Pick<OpenRouterResult, 'text'
  * Call the OpenRouter Chat Completions API.
  * Returns an OpenRouterResult; for callers that only need the text, use `.text`.
  */
+/**
+ * Returns true when the response text has `path=` and `op=` markers but
+ * neither a fenced code block nor a `scope=` attribute — i.e. the model
+ * produced a malformed block-replacement response that must be retried.
+ */
+export function isMalformedBlockResponse(text: string): boolean {
+  const hasPath = /path="[^"]+"/.test(text);
+  const hasOp = /op="[^"]+"/.test(text);
+  if (!hasPath || !hasOp) return false;           // no markers at all → fine
+  const hasFence = /```/.test(text);
+  const hasScope = /scope="[^"]+"/.test(text);
+  return !hasFence && !hasScope;                  // markers present but malformed
+}
+
 export async function callOpenRouter(params: OpenRouterRequest): Promise<OpenRouterResult> {
   const {
     systemPrompt,
