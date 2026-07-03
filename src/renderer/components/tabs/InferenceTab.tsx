@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -12,6 +12,52 @@ interface InferenceTabProps {
 
     onClearResult?: () => void;
 }
+
+const CodeBlock: React.FC<{ inline?: boolean; className?: string; children?: React.ReactNode }> = ({
+  inline,
+  className,
+  children,
+}) => {
+  const [copied, setCopied] = useState(false);
+  const text = String(children ?? '').replace(/\n$/, '');
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [text]);
+
+  if (inline) {
+    return <code className={className}>{children}</code>;
+  }
+
+  return (
+    <div style={{ position: 'relative', margin: '10px 0', border: '0' }}>
+      <button
+        onClick={handleCopy}
+        style={{
+          position: 'absolute',
+          top: '6px',
+          right: '6px',
+          padding: '2px 8px',
+          fontSize: '11px',
+          background: copied ? '#2e7d32' : '#2a2d2e',
+          color: copied ? '#a5d6a7' : '#ccc',
+          border: '1px solid #555',
+          borderRadius: '3px',
+          cursor: 'pointer',
+          zIndex: 1,
+        }}
+      >
+        {copied ? '✓ Copied' : 'Copy'}
+      </button>
+      <pre style={{ margin: 0 }}>
+        <code className={className}>{text}</code>
+      </pre>
+    </div>
+  );
+};
 
 const InferenceTab: React.FC<InferenceTabProps> = ({
   rootFolder,
@@ -140,7 +186,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
           className="inference-result-area"
         >
           {inferenceStatus === 'success' && inferenceResult ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock, pre: ({ children }) => <>{children}</> }}>
               {inferenceResult}
             </ReactMarkdown>
           ) : (
