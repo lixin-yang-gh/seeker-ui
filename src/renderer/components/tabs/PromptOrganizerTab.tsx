@@ -525,13 +525,13 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           </div>
 
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#ccc', fontSize: '13px' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#ccc', fontSize: '13px' }}>
+              Redaction<br />Applied<br />
               <input
                 type="checkbox"
                 checked={redactionApplied}
                 onChange={(e) => setRedactionApplied(e.target.checked)}
               />
-              Redaction<br />Applied
             </label>
             <button
               className={`generate-prompt-button ${!canGeneratePrompt ? 'disabled' : ''} ${generationStatus === 'success' ? 'success' : ''
