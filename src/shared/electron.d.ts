@@ -71,6 +71,13 @@ declare global {
 
       redactText: (text: string) => Promise<string>;
 
+      callOpenRouter: (
+        systemPrompt: string,
+        userPrompt: string,
+        model: string,
+        options?: { deepThinking?: boolean; thinkingBudget?: number; webSearch?: boolean }
+      ) => Promise<{ success: true; content: string; reasoning?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }>;
+
       // Events
       on: (channel: string, callback: (...args: any[]) => void) => void;
     };

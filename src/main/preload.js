@@ -47,6 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   redactText: (text) => ipcRenderer.invoke('redact-text', text),
 
+  callOpenRouter: (systemPrompt, userPrompt, model, options) =>
+    ipcRenderer.invoke('openRouter:call', { systemPrompt, userPrompt, model, ...options }),
+
   on: (channel, callback) => {
     ipcRenderer.on(channel, (_, ...args) => callback(...args));
   }

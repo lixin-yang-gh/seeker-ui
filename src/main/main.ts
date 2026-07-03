@@ -3,8 +3,8 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
-// import { redactum } from "redactum";
 import { redactContent } from './redaction-config';
+import { callOpenRouter } from './open-router';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -305,6 +305,33 @@ ipcMain.handle('dialog:saveFile', async (_, options?: { filters?: { name: string
     filters: options?.filters || [{ name: 'JSON', extensions: ['json'] }]
   });
   return result.filePath || null;
+});
+
+// OpenRouter API call
+ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, deepThinking, webSearch }) => {
+  const apiSettings = store.get('apiSettings');
+  const apiKey = apiSettings?.openRouterApiKey;
+  if (!apiKey) {
+    throw new Error('OpenRouter API key not configured. Please set it in Settings.');
+  }
+
+  if (!model) {
+    throw new Error('Model name is required');
+  }
+
+  try {
+    const result = await callOpenRouter({
+      systemPrompt,
+      userPrompt,
+      model,
+      apiKey,
+      deepThinking: !!deepThinking,
+      webSearch: !!webSearch,
+    });
+    return { success: true, content: result.text, reasoning: result.reasoning, usage: result.usage };
+  } catch (error) {
+    throw new Error(`OpenRouter call failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 });
 
 // App lifecycle
