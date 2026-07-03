@@ -34,6 +34,13 @@ const FileManager: React.FC<FileManagerProps> = ({
     onPreviewChange?.(null);
   }, [onPreviewChange]);
 
+  const handleClearInferenceResult = () => {
+    setInferenceResult('');
+    setInferenceReasoning('');
+    setInferenceError('');
+    setInferenceStatus('idle');
+  };
+
   useEffect(() => {
     if (filePath) {
       loadFile(filePath);
@@ -177,6 +184,7 @@ const FileManager: React.FC<FileManagerProps> = ({
                   inferenceReasoning={inferenceReasoning}
                   inferenceError={inferenceError}
                   inferenceStatus={inferenceStatus}
+                  onClearResult={handleClearInferenceResult}
                 />
               )}
 

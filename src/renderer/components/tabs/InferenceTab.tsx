@@ -70,7 +70,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   }, [rootFolder]);
 
   return (
-    <div className="tab-panel inference-tab" style={{ padding: '20px', overflow: 'auto' }}>
+    <div className="tab-panel inference-tab">
       <div style={{ marginBottom: '16px', background: '#252526', border: '1px solid #444', borderRadius: '4px', padding: '10px 14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <div style={{ color: '#d4d4d4', fontSize: '13px' }}>
@@ -88,7 +88,10 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
       </div>
 
       {inferenceStatus === 'running' && (
-        <div className="inference-loading" style={{ padding: '12px 0' }}>Running inference…</div>
+        <div className="inference-loading" style={{ padding: '12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }}></div>
+          Running inference…
+        </div>
       )}
 
       {inferenceStatus === 'error' && (
@@ -106,14 +109,15 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         </div>
       )}
 
-      <div>
+
+      <div style={{ display: 'flex',  flexDirection: 'column', flex: 1, minHeight: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
           <label style={{ fontSize: '16px', color: '#aaa', fontWeight: 'bold' }}>Result</label>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               className="inference-action-button"
-              onClick={() => navigator.clipboard.writeText('')}
-              disabled={!inferenceResult}
+              onClick={() => onClearResult?.()}
+              disabled={!inferenceResult && !inferenceReasoning && !inferenceError}
             >
               Clear
             </button>
@@ -134,7 +138,6 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         </div>
         <div
           className="inference-result-area"
-          style={{ maxHeight: '600px', padding: '12px', fontFamily: 'inherit', fontSize: '13px' }}
         >
           {inferenceStatus === 'success' && inferenceResult ? (
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -146,6 +149,8 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         </div>
       </div>
     </div>
+
+
   );
 };
 

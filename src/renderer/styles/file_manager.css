@@ -1234,6 +1234,14 @@ pre::-webkit-scrollbar-thumb:hover,
 }
 
 /* Inference Controls */
+.inference-tab {
+    padding: 20px;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+
 .inference-controls {
     display: flex;
     flex-direction: column;
@@ -1344,7 +1352,6 @@ pre::-webkit-scrollbar-thumb:hover,
     border: 1px solid #333;
     border-radius: 4px;
     padding: 10px;
-    max-height: 200px;
     overflow-y: auto;
     font-family: 'Consolas', monospace;
     font-size: 12px;
@@ -1381,4 +1388,32 @@ pre::-webkit-scrollbar-thumb:hover,
 .inference-action-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.inference-result-area pre {
+  background: #202a40;          /* darker than surrounding area */
+  border: 1px solid #30363d;
+  border-left: 3px solid #58b0ff;  /* accent stripe */
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.inference-result-area pre code {
+  background: transparent;
+  padding: 0;
+  color: #e6edf3;
+}
+
+.inference-result-area p code {
+  background: #2d333b;          /* inline code distinction */
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  /* color: #79c0ff; */
+  color: orange;
 }
