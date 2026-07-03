@@ -36,15 +36,15 @@ const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Report', value: 'Please create a report.' },
 ];
 
-const block_replacement_prompt = `\n---\nFor each file that requires changes, combine all changes of the same operation type into a single block. For a replacement operation, identify the minimal contiguous range of lines that covers all changes (from the earliest start anchor to the latest end anchor). Provide a single fenced code block with the language tag matching the file's language. Above the code block, include a header line of the form [path="<file path>", op="<operation type>"], where op is "add", "replace", or "delete". The path must be relative to project root, prefixed with "<project_root>/".
+const block_replacement_prompt = `\n---\nFor each file that requires changes, combine all changes of the same operation type into a single block. For a replacement operation, identify a contiguous range of lines that includes sufficient surrounding context (e.g., 3-5 lines before and after) to maximize the uniqueness of the block, while still covering all changes (from the earliest start anchor to the latest end anchor). Provide a single fenced code block with the language tag matching the file's language. Above the code block, include a header line of the form [path="<file path>", op="<operation type>"], where op is "add", "replace", or "delete". The path must be relative to project root, prefixed with "<project_root>/".
 
 Inside the block, use the following structure:
 
 - For replacement (op="replace"):
   [start]
-  <starting anchor, 1-3 lines that uniquely identify the start of the range to be replaced; this must be the earliest line among all changes>
+  <starting anchor, 3-5 lines that uniquely identify the start of the range to be replaced; this must be the earliest line among all changes, include extra context for uniqueness>
   [end]
-  <ending anchor, 1-3 lines that uniquely identify the end of the range; this must be the latest line among all changes>
+  <ending anchor, 3-5 lines that uniquely identify the end of the range; this must be the latest line among all changes, include extra context for uniqueness>
   [replacement]
   <new content to replace the entire range from start to end, inclusive, incorporating all modifications>
 
@@ -63,7 +63,7 @@ Inside the block, use the following structure:
 
 - For full file replacement: use op="replace" and include only [replacement] with the full new content, omitting [start] and [end].
 
-All anchors must be unique lines in the file (1-3 lines). Ensure minimal changes; modify only essential lines. Do not include standalone symbols or decorative characters. All content must be directly copy-pasteable.
+All anchors must be unique lines in the file and should include enough surrounding context (3-5 lines) to ensure the block is unambiguously identifiable. Keep the replacement content itself minimal; only modify essential lines. Do not include standalone symbols or decorative characters. All content must be directly copy-pasteable.
 `;
 
 const block_replacement_prompt_conditional = block_replacement_prompt.replace(
