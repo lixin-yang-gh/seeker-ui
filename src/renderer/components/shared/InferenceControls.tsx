@@ -4,12 +4,14 @@ interface InferenceControlsProps {
   rootFolder: string | null;
   onStartInference: (model: string, temperature: number) => void;
   disabled?: boolean;
+  showStartButton?: boolean;
 }
 
 const InferenceControls: React.FC<InferenceControlsProps> = ({
   rootFolder,
   onStartInference,
   disabled = false,
+  showStartButton = false,
 }) => {
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -102,43 +104,53 @@ const InferenceControls: React.FC<InferenceControlsProps> = ({
   return (
     <div className="inference-controls">
       <div className="inference-controls-row">
-        <div className="inference-control-group">
-          <label htmlFor="inference-model">Model</label>
-          <select
-            id="inference-model"
-            value={selectedModel}
-            onChange={handleModelChange}
-            disabled={isDisabled}
-            className="inference-select"
-          >
-            {models.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+        <div className="inference-controls-column">
+          <div className="inference-controls-row">
+            <div className="inference-control-group">
+              <label htmlFor="inference-model">Model</label>
+              <select
+                id="inference-model"
+                value={selectedModel}
+                onChange={handleModelChange}
+                disabled={isDisabled}
+                className="inference-select"
+              >
+                {models.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="inference-controls-row">
+            <div className="inference-control-group">
+              <label htmlFor="inference-temperature">Temperature</label>
+              <input
+                id="inference-temperature"
+                type="number"
+                step="0.01"
+                min="0"
+                max="2"
+                value={temperature}
+                onChange={handleTemperatureChange}
+                disabled={isDisabled}
+                className="inference-temp-input"
+              />
+            </div>
+          </div>
         </div>
-        <div className="inference-control-group">
-          <label htmlFor="inference-temperature">Temp</label>
-          <input
-            id="inference-temperature"
-            type="number"
-            step="0.01"
-            min="0"
-            max="2"
-            value={temperature}
-            onChange={handleTemperatureChange}
-            disabled={isDisabled}
-            className="inference-temp-input"
-          />
-        </div>
-        <button
-          className="inference-start-button"
-          onClick={handleStart}
-          disabled={isDisabled || !selectedModel}
-        >
-          Start Inference
-        </button>
+        {showStartButton && (
+          <div className="inference-controls-button-column">
+            <button
+              className="inference-start-button"
+              onClick={handleStart}
+              disabled={isDisabled || !selectedModel}
+            >
+              Start Inference
+            </button>
+          </div>
+        )}
       </div>
       {isLoadingModels && <div className="inference-loading">Loading models…</div>}
       {!isLoadingModels && models.length === 0 && (

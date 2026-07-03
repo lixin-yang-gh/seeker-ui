@@ -13,6 +13,12 @@ interface PromptOrganizerTabProps {
   selectedFilePaths: string[];
   rootFolder?: string | null;
   onBackToOverview: () => void;
+  onInferenceStatusChange?: (
+    status: 'idle' | 'running' | 'success' | 'error',
+    result?: string,
+    reasoning?: string,
+    error?: string,
+  ) => void;
 }
 
 // Define prepend and append button configurations for scalability
@@ -67,6 +73,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   selectedFilePaths,
   rootFolder,
   onBackToOverview,
+  onInferenceStatusChange,
 }) => {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [task, setTask] = useState('');
@@ -499,6 +506,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     setInferenceResult('');
     setInferenceReasoning('');
     setInferenceError('');
+    onInferenceStatusChange?.('running');
 
     try {
       await loadFileContents();
@@ -546,9 +554,12 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       setInferenceResult(result.content || result.text || '');
       if (result.reasoning) setInferenceReasoning(result.reasoning);
       setInferenceStatus2('success');
+      onInferenceStatusChange?.('success', result.content || result.text || '', result.reasoning, undefined);
     } catch (error) {
-      setInferenceError(getErrorMessage(error));
+      const errMsg = getErrorMessage(error);
+      setInferenceError(errMsg);
       setInferenceStatus2('error');
+      onInferenceStatusChange?.('error', undefined, undefined, errMsg);
     }
   }, [canGeneratePrompt, systemPrompt, task, issues, selectedHeader, maskedSubstrings, referencedFilesContent, redactionApplied, loadFileContents]);
 
@@ -612,6 +623,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
               rootFolder={rootFolder ?? null}
               onStartInference={handleStartInference}
               disabled={!canGeneratePrompt || inferenceStatus2 === 'running'}
+              showStartButton={canGeneratePrompt}
             />
           </div>
         </div>

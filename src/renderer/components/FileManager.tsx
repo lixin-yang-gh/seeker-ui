@@ -24,6 +24,10 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+  const [inferenceResult, setInferenceResult] = useState('');
+  const [inferenceReasoning, setInferenceReasoning] = useState('');
+  const [inferenceError, setInferenceError] = useState('');
+  const [inferenceStatus, setInferenceStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
 
   const closePreview = useCallback(() => {
     setShowPreview(false);
@@ -112,7 +116,7 @@ const FileManager: React.FC<FileManagerProps> = ({
             className={`tab ${activeTab === 2 ? 'active' : ''}`}
             onClick={() => handleTabChange(2)}
           >
-            Inference
+            Inference Result
           </button>
 
           <button
@@ -151,6 +155,12 @@ const FileManager: React.FC<FileManagerProps> = ({
                   selectedFilePaths={selectedFilePaths}
                   rootFolder={rootFolder}
                   onBackToOverview={() => handleTabChange(0)}
+                  onInferenceStatusChange={(status, result, reasoning, error) => {
+                    setInferenceStatus(status);
+                    setInferenceResult(result ?? '');
+                    setInferenceReasoning(reasoning ?? '');
+                    setInferenceError(error ?? '');
+                  }}
                 />
               )}
 
@@ -158,6 +168,10 @@ const FileManager: React.FC<FileManagerProps> = ({
                 <InferenceTab
                   rootFolder={rootFolder}
                   selectedFilePaths={selectedFilePaths}
+                  inferenceResult={inferenceResult}
+                  inferenceReasoning={inferenceReasoning}
+                  inferenceError={inferenceError}
+                  inferenceStatus={inferenceStatus}
                 />
               )}
 

@@ -1,128 +1,90 @@
-import React, { useState, useCallback } from 'react';
-import InferenceControls from '../shared/InferenceControls';
-import {
-  getRelativePath,
-  sanitizeText,
-  getErrorMessage,
-} from '../../../shared/utils';
+import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface InferenceTabProps {
   rootFolder?: string | null;
   selectedFilePaths?: string[];
+  inferenceResult?: string;
+  inferenceReasoning?: string;
+  inferenceError?: string;
+  inferenceStatus?: 'idle' | 'running' | 'success' | 'error';
+
+    onClearResult?: () => void;
 }
 
 const InferenceTab: React.FC<InferenceTabProps> = ({
   rootFolder,
-  selectedFilePaths = [],
+  inferenceResult = '',
+  inferenceReasoning = '',
+  inferenceError = '',
+  inferenceStatus = 'idle',
 }) => {
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [userPrompt, setUserPrompt] = useState('');
-  const [inferenceStatus, setInferenceStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
-  const [inferenceResult, setInferenceResult] = useState('');
-  const [inferenceReasoning, setInferenceReasoning] = useState('');
-  const [inferenceError, setInferenceError] = useState('');
-  const [includeFiles, setIncludeFiles] = useState(false);
+  const [model, setModel] = useState<string>('');
+  const [temperature, setTemperature] = useState<number | undefined>(undefined);
+  const [models, setModels] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const buildFileContext = useCallback(async (): Promise<string> => {
-    if (!includeFiles || selectedFilePaths.length === 0) return '';
-    try {
-      const filePromises = selectedFilePaths.map(async (filePath) => {
-        try {
-          const fileData = await window.electronAPI.readFile(filePath);
-          const relPath = getRelativePath(filePath, rootFolder).replace(/\\/g, '/');
-          const relativePath = '<project_root>/' + relPath;
-          const sanitizedContent = sanitizeText(fileData.content);
-          return `<file path="${relativePath}">\n${sanitizedContent}\n</file>`;
-        } catch (error) {
-          const relativePath = getRelativePath(filePath, rootFolder);
-          return `<file path="${relativePath}">\nError loading file: ${getErrorMessage(error)}\n</file>`;
+  useEffect(() => {
+    const loadState = async () => {
+      if (!rootFolder) {
+        setLoading(false);
+        return;
+      }
+      try {
+        // Load folder state and API settings in parallel
+        const [folderState, apiSettings] = await Promise.all([
+          window.electronAPI.getFolderState(rootFolder),
+          window.electronAPI.getApiSettings(),
+        ]);
+
+        // Parse models from settings
+        const modelsStr = apiSettings.inferenceModels || '';
+        const parsedModels: string[] = [];
+        const regex = /"([^"]*)"/g;
+        let match;
+        while ((match = regex.exec(modelsStr)) !== null) {
+          if (match[1].trim()) parsedModels.push(match[1].trim());
         }
-      });
-      const fileContents = await Promise.all(filePromises);
-      return '\n\n<referenced_files>\n' + fileContents.join('\n\n') + '\n</referenced_files>';
-    } catch {
-      return '';
-    }
-  }, [includeFiles, selectedFilePaths, rootFolder]);
+        setModels(parsedModels);
 
-  const handleStartInference = useCallback(async (model: string, temperature: number) => {
-    if (!userPrompt.trim()) return;
+        // Determine default model: saved or first available
+        let defaultModel = '';
+        if (folderState?.inferenceModel && folderState.inferenceModel.trim() !== '') {
+          defaultModel = folderState.inferenceModel;
+        } else if (parsedModels.length > 0) {
+          defaultModel = parsedModels[0];
+        }
+        setModel(defaultModel);
 
-    setInferenceStatus('running');
-    setInferenceResult('');
-    setInferenceReasoning('');
-    setInferenceError('');
-
-    try {
-      const fileContext = await buildFileContext();
-      const fullUserPrompt = userPrompt.trim() + fileContext;
-      const sysPrompt = systemPrompt.trim() || 'You are a helpful assistant.';
-
-      const result = await window.electronAPI.callOpenRouter(
-        sysPrompt,
-        fullUserPrompt,
-        model,
-        { temperature }
-      );
-
-      setInferenceResult(result.content || result.text || '');
-      if (result.reasoning) setInferenceReasoning(result.reasoning);
-      setInferenceStatus('success');
-    } catch (error) {
-      setInferenceError(getErrorMessage(error));
-      setInferenceStatus('error');
-    }
-  }, [systemPrompt, userPrompt, buildFileContext]);
+        // Determine default temperature: saved or 0.1
+        const defaultTemp = folderState?.temperature ?? 0.1;
+        setTemperature(defaultTemp);
+      } catch (error) {
+        console.error('Failed to load inference state:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadState();
+  }, [rootFolder]);
 
   return (
     <div className="tab-panel inference-tab" style={{ padding: '20px', overflow: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-        <h3 style={{ margin: 0 }}>Inference</h3>
-        <InferenceControls
-          rootFolder={rootFolder ?? null}
-          onStartInference={handleStartInference}
-          disabled={inferenceStatus === 'running' || !userPrompt.trim()}
-        />
-      </div>
-
-      <div className="prompt-input-group" style={{ marginBottom: '12px' }}>
-        <label htmlFor="inf-system-prompt">System Prompt</label>
-        <textarea
-          id="inf-system-prompt"
-          className="prompt-textarea"
-          style={{ minHeight: '60px' }}
-          placeholder="Optional system prompt..."
-          value={systemPrompt}
-          onChange={(e) => setSystemPrompt(e.target.value)}
-          rows={2}
-        />
-      </div>
-
-      <div className="prompt-input-group" style={{ marginBottom: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <label htmlFor="inf-user-prompt">
-            User Prompt <span className="required-marker">*</span>
-          </label>
-          {selectedFilePaths.length > 0 && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#ccc', fontSize: '12px' }}>
-              <input
-                type="checkbox"
-                checked={includeFiles}
-                onChange={(e) => setIncludeFiles(e.target.checked)}
-              />
-              Include {selectedFilePaths.length} selected file{selectedFilePaths.length !== 1 ? 's' : ''}
-            </label>
-          )}
+      <div style={{ marginBottom: '16px', background: '#252526', border: '1px solid #444', borderRadius: '4px', padding: '10px 14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ color: '#d4d4d4', fontSize: '13px' }}>
+            {loading ? 'Loading...' : (
+              <>
+                Model: <strong>{model || 'Not set'}</strong> | Temperature: <strong>{temperature !== undefined ? temperature : 'Not set'}</strong>
+              </>
+            )}
+          </div>
+          
         </div>
-        <textarea
-          id="inf-user-prompt"
-          className="prompt-textarea"
-          style={{ minHeight: '120px' }}
-          placeholder="Enter your prompt here..."
-          value={userPrompt}
-          onChange={(e) => setUserPrompt(e.target.value)}
-          rows={4}
-        />
+        <div style={{ color: '#9cdcfe', fontSize: '13px' }}>
+          ℹ️ To start inference, configure your prompt in the <strong>Prompt</strong> tab and click <strong>Start Inference</strong> there.
+        </div>
       </div>
 
       {inferenceStatus === 'running' && (
@@ -135,35 +97,57 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         </div>
       )}
 
-      {inferenceStatus === 'success' && (
-        <>
-          {inferenceReasoning && (
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', color: '#888' }}>Reasoning</label>
-              <div className="inference-result-area" style={{ maxHeight: '150px', color: '#aaa' }}>
-                {inferenceReasoning}
-              </div>
-            </div>
-          )}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <label style={{ fontSize: '12px', color: '#888' }}>Result</label>
-              <button
-                className="toolbar-button"
-                onClick={() => navigator.clipboard.writeText(inferenceResult)}
-                style={{ padding: '3px 8px', fontSize: '11px' }}
-              >
-                Copy
-              </button>
-            </div>
-            <div className="inference-result-area" style={{ maxHeight: '400px' }}>
-              {inferenceResult}
-            </div>
+      {inferenceReasoning && (
+        <div style={{ marginBottom: '8px' }}>
+          <label style={{ fontSize: '12px', color: '#888' }}>Reasoning</label>
+          <div className="inference-result-area" style={{ maxHeight: '150px', color: '#aaa' }}>
+            {inferenceReasoning}
           </div>
-        </>
+        </div>
       )}
+
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <label style={{ fontSize: '12px', color: '#888' }}>Result</label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="inference-action-button"
+              onClick={() => navigator.clipboard.writeText('')}
+              disabled={!inferenceResult}
+            >
+              Clear
+            </button>
+            <button
+              className="inference-action-button"
+              onClick={() => navigator.clipboard.writeText(inferenceResult)}
+              disabled={!inferenceResult}
+            >
+              Copy
+            </button>
+            <button
+              className="inference-action-button"
+              disabled={!inferenceResult}
+            >
+              Update File(s)
+            </button>
+          </div>
+        </div>
+        <div
+          className="inference-result-area"
+          style={{ maxHeight: '600px', padding: '12px', fontFamily: 'inherit', fontSize: '13px' }}
+        >
+          {inferenceStatus === 'success' && inferenceResult ? (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {inferenceResult}
+            </ReactMarkdown>
+          ) : (
+            <span style={{ color: '#666', fontStyle: 'italic' }}>No result yet. Run inference from the Prompt tab.</span>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
+
 
 export default InferenceTab;
