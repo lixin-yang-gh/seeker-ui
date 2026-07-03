@@ -49,6 +49,10 @@ const FileManager: React.FC<FileManagerProps> = ({
     onTabChange?.(tabIndex);
   };
 
+  const handleSwitchToInference = () => {
+    handleTabChange(2);
+  };
+
   const loadFile = async (path: string) => {
     setLoading(true);
     setError(null);
@@ -155,6 +159,7 @@ const FileManager: React.FC<FileManagerProps> = ({
                   selectedFilePaths={selectedFilePaths}
                   rootFolder={rootFolder}
                   onBackToOverview={() => handleTabChange(0)}
+                  onSwitchToInference={handleSwitchToInference}
                   onInferenceStatusChange={(status, result, reasoning, error) => {
                     setInferenceStatus(status);
                     setInferenceResult(result ?? '');

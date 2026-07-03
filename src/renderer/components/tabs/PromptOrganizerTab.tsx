@@ -13,6 +13,7 @@ interface PromptOrganizerTabProps {
   selectedFilePaths: string[];
   rootFolder?: string | null;
   onBackToOverview: () => void;
+  onSwitchToInference?: () => void;
   onInferenceStatusChange?: (
     status: 'idle' | 'running' | 'success' | 'error',
     result?: string,
@@ -73,6 +74,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   selectedFilePaths,
   rootFolder,
   onBackToOverview,
+  onSwitchToInference,
   onInferenceStatusChange,
 }) => {
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -507,6 +509,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     setInferenceReasoning('');
     setInferenceError('');
     onInferenceStatusChange?.('running');
+    onSwitchToInference?.();
 
     try {
       await loadFileContents();
@@ -894,15 +897,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
         <div className="referenced-files-section">
           <div className="referenced-files-header">
             <h4>Referenced Files ({selectedFilePaths.length})</h4>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                className="toolbar-button"
-                onClick={onBackToOverview}
-                title="Go back to file selection"
-              >
-                ← Back to Files
-              </button>
-            </div>
           </div>
 
           <div className="referenced-files-display">
