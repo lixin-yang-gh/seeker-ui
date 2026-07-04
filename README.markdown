@@ -1,152 +1,232 @@
-Here is a detailed analysis and set of recommendations as a **senior Electron/JavaScript/AI integration engineer**. Your current setup in `src/main/api-manager.ts` is solid overall (OpenAI-compatible chat completions, no streaming as requested, proper error handling, and basic parameter forwarding). However, there are issues with model selection, parameter handling for maximum output + correctness, tool calling, and one critical API mismatch.
+# Seeker UI – Operation Manual
 
-### 1. Model Selection Analysis & Proposed Corrections
+Seeker UI is a visual, AI‑assisted coding companion that brings together file browsing, prompt engineering, and inference results into a single desktop application. Unlike command‑line tools that require memorising flags and juggling separate scripts, Seeker UI offers:
 
-**Current models:**
-- `"xaiModel": "grok-4.20-multi-agent-0309"` → Good choice for agentic/multi-tool workflows (your `tools: [{ type: "web_search" }]` usage). It supports massive context (up to 2M tokens in some Grok-4 variants) and strong tool calling.
-- `"zaiModel": "GLM-5"` → Correct base name, but Z.AI uses `"glm-5"` (lowercase). GLM-5 has **128K max output** and 200K context — excellent for long responses. It supports **Deep Thinking** mode for better correctness.
-- `"deepseekModel": "deepseek-reasoner"` → **Excellent** for correctness. This is the dedicated reasoning model (Chain-of-Thought before final answer). It offers up to **64K max output** (vs 8K for `deepseek-chat`), same 128K context, and thinking mode is **enabled by default** when using this model name.
+- **A graphical file explorer** with per‑file checkboxes and a live preview.
+- **A prompt organiser** that builds structured prompts from your system prompt, task description, issues, and selected files – all saved per project folder.
+- **One‑click inference** with model selection and temperature – no curl commands, no JSON formatting by hand.
+- **Inline block‑based updates** that let you review AI‑proposed changes before applying them to your files.
+- **Local‑first storage** – your API keys, prompts, and folder states stay on your machine, with optional redaction to protect sensitive data.
 
-**Are you selecting the best models for maximum output length?**  
-Mostly yes, but with tweaks:
-- **xAI**: Keep `grok-4.20-multi-agent-0309` if you rely on its agentic strengths. For pure max output + reasoning, consider `grok-4.20-0309-reasoning` (if available in your team console) or a Grok-4 Fast variant with 2M context. Your current one is fine for tool-heavy use.
-- **Z.AI (GLM-5)**: Strong on output (128K). Best in class for long-form among the three.
-- **DeepSeek**: `deepseek-reasoner` already gives the **longest reliable output** (64K max) among DeepSeek options and prioritizes correctness via built-in CoT.
+This manual guides you through every step, from the first launch to applying AI‑generated changes.
 
-**For best correctness ("deep thinking" variants):**
-- **DeepSeek**: Yes — `deepseek-reasoner` *is* the deep thinking model. No extra parameter needed (thinking is automatic). Response will include `reasoning_content` + `content`; your code currently takes only `.choices[0].message.content`, so you may lose the reasoning trace (but final answer is still high-quality).
-- **Z.AI (GLM-5)**: Enable via extra parameter: `"thinking": { "type": "enabled" }`. This activates Deep Thinking for superior reasoning without changing the model name.
-- **xAI**: Grok-4 variants generally have strong built-in reasoning; the `-reasoning` suffix (if available) emphasizes it. Your multi-agent variant already leans agentic/correct.
+---
 
-**Recommended final model names (update in your settings store / UI defaults):**
-- `xaiModel`: `"grok-4.20-multi-agent-0309"` (keep, or switch to a `-reasoning` variant if you want explicit CoT and don't need multi-agent)
-- `zaiModel`: `"glm-5"`
-- `deepseekModel`: `"deepseek-reasoner"` (best for correctness + solid output length)
+## 1. First Launch & End‑User License Agreement (EULA)
 
-These give you the best balance: **Z.AI for longest output**, **DeepSeek for strongest reasoning/correctness**, **xAI for agentic/tool use**.
+When you start Seeker UI for the first time, the **EULA modal** (`EulaModal.tsx`) blocks the main interface until you accept or decline the terms.
 
-### 2. API Call Code Issues & Fixes in `api-manager.ts`
+- **Agree and Proceed** – saves your acceptance in `electron-store` and opens the main window.
+- **Deny and Exit** – quits the application.
 
-#### Critical Issue: Z.AI Endpoint
-Your `callZaiApi` uses `'https://api.z.ai/v1/chat/completions'`.  
-According to official docs, the correct base is **`https://api.z.ai/api/paas/v4/chat/completions`**.  
-Fix this or you will get 404/not-found errors.
+The EULA covers:
+- Disclaimer of liability and “as‑is” use.
+- Your responsibility when using third‑party inference providers (OpenRouter).
+- Local‑first privacy (no telemetry, analytics, or tracking).
+- Open‑source licensing (personal, non‑commercial use; enterprise licensing requires separate agreement).
 
-#### Tool Calling
-- xAI & Z.AI: Your `tools: [{ type: "web_search" }]` is simplistic. xAI supports it natively; Z.AI has function calling but the exact schema may differ slightly.
-- DeepSeek: Your function definition for `web_search` is good, but in thinking mode (`deepseek-reasoner`), tool calls require careful multi-turn handling of `reasoning_content` (not implemented here).
+Once agreed, you will not see the modal again on subsequent launches.
 
-**Recommendation**: Keep simple `web_search` for now (as your app doesn't appear to process tool responses yet). For production, expand to full OpenAI-style tool calling with response parsing.
+---
 
-#### Thinking / Deep Reasoning Support
-- **DeepSeek**: No change needed (`deepseek-reasoner` enables it). But parse `reasoning_content` if you want transparency.
-- **Z.AI**: Add the thinking parameter.
-- **xAI**: Generally no extra param needed.
+## 2. Configuration (Settings)
 
-#### Max Output Length
-- Set `max_tokens` as high as the model allows in `ApiCallOptions` (your default of 65536 is reasonable but cap per model):
-  - GLM-5: up to 128000
-  - deepseek-reasoner: up to 64000 (includes reasoning tokens)
-  - Grok-4 variants: often very high (hundreds of K)
-- Pass it unconditionally when provided (your code already does via spread).
+The **Settings tab** (`SettingsTab.tsx`) lets you configure global, application‑wide settings that are shared across all folders.
 
-#### Updated `api-manager.ts` (Key Changes Only)
+| Field                    | Purpose                                                                                                   |
+|--------------------------|-----------------------------------------------------------------------------------------------------------|
+| **Open Router API Key**  | Your OpenRouter API key (hidden by default, visible when focused). Required for inference.                |
+| **Models for Inference** | A comma‑separated list of quoted model names (e.g. `"anthropic/claude-sonnet-4-6", "deepseek/deepseek-v4-pro"`). These populate the model dropdown in the Prompt Organizer. |
+| **Models for Validation**| (Currently ineffective – reserved for future validation features.)                                 |
 
-```ts
-// src/main/api-manager.ts
-export interface ApiCallOptions {
-  temperature?: number;
-  top_p?: number;
-  top_k?: number;
-  max_tokens?: number;
-  // NEW: For models that support explicit thinking
-  thinking?: { type: "enabled" };
-}
+- **Auto‑save** – changes are saved automatically after a short debounce.
+- **Import / Export** – you can import or export settings as a JSON file, making it easy to share configurations across machines.
 
-const DEFAULT_TEMPERATURE = 0.7;
+**Tip:** The API key is sent only to OpenRouter; it is never logged or stored outside your local `electron-store`.
 
-// ... existing callXaiApi (mostly unchanged — good for multi-agent)
+---
 
-export async function callZaiApi(apiKey: string, modelName: string, systemPrompt: string, userPrompt: string, options?: ApiCallOptions): Promise<string> {
-  const response = await fetch('https://api.z.ai/api/paas/v4/chat/completions', {  // ← FIXED ENDPOINT
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: modelName,  // should be "glm-5"
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
-      stream: false,
-      max_tokens: options?.max_tokens ?? 128000,  // GLM-5 friendly high default
-      ...(options?.top_p !== undefined && { top_p: options.top_p }),
-      ...(options?.top_k !== undefined && { top_k: options.top_k }),
-      ...(options?.thinking && { thinking: options.thinking }),  // NEW: Deep Thinking
-      // tools if needed: adjust schema per Z.AI docs
-    })
-  });
+## 3. Selecting Files (Explorer)
 
-  // ... rest of error handling and content extraction unchanged
-}
+The **Explorer** (`FileTree.tsx`) is the left‑hand sidebar. It displays the file tree of the currently opened folder.
 
-// DeepSeek — improved for reasoner
-export async function callDeepseekApi(apiKey: string, modelName: string, systemPrompt: string, userPrompt: string, options?: ApiCallOptions): Promise<string> {
-  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: modelName,  // "deepseek-reasoner" enables thinking automatically
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: options?.temperature ?? DEFAULT_TEMPERATURE,  // note: ignored in reasoner mode
-      stream: false,
-      max_tokens: options?.max_tokens ?? 64000,  // reasoner max
-      ...(options?.top_p !== undefined && { top_p: options.top_p }),
-      // top_k usually not supported or ignored
-      tools: [/* your web_search function def */]
-    })
-  });
+### Opening a Folder
+- Click **“Open Folder”** and choose a directory. The last opened folder is remembered across sessions.
+- The folder’s state (system prompt, task, issues, inference model, temperature, and inference results) is automatically saved per folder.
 
-  // ... error handling
+### Selecting Files
+- Each file has a **checkbox** – check any file to include it in the referenced files section of your prompt.
+- **Folders** – checking a folder selects all files inside it recursively. The folder will expand to show its contents.
+- **Clear** – deselects all checked files.
+- **Refresh** – reloads the directory tree and verifies the existence of previously selected files (invalid selections are removed).
 
-  const data = await response.json();
-  const message = data.choices?.[0]?.message;
-  if (!message?.content) throw new Error('Invalid response from DeepSeek API');
+### Previewing a File
+- Hover over a file and click the **eye icon (👁)** to open a read‑only preview overlay.
+- Click the **✕** on the preview to close it.
 
-  // Optional: Return reasoning + content for transparency (or keep just content)
-  return message.content;  // or `${message.reasoning_content || ''}\n\n${message.content}`
-}
+**Selection counts** are displayed at the top of the Explorer and are reflected in the **Overview** tab.
+
+---
+
+## 4. Building Prompts (Prompt Organizer)
+
+The **Prompt** tab (`PromptOrganizerTab.tsx`) is where you craft the instructions that will be sent to the AI. It is divided into three main sections:
+
+### 4.1 System Prompt
+- Defines the assistant’s role, tone, and constraints (e.g., “You are a senior software engineer…”).
+- **Required** – the tab will not allow copying the prompt or running inference if empty.
+- **Global Default** – you can save the current system prompt as the global default, and later load it into any folder.
+- **Auto‑saved** per folder.
+
+### 4.2 Task
+- Describes the specific task or objective (e.g., “Refactor the `calculate` function to use optional chaining”).
+- **Required** – must be filled for inference.
+- **Prepend / Append buttons** – quickly add common task prefixes (e.g., “Please explore feasibility”) or structural instructions (e.g., “Update blocks – conditional”).
+- **New Task** clears the task field.
+- **“Get Standalone Prompt from Task”** – copies the task text (with custom masking applied) to the clipboard, so you can paste it directly into an external chat.
+
+### 4.3 Issues (Optional)
+- A free‑form field for listing known issues, errors, logs, feedback, or any additional context.
+- You can choose a **section header** (e.g., “Issues”, “Errors”, “Proposals”) – this determines the XML tag used when building the prompt.
+- **Clear** empties the field.
+
+### 4.4 Referenced Files
+- Displays the content of all selected files (from the Explorer). Each file is wrapped in an XML‑like `<file path="...">` tag.
+- The content is automatically **sanitised** (HTML entities decoded) and, if the **“Redaction Applied”** checkbox is ticked, **redacted** using a configurable set of policies (API keys, emails, IPs, etc.).
+- **Custom Masked Substrings** – you can define a list of double‑quoted substrings that will be replaced with `[SENSITIVE]` in the prompt. This is useful for hiding proprietary names or internal identifiers.
+
+### 4.5 The Prompt Structure
+When you click **“Copy Prompt”**, the app builds a combined prompt with the following structure (after applying sanitisation, custom masking, and optional redaction):
+
+```
+<system_prompt content="System Prompt">
+  [your system prompt]
+</system_prompt>
+<user_prompt content="User Prompt">
+  <task>[task]</task>
+  <issues>[issues]</issues>   (if provided)
+  <referenced_files>          (if files are selected)
+    <file path="...">...</file>
+    ...
+  </referenced_files>
+</user_prompt>
 ```
 
-**Other minor improvements:**
-- Add per-model max_tokens caps in the calling IPC handlers or SettingsTab (e.g., clamp values).
-- Handle `reasoning_content` from DeepSeek/Z.AI if you want to display/log the thinking process.
-- Consider a unified `callAiApi` wrapper that routes based on provider for future maintainability.
-- Your `tools` usage is present but the app doesn't seem to handle tool *responses* yet — if you expand agentic flows, add tool execution logic in main process.
+The **“Copy Prompt”** button copies this full structured prompt to your clipboard. You can then paste it into any external LLM interface (e.g., OpenAI Playground, OpenRouter Chat, etc.).
 
-### 3. Other Recommendations & Missing/Anticipated Files
+---
 
-Your Electron app structure is clean and well-organized (per-folder state, redaction, password gate, etc.). No major missing files for the current scope, but consider these for robustness:
+## 5. Choosing Model and Temperature
 
-- **Anticipated / Recommended**:
-  - `src/main/tool-handler.ts` — Central place to execute `web_search` (or other tools) and feed results back into follow-up API calls. Especially useful with xAI multi-agent and DeepSeek thinking + tools.
-  - `src/shared/api-types.ts` — Shared TypeScript interfaces for responses (including `reasoning_content`).
-  - Update `SettingsTab.tsx` to show model-specific max_tokens hints (e.g., "GLM-5: up to 128K", "DeepSeek Reasoner: up to 64K").
-  - Add validation in `api:callXai` etc. handlers for model-specific limits.
+At the top of the **Prompt** tab, next to the “Copy Prompt” button, you’ll find the inference controls (`InferenceControls.tsx`):
 
-- **No streaming**: Your `stream: false` is already correct.
+- **Model dropdown** – populated from the “Models for Inference” setting. Select the model you want to use.
+- **Temperature** – a numeric input (0.0 – 2.0) controlling randomness.
+- These values are saved per folder and will be restored when you reopen the folder.
 
-- **Correctness priority**: With the proposed changes (`deepseek-reasoner` + Z.AI thinking param), you get the strongest reasoning without sacrificing too much output length. For ultra-long outputs, lean on GLM-5.
+**Note:** Some models require specific temperature settings when deep‑thinking is enabled – the app automatically adjusts the temperature when it detects a compatible model.
 
-Apply the endpoint fix for Z.AI first — that's likely causing silent failures. Then update model names/defaults and the thinking parameter.
+---
 
-If you share console errors or specific usage patterns (e.g., heavy tool calling), I can refine the tool handling or response parsing further. Let me know which parts you'd like full patched files for!
+## 6. Running Inference and Reviewing Results
+
+Once you have configured your system prompt, task, selected files, and chosen a model/temperature, you can run inference:
+
+1. In the **Prompt** tab, click **“Start Inference”**.
+2. The app will:
+   - Build the prompt (applying redaction if enabled).
+   - Send it to OpenRouter using the selected model.
+   - Display a “running” status.
+3. Upon completion, the **Inference Result** tab will automatically open, showing:
+   - The assistant’s **reasoning** (if returned by the model).
+   - The main **inference result** – the assistant’s reply.
+
+The inference result is parsed for **block replacement items** – specially formatted JSON objects that describe file modifications (see Section 7). These blocks are rendered with distinct visual cues (original vs replacement, operation type, etc.).
+
+### Stopping Inference
+While inference is running, a **“Cancel Inference”** button appears in the Inference tab. Click it to abort the request.
+
+### Re‑running Inference
+The **“Run Inference Again”** button re‑sends the exact same prompt with the current model and temperature – useful for iterative refinement.
+
+---
+
+## 7. Copying Prompts to External Services & Pasting Responses Back
+
+Seeker UI is built to work seamlessly with **outside inference services**, such as OpenRouter’s web chat, ChatGPT, Claude, etc.
+
+### Copying the Prompt
+- Use the **“Copy Prompt”** button in the Prompt tab to copy the full structured prompt to your clipboard.
+- You can now paste it into any external chat interface or API client.
+
+### Pasting a Response
+Once you receive a response from an external service (or from any other source), you can bring it back into Seeker UI:
+
+1. Copy the response text (including any JSON code fences) to your clipboard.
+2. In the **Inference Result** tab, click the **“Paste”** button.
+3. The app will:
+   - Read your clipboard content.
+   - Parse it for fenced JSON blocks (language “json”).
+   - Display the pasted text in the result area.
+   - If valid block replacement items are found, the **“Update File(s)”** button becomes enabled.
+
+This allows you to use any AI service you prefer and still leverage Seeker UI’s file‑update workflow.
+
+---
+
+## 8. Applying Block Updates to Files
+
+When the inference result (or pasted response) contains a valid JSON array of block replacement items, you can apply those changes to your files.
+
+### Block Replacement Items Format
+Each object in the JSON array must have:
+
+- `"path"` – relative path prefixed with `<project_root>/`.
+- `"op"` – one of `"add"`, `"replace"`, or `"delete"`.
+- `"reason"` – explanation of the change (displayed in the UI).
+- `"is_full_file"` – boolean; `true` means the operation applies to the entire file.
+- `"original"` – string or `null`; the exact block to be replaced/deleted (for partial operations).
+- `"replacement"` – string or `null`; the new content (for add/replace, `null` for delete).
+
+The UI renders each block with the original and replacement side‑by‑side, along with a **copy** button for each snippet.
+
+### Applying Updates
+1. With a valid set of blocks in the result area, click **“Update File(s)”**.
+2. A confirmation prompt appears. Click **“OK”** to proceed.
+3. The app will:
+   - For each block, attempt to locate the file, read it, find the `original` block, and perform the specified operation.
+   - Write the updated content back to disk.
+4. A **File Update Summary** popup shows the result for each file (success/failure, operation type, and any errors).
+
+**Important:** Always back up your project before applying AI‑generated changes – the app does not provide an undo function for file modifications.
+
+---
+
+## 9. Missing or Unselected but Anticipated Files
+
+Based on the current codebase, the following components or features are either missing or not yet integrated, but are anticipated for future releases:
+
+| File / Feature                        | Status & Notes                                                                                         |
+|---------------------------------------|--------------------------------------------------------------------------------------------------------|
+| **Validation models usage**           | The `validationModels` setting exists in `SettingsTab`, but there is no UI or logic that uses it. Likely planned for a “validation” or “review” pass. |
+| **Full‑file delete operation**        | The `file-updater.ts` currently returns an error for `delete` + `is_full_file: true`. A true file‑delete IPC would be needed. |
+| **Global hotkeys / shortcuts**        | No keyboard shortcuts are defined (e.g., for copying prompt, running inference). |
+| **Dark/light theme toggle**           | The app uses a fixed dark theme; a theme switcher is not present. |
+| **Application‑wide progress indicator**| Inference progress is only shown as a spinner; no detailed progress or token usage display. |
+| **Export/Import of folder states**    | Individual folder states can be exported/imported only via the Settings import/export (global settings). Per‑folder export is not supported. |
+| **OpenRouter streaming**              | The current implementation uses non‑streaming requests. Streaming would allow incremental display of the response. |
+| **Local LLM support**                 | The app only supports OpenRouter; local models via Ollama, LM Studio, etc., are not integrated. |
+| **Tests**                             | No test suite is present (unit, integration, or end‑to‑end). |
+| **Documentation for developers**      | There is no developer‑friendly documentation on building, packaging, or contributing. |
+
+These are natural areas for future enhancement. If you are a developer, consider contributing!
+
+---
+
+## Final Notes
+
+- **All settings, prompts, and inference results are stored locally** in `electron-store`. No data is sent anywhere except to OpenRouter when you explicitly run inference.
+- The app is **open‑source and free for personal, non‑commercial use**. For enterprise or bulk usage, please contact the authors for licensing terms.
+- **Security** – the app includes built‑in redaction for common secrets and custom masking for user‑defined substrings. However, you are ultimately responsible for reviewing what you send to third‑party APIs.
+
+Enjoy using Seeker UI – the visual AI assistant that puts you in control of your code, your prompts, and your workflow.

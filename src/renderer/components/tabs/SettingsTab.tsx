@@ -142,7 +142,7 @@ const SettingsTab: React.FC = () => {
           <small className="settings-hint">Multiple models: use quoted strings separated by commas, e.g. "gpt-4", "claude-3"</small>
         </div>
         <div className="settings-field">
-          <label htmlFor="validationModels">Models for Validation</label>
+          <label htmlFor="validationModels">Models for Validation (Reserved for Future Release Only)</label>
           <input
             id="validationModels"
             type="text"

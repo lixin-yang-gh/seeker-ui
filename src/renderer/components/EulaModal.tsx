@@ -14,7 +14,7 @@ interface EulaModalProps {
 
 const EulaContent: React.FC = () => (
   <div style={{ fontSize: '13px', lineHeight: 1.7, color: '#d4d4d4' }}>
-    <h2 style={{ color: '#ccc', marginBottom: '12px' }}>Seeker UI - Visual AI Assistant</h2>
+    <h2 style={{ color: '#ccc', marginBottom: '12px' }}>Seeker UI - The Visual AI Assistant</h2>
 
     <h2 style={{ color: '#ccc', marginBottom: '12px' }}>End-User License Agreement & Disclaimer</h2>
 
