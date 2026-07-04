@@ -1,5 +1,7 @@
 # Seeker UI – Operation Manual
 
+## Introduction
+
 Seeker UI is a visual, AI‑assisted coding companion that brings together file browsing, prompt engineering, and inference results into a single desktop application. Unlike command‑line tools that require memorising flags and juggling separate scripts, Seeker UI offers:
 
 - **A graphical file explorer** with per‑file checkboxes and a live preview.
@@ -9,6 +11,21 @@ Seeker UI is a visual, AI‑assisted coding companion that brings together file 
 - **Local‑first storage** – your API keys, prompts, and folder states stay on your machine, with optional redaction to protect sensitive data.
 
 This manual guides you through every step, from the first launch to applying AI‑generated changes.
+
+
+#### Installing the app on Windows
+
+Windows will show you warning when you start the installer as the app has not been signed properly. Please just ignore the warning and install the app anyway.
+
+#### Using the app on macOS
+
+The app installed from the downloaded .dmg file will be blocked by the macOS by default. As I am not willing to pay for an Apple Developer Account in near term, please run the following command in your terminal window to remove the quarantine against the app.
+
+```bash
+xattr -rd com.apple.quarantine /Applications/seeker-ui.app
+```
+
+
 
 ---
 
