@@ -335,7 +335,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button className="inference-action-button" onClick={() => onClearResult?.()} disabled={!hasContent}>Clear</button>
-            <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '6px 10px', fontSize: '12px' }} />
+            <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '500' }} />
             {!updateConfirming ? (
               <button
                 className="inference-action-button"
