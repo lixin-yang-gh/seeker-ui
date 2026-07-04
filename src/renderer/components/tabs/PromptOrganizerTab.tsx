@@ -99,10 +99,57 @@ const block_replacement_prompt_conditional = block_replacement_prompt.replace(
   '\nIf changes are required, for each file that requires changes'
 );
 
+const full_file_prompt = `
+---
+Return a JSON array of change objects wrapped in a fenced code block with language tag "json". Do not include any explanatory text or markdown outside the fence.
+
+\`\`\`json
+[ ... ]
+\`\`\`
+
+Each object must contain exactly these fields:
+
+- "path": string — file path relative to project root, prefixed with "<project_root>/"
+- "op": string — one of "add", "replace", or "delete"
+- "is_full_file": true
+- "original": null
+- "replacement": string or null — the complete new file content using \\n for newlines, \\t for tabs. Set to null for "delete".
+- "reason": string — a brief description of the change
+
+JSON STRING ESCAPING RULES:
+- Use \\n for newlines, \\t for tabs inside all string values.
+- Do not embed unescaped literal newlines inside JSON string values.
+- Output must be immediately parseable by a standard JSON parser.
+
+Example:
+\`\`\`json
+[
+  {
+    "path": "<project_root>/src/example.ts",
+    "op": "replace",
+    "is_full_file": true,
+    "original": null,
+    "replacement": "// full new file content\\nexport function foo() {\\n  return 2;\\n}",
+    "reason": "Updated foo to return 2"
+  }
+]
+\`\`\`
+`;
+
+const full_file_prompt_conditional = full_file_prompt.replace(
+  '\nReturn a JSON array',
+  '\nIf changes are required, return a JSON array'
+);
+
 const APPEND_BUTTONS: Array<{ key: string; value: string }> = [
-  { key: 'Current File', value: '\n---\nReturn a JSON array with one object for the updated file. The object must include: "path" (relative to project root, prefixed with "<project_root>/"), "op" ("replace" or "delete"), "is_full_file": true, and "replacement" with the full new file content (omit for deletions). Return the array inside a ```json code block. Include a brief "reason" field per object.' },
-  { key: 'Files', value: '\n---\nReturn a JSON array of change objects for any new, replaced, or deleted files. Each object must include: "path" (relative to project root, prefixed with "<project_root>/"), "op" ("replace" or "delete"), "is_full_file": true, and "replacement" with the full new file content (omit for deletions). Return the array inside a ```json code block. Include a brief "reason" field per object.' },
-  { key: 'Files - conditional', value: '\n---\nIf changes are required, return a JSON array of change objects for any new, replaced, or deleted files. Each object must include: "path" (relative to project root, prefixed with "<project_root>/"), "op" ("replace" or "delete"), "is_full_file": true, and "replacement" with the full new file content (omit for deletions). Return the array inside a ```json code block. Include a brief "reason" field per object.' },
+  {
+    key: 'Current File', value: full_file_prompt.replace(
+      '\nReturn a JSON array of change objects',
+      '\nReturn a JSON array with one object for the updated file'
+    )
+  },
+  { key: 'Files', value: full_file_prompt },
+  { key: 'Files - conditional', value: full_file_prompt_conditional },
   { key: 'Update blocks', value: block_replacement_prompt },
   { key: 'Update blocks - conditional', value: block_replacement_prompt_conditional },
   { key: 'Minimal changes', value: '\n---\nPlease try to keep the proposed text/code changes minimal; modify only the essential lines; avoid any unnecessary refactoring or rewriting of surrounding text or code.' }
@@ -260,7 +307,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     }
   }, [defaultSystemPrompt, saveSystemPrompt]);
 
-  // Save as Default button handler - shows confirm button
+  // Save as Global button handler - shows confirm button
   const handleSaveAsDefaultPrompt = useCallback(() => {
     if (!systemPrompt.trim() || !isDifferentFromDefault) return;
 
@@ -275,7 +322,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     setConfirmTimer(timer);
   }, [systemPrompt, isDifferentFromDefault]);
 
-  // Confirm Save as Default button handler
+  // Confirm Save as Global button handler
   const handleConfirmSaveAsDefault = useCallback(async () => {
     if (!systemPrompt.trim()) return;
 
@@ -723,14 +770,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
               </label>
 
               <div style={{ display: 'flex', gap: '8px', position: 'relative' }}>
-                <button
-                  className="toolbar-button"
-                  onClick={() => saveSystemPrompt(systemPrompt)}
-                  disabled={!systemPrompt.trim() || !rootFolder}
-                >
-                  Save
-                </button>
-                {/* Load Default button */}
+                {/* Load Global button */}
                 <button
                   className="toolbar-button"
                   onClick={handleLoadDefaultPrompt}
@@ -740,32 +780,32 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                       ? "No default prompt saved"
                       : systemPrompt === defaultSystemPrompt
                         ? "Current prompt is already the default"
-                        : "Load default system prompt"
+                        : "Load global system prompt"
                   }
                 >
-                  Load Default
+                  Load Global
                 </button>
 
-                {/* Regular Save as Default button - hidden when confirm is shown */}
+                {/* Regular Save as Global button - hidden when confirm is shown */}
                 <button
                   className={`toolbar-button ${isDifferentFromDefault && !(!isDifferentFromDefault || !rootFolder) ? 'special' : ''}`}
                   onClick={handleSaveAsDefaultPrompt}
                   disabled={!isDifferentFromDefault || !rootFolder}
-                  title="Save current prompt as default"
+                  title="Save current prompt as global"
                   style={{ display: showConfirmSave ? 'none' : 'inline-flex' }}
                 >
-                  Save as Default
+                  Save as Global
                 </button>
 
-                {/* Confirm Save as Default button - shown for 5 seconds after clicking Save as Default */}
+                {/* Confirm Save as Global button - shown for 5 seconds after clicking Save as Global */}
                 <button
                   className="toolbar-button confirm"
                   onClick={handleConfirmSaveAsDefault}
                   disabled={!isDifferentFromDefault || !rootFolder}
-                  title="Click to confirm saving as default (expires in 5 seconds)"
+                  title="Click to confirm saving as global (expires in 5 seconds)"
                   style={{ display: showConfirmSave ? 'inline-flex' : 'none' }}
                 >
-                  ⚠️ Confirm Save
+                  ⚠️ Confirm Save as Global
                 </button>
               </div>
 
@@ -808,13 +848,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                   disabled={!rootFolder}
                 >
                   New Task
-                </button>
-                <button
-                  className="toolbar-button"
-                  onClick={() => saveTask(task)}
-                  disabled={!task.trim() || !rootFolder}
-                >
-                  Save
                 </button>
               </div>
             </div>
@@ -883,13 +916,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                   disabled={!rootFolder}
                 >
                   Clear
-                </button>
-                <button
-                  className="toolbar-button"
-                  onClick={() => saveIssues(issues)}
-                  disabled={!issues.trim() || !rootFolder}
-                >
-                  Save
                 </button>
 
               </div>

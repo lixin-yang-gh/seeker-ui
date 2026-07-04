@@ -1,4 +1,3 @@
-// FileManager.tsx - UPDATED
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
@@ -28,6 +27,55 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [inferenceReasoning, setInferenceReasoning] = useState('');
   const [inferenceError, setInferenceError] = useState('');
   const [inferenceStatus, setInferenceStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [inferenceLastSaveTime, setInferenceLastSaveTime] = useState<number | null>(null);
+
+  // Load saved inference result on folder change
+  useEffect(() => {
+    if (!rootFolder) return;
+    const loadInferenceState = async () => {
+      try {
+        const folderState = await window.electronAPI.getFolderState(rootFolder);
+        if (folderState) {
+          setInferenceResult(folderState.inferenceResult || '');
+          setInferenceReasoning(folderState.inferenceReasoning || '');
+          setInferenceError(folderState.inferenceError || '');
+          setInferenceStatus(folderState.inferenceStatus || 'idle');
+        } else {
+          // No saved state; reset
+          setInferenceResult('');
+          setInferenceReasoning('');
+          setInferenceError('');
+          setInferenceStatus('idle');
+        }
+      } catch (e) {
+        console.error('Failed to load inference state:', e);
+      }
+    };
+    loadInferenceState();
+  }, [rootFolder]);
+
+  // Save inference result to store when it changes (debounced)
+  useEffect(() => {
+    if (!rootFolder) return;
+    const timer = setTimeout(async () => {
+      try {
+        const now = Date.now();
+        const currentState = await window.electronAPI.getFolderState(rootFolder) || {};
+        await window.electronAPI.saveFolderState(rootFolder, {
+          ...currentState,
+          inferenceResult,
+          inferenceReasoning,
+          inferenceError,
+          inferenceStatus,
+          inferenceResultSavedAt: now,
+        });
+        setInferenceLastSaveTime(now);
+      } catch (e) {
+        console.error('Failed to save inference state:', e);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [rootFolder, inferenceResult, inferenceReasoning, inferenceError, inferenceStatus]);
 
   const closePreview = useCallback(() => {
     setShowPreview(false);
@@ -185,6 +233,7 @@ const FileManager: React.FC<FileManagerProps> = ({
                   inferenceError={inferenceError}
                   inferenceStatus={inferenceStatus}
                   onClearResult={handleClearInferenceResult}
+                  inferenceLastSavedTimestamp={inferenceLastSaveTime}
                 />
               )}
 

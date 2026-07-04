@@ -10,6 +10,12 @@ interface FolderSpecificState {
   maskedSubstrings?: string;
   inferenceModel?: string;
   temperature?: number;
+  inferenceResultRaw?: string;
+  inferenceResult?: string;
+  inferenceReasoning?: string;
+  inferenceError?: string;
+  inferenceStatus?: 'idle' | 'running' | 'success' | 'error';
+  inferenceResultSavedAt?: number;
 }
 
 declare global {

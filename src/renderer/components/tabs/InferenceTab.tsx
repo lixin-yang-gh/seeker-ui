@@ -8,6 +8,7 @@ interface InferenceTabProps {
   inferenceError?: string;
   inferenceStatus?: 'idle' | 'running' | 'success' | 'error';
   onClearResult?: () => void;
+  inferenceLastSavedTimestamp?: number | null;
 }
 
 // ─── Block Replacement Parser ─────────────────────────────────────
@@ -151,10 +152,12 @@ const BlockSegment: React.FC<{ item: BlockReplacementItem }> = ({ item }) => {
         {item.original != null && (
           <div style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#3890df', textTransform: 'uppercase' }}>[original]</span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#3890df', textTransform: 'uppercase' }}>
+                {item.is_full_file ? '[full file — original]' : '[original]'}
+              </span>
               <CopyButton text={item.original} />
             </div>
-            <pre style={{ margin: 0, padding: '8px 12px', background: '#2a3040', border: '1px solid #58b0ff55', borderLeft: '3px solid #58b0ff', borderRadius: '4px', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#e6edf3', overflowX: 'auto' }}>
+            <pre style={{ margin: `2px 0 0 0`, padding: '8px 12px', background: '#2a3040', border: '1px solid #58b0ff55', borderLeft: '3px solid #58b0ff', borderRadius: '4px', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#e6edf3', overflowX: 'auto' }}>
               <code>{item.original}</code>
             </pre>
           </div>
@@ -165,13 +168,13 @@ const BlockSegment: React.FC<{ item: BlockReplacementItem }> = ({ item }) => {
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#f09210', textTransform: 'uppercase' }}>[replacement]</span>
               <CopyButton text={item.replacement} />
             </div>
-            <pre style={{ margin: 0, padding: '8px 12px', background: '#4a3e2e', border: '1px solid #f0921055', borderLeft: '3px solid #f09210', borderRadius: '4px', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#e6edf3', overflowX: 'auto' }}>
+            <pre style={{ margin: `2px 0 0 0`, padding: '8px 12px', background: '#4a3e2e', border: '1px solid #f0921055', borderLeft: '3px solid #f09210', borderRadius: '4px', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#e6edf3', overflowX: 'auto' }}>
               <code>{item.replacement}</code>
             </pre>
           </div>
         )}
         {item.original == null && item.replacement == null && (
-          <pre style={{ margin: 0, padding: '8px 12px', background: '#202020', border: '1px solid #444', borderLeft: '3px solid #666', borderRadius: '4px', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#bbb', overflowX: 'auto' }}>
+          <pre style={{ margin: `2px 0 0 0`, padding: '8px 12px', background: '#202020', border: '1px solid #444', borderLeft: '3px solid #666', borderRadius: '4px', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#bbb', overflowX: 'auto' }}>
             <code>{item.raw}</code>
           </pre>
         )}
@@ -188,8 +191,8 @@ const ResultRenderer: React.FC<{ text: string }> = ({ text }) => {
     <div style={{ padding: '8px 4px' }}>
       {segments.map((seg, i) =>
         seg.type === 'block' ? <BlockSegment key={i} item={seg.item} /> :
-        seg.type === 'code'  ? <CodeSegment  key={i} lang={seg.lang} content={seg.content} /> :
-                               <TextSegment  key={i} content={seg.content} />
+          seg.type === 'code' ? <CodeSegment key={i} lang={seg.lang} content={seg.content} /> :
+            <TextSegment key={i} content={seg.content} />
       )}
     </div>
   );
@@ -204,6 +207,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   inferenceError = '',
   inferenceStatus = 'idle',
   onClearResult,
+  inferenceLastSavedTimestamp,
 }) => {
   const [model, setModel] = useState<string>('');
   const [temperature, setTemperature] = useState<number | undefined>(undefined);
@@ -279,7 +283,14 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
       {/* Main result */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-          <label style={{ fontSize: '15px', color: '#aaa', fontWeight: 'bold' }}>Inference Result</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontSize: '15px', color: '#aaa', fontWeight: 'bold' }}>Inference Result</label>
+            {inferenceLastSavedTimestamp && (
+              <div style={{ fontSize: '11px', color: '#4ec9b0' }}>
+                Saved {new Date(inferenceLastSavedTimestamp).toLocaleTimeString()}
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="inference-action-button" onClick={() => onClearResult?.()} disabled={!hasContent}>Clear</button>
             <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '6px 10px', fontSize: '12px' }} />

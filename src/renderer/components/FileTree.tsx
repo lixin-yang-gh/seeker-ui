@@ -227,23 +227,30 @@ const FileTree: React.FC<FileTreeProps> = ({
     setIsRefreshing(true);
     try {
       const selectedBefore = Array.from(selectedFilePathsRef.current);
-      await loadDirectory(rootPath);
+      // Validate which files still exist
       const valid: string[] = [];
       for (const fp of selectedBefore) {
         if (await checkFileExists(fp)) valid.push(fp);
       }
+      // Rebuild the entire tree recursively to reflect file system changes
+      const newTree = await loadAllChildren(rootPath);
+      // Apply isChecked based on valid set
+      const applyChecked = (items: FileItem[]): FileItem[] =>
+        items.map(item => ({
+          ...item,
+          isChecked: valid.includes(item.path),
+          children: item.children ? applyChecked(item.children) : undefined,
+        }));
+      setTree(applyChecked(newTree));
       setSelectedFilePaths(new Set(valid));
-      setTree(prev => {
-        const update = (items: FileItem[]): FileItem[] =>
-          items.map(i => ({ ...i, isChecked: valid.includes(i.path), children: i.children ? update(i.children) : undefined }));
-        return update(prev);
-      });
+      await window.electronAPI.saveLastOpenedFolder(rootPath);
+      onFolderOpen?.(rootPath);
     } catch (error) {
       console.error('Error during refresh:', error);
     } finally {
       setIsRefreshing(false);
     }
-  }, [rootPath, isRefreshing]);
+  }, [rootPath, isRefreshing, onFolderOpen]);
 
   const togglePreview = (item: FileItem) => {
     if (item.path === previewedFilePath) {
