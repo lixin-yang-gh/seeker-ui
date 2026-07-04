@@ -336,6 +336,7 @@ const FileTree: React.FC<FileTreeProps> = ({
               <span
                 className={`file-icon eye-icon ${item.path === previewedFilePath ? 'previewed' : ''}`}
                 onClick={(e) => { e.stopPropagation(); togglePreview(item); }}
+                title={item.path === previewedFilePath ? "Close preview" : "Preview file"}
               >
                 {item.path === previewedFilePath ? '✕' : '👁'}
               </span>
@@ -368,7 +369,7 @@ const FileTree: React.FC<FileTreeProps> = ({
               setHighlightedFile(null);
               setExpandedFolders(new Set());
             }
-          }}>Open Folder</button>
+          }} title="Open a folder to browse files">Open Folder</button>
           <button className="button" onClick={() => {
             setSelectedFilePaths(new Set());
             setHighlightedFile(null);
@@ -377,7 +378,7 @@ const FileTree: React.FC<FileTreeProps> = ({
                 items.map(i => ({ ...i, isChecked: false, isHighlighted: false, children: i.children ? clear(i.children) : undefined }));
               return clear(prev);
             });
-          }}>Clear</button>
+          }} title="Clear all file selections">Clear</button>
           <button
             className={`button ${isRefreshing ? 'refreshing' : ''}`}
             onClick={handleRefresh}

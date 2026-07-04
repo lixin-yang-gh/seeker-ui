@@ -168,6 +168,7 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 0 ? 'active' : ''}`}
             onClick={() => handleTabChange(0)}
+            title="Show overview of selected files"
           >
             {overviewTabName}
           </button>
@@ -175,6 +176,7 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 1 ? 'active' : ''}`}
             onClick={() => handleTabChange(1)}
+            title="Open the prompt organizer tab"
           >
             {promptOrganizerTabName}
             {selectedFilePaths.length > 0 && (
@@ -185,6 +187,7 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 2 ? 'active' : ''}`}
             onClick={() => handleTabChange(2)}
+            title="View inference results"
           >
             Inference Result
           </button>
@@ -192,6 +195,7 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 3 ? 'active' : ''}`}
             onClick={() => handleTabChange(3)}
+            title="Open settings"
           >
             Settings
           </button>
@@ -199,6 +203,7 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 4 ? 'active' : ''}`}
             onClick={() => handleTabChange(4)}
+            title="About Seeker UI"
           >
             About
           </button>

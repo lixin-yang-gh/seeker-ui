@@ -1367,7 +1367,7 @@ pre::-webkit-scrollbar-thumb:hover,
 
 /* Inference action buttons (Clear, Copy, Update File(s)) */
 .inference-action-button {
-    padding: 12px 20px;
+    padding: 12px;
     background: #0e639c;
     color: white;
     border: none;

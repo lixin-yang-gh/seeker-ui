@@ -97,6 +97,7 @@ const CopyButton: React.FC<{ text: string; label?: string; style?: React.CSSProp
   return (
     <button
       onClick={() => navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
+      title="Copy to clipboard"
       style={{
         padding: '2px 8px', fontSize: '11px', cursor: 'pointer', borderRadius: '3px',
         background: copied ? '#2e7d32' : '#2a2d2e',
@@ -398,7 +399,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
             <button
               className="inference-action-button"
               onClick={() => onRunInferenceAgain?.()}
-              disabled={inferenceStatus === 'running' || !onRunInferenceAgain}
+              disabled={inferenceStatus === 'running'}
               title="Re‑run inference with the current model, temperature, and prompts"
             >
               Run Inference Again
@@ -437,13 +438,14 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
             >
               {pasteSuccess ? '✓ Parsed' : pasteFailure ? '✗ Parse failed' : 'Paste'}
             </button>
-            <button className="inference-action-button" onClick={() => onClearResult?.()} disabled={!hasContent}>Clear</button>
+            <button className="inference-action-button" onClick={() => onClearResult?.()} disabled={!hasContent} title="Clear the inference result and reasoning">Clear</button>
             <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '500' }} />
             {!updateConfirming ? (
               <button
                 className="inference-action-button"
-                disabled={!inferenceResult || !rootFolder || blockItems.length === 0}
+                disabled={!effectiveResult || !rootFolder || blockItems.length === 0}
                 onClick={() => setUpdateConfirming(true)}
+                title="Apply the block replacements from the inference result to the files"
               >
                 Update File(s)
               </button>
@@ -455,6 +457,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
                   style={{ background: isUpdating ? '#555' : '#2e7d32' }}
                   onClick={handleUpdateFiles}
                   disabled={isUpdating}
+                  title="Confirm and apply the file updates"
                 >
                   {isUpdating ? 'Updating…' : 'OK'}
                 </button>
@@ -463,6 +466,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
                   style={{ background: '#555' }}
                   onClick={() => { setUpdateConfirming(false); setUpdateResults([]); }}
                   disabled={isUpdating}
+                  title="Cancel the file update operation"
                 >
                   Cancel
                 </button>
@@ -513,7 +517,6 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          onClick={() => setShowUpdateSummary(false)}
         >
           <div
             style={{
@@ -545,6 +548,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
                   borderRadius: '4px',
                 }}
                 onClick={() => setShowUpdateSummary(false)}
+                title="Close the update summary"
               >
                 ✕
               </button>
@@ -625,6 +629,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
                   cursor: 'pointer',
                 }}
                 onClick={() => setShowUpdateSummary(false)}
+                title="Close the update summary"
               >
                 Close
               </button>

@@ -720,6 +720,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                 }`}
               onClick={handleCopyPrompt}
               disabled={!canGeneratePrompt || generationStatus === 'generating'}
+              title="Copy the combined prompt (system + user) to clipboard"
             >
               {generationStatus === 'success' ? '✓ Copied!' : 'Copy Prompt'}
             </button>
@@ -751,7 +752,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
               <label style={{ fontSize: '11px', color: '#888' }}>Inference Result</label>
-              <button className="toolbar-button" onClick={() => navigator.clipboard.writeText(inferenceResult)} style={{ padding: '2px 8px', fontSize: '11px' }}>Copy</button>
+              <button className="toolbar-button" onClick={() => navigator.clipboard.writeText(inferenceResult)} style={{ padding: '2px 8px', fontSize: '11px' }} title="Copy inference result to clipboard">Copy</button>
             </div>
             <div className="inference-result-area" style={{ maxHeight: '250px' }}>{inferenceResult}</div>
           </div>
@@ -774,7 +775,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                 <button
                   className="toolbar-button"
                   onClick={handleLoadDefaultPrompt}
-                  disabled={!defaultSystemPrompt || !rootFolder || systemPrompt === defaultSystemPrompt}
                   title={
                     !defaultSystemPrompt
                       ? "No default prompt saved"
@@ -999,6 +999,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
             className="action-button secondary-button"
             onClick={() => setGenerationStatus('idle')}
             disabled={generationStatus === 'generating'}
+            title="Reset prompt generation status to idle"
           >
             Reset Status
           </button>
