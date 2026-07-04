@@ -349,17 +349,16 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
   const abortController = new AbortController();
   activeInferenceAbortController = abortController;
 
-  const MAX_RETRIES = 3;
   let result;
   try {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      if (abortController.signal.aborted) throw new Error('Inference cancelled.');
-      result = await callOpenRouter(callParams, abortController.signal);
-      sendLog('log', `[openRouter] attempt ${attempt} raw response:`, result);
-      if (!isMalformedBlockResponse(result.text)) break;
-      if (attempt === MAX_RETRIES) throw new Error('OpenRouter returned a malformed block-replacement response after 3 attempts.');
-      sendLog('warn', `[openRouter] Malformed response on attempt ${attempt}, retrying…\nResponse text:\n${result.text}`);
+    if (abortController.signal.aborted) throw new Error('Inference cancelled.');
+    result = await callOpenRouter(callParams, abortController.signal);
+    sendLog('log', `[openRouter] raw response:`, result);
+  } catch (err: any) {
+    if (activeInferenceAbortController === abortController) {
+      activeInferenceAbortController = null;
     }
+    return { success: false, content: err?.message ?? String(err), reasoning: undefined, usage: undefined };
   } finally {
     if (activeInferenceAbortController === abortController) {
       activeInferenceAbortController = null;
