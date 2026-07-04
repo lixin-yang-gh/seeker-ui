@@ -48,6 +48,7 @@ Each object must contain exactly these fields:
 
 - "path": string — file path relative to project root, prefixed with "<project_root>/"
 - "op": string — one of "add", "replace", or "delete"
+- "reason": string — a brief explanation of why this change is proposed
 - "is_full_file": boolean — true if the operation applies to the entire file; false if it applies to a specific block
   * "add" + true: create a new file with content in "replacement"
   * "add" + false: insert "replacement" after the anchor block in "original"
@@ -79,6 +80,7 @@ Example:
   {
     "path": "<project_root>/src/example.ts",
     "op": "replace",
+    "reason": "Updated foo to return 2 as required by the new spec",
     "is_full_file": false,
     "original": "function foo() {\\n  return 1;\\n}",
     "replacement": "function foo() {\\n  return 2;\\n}"
@@ -86,6 +88,7 @@ Example:
   {
     "path": "<project_root>/src/other.ts",
     "op": "replace",
+    "reason": "Full rewrite to support new interface",
     "is_full_file": true,
     "original": null,
     "replacement": "<full new file content>"
@@ -111,10 +114,10 @@ Each object must contain exactly these fields:
 
 - "path": string — file path relative to project root, prefixed with "<project_root>/"
 - "op": string — one of "add", "replace", or "delete"
+- "reason": string — a brief explanation of why this change is proposed
 - "is_full_file": true
 - "original": null
 - "replacement": string or null — the complete new file content using \\n for newlines, \\t for tabs. Set to null for "delete".
-- "reason": string — a brief description of the change
 
 JSON STRING ESCAPING RULES:
 - Use \\n for newlines, \\t for tabs inside all string values.
@@ -127,10 +130,10 @@ Example:
   {
     "path": "<project_root>/src/example.ts",
     "op": "replace",
+    "reason": "Updated foo to return 2 as required by the new spec",
     "is_full_file": true,
     "original": null,
-    "replacement": "// full new file content\\nexport function foo() {\\n  return 2;\\n}",
-    "reason": "Updated foo to return 2"
+    "replacement": "// full new file content\\nexport function foo() {\\n  return 2;\\n}"
   }
 ]
 \`\`\`

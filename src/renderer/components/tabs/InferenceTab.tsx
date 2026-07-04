@@ -147,14 +147,15 @@ const BlockSegment: React.FC<{ item: BlockReplacementItem }> = ({ item }) => {
         <span style={{ fontSize: '11px', color: item.is_full_file ? '#4ec9b0' : '#aaa', padding: '1px 6px', border: '1px solid #444', borderRadius: '3px' }}>
           {item.is_full_file ? 'full file' : 'block'}
         </span>
-        {item.reason && (
-          <span style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.reason}>
-            {item.reason}
-          </span>
-        )}
         <CopyButton text={item.replacement ?? item.original ?? item.raw} />
       </div>
       <div style={{ padding: '10px 14px' }}>
+        {item.reason && (
+          <div style={{ marginBottom: '8px', padding: '6px 10px', background: 'rgba(107,0,35,0.5)', border: '1px solid rgba(219,112,147,0.25)', borderLeft: '3px solid #db7093', borderRadius: '4px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#db7093', textTransform: 'uppercase', marginRight: '8px' }}>💡</span>
+            <span style={{ fontSize: '12px', color: '#ccc' }}>{item.reason}</span>
+          </div>
+        )}
         {item.original != null && (
           <div style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
