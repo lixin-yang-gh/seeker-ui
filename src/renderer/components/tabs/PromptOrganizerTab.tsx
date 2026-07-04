@@ -836,17 +836,17 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label htmlFor="task">
                 Task <span className="required-marker">*</span>
+                <span style={{ marginLeft: '50px' }}>
+                  <button
+                    className="toolbar-button"
+                    onClick={handleNewTask}
+                    title="Clear task and start fresh"
+                    disabled={!rootFolder}
+                  >
+                    New Task
+                  </button>
+                </span>
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  className="toolbar-button"
-                  onClick={handleNewTask}
-                  title="Clear task and start fresh"
-                  disabled={!rootFolder}
-                >
-                  New Task
-                </button>
-              </div>
             </div>
 
             {/* Prepended text buttons - First row */}
@@ -903,19 +903,17 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label htmlFor="issues">
                 {HEADER_OPTIONS.find(h => h.value === selectedHeader)?.display || 'Issues'} (Optional)
+                <span style={{ marginLeft: '50px' }}>
+                  <button
+                    className="toolbar-button"
+                    onClick={handleClearIssues}
+                    title="Clear issues textarea"
+                    disabled={!rootFolder}
+                  >
+                    Clear
+                  </button>
+                </span>
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {/* NEW: Clear Issues button */}
-                <button
-                  className="toolbar-button"
-                  onClick={handleClearIssues}
-                  title="Clear issues textarea"
-                  disabled={!rootFolder}
-                >
-                  Clear
-                </button>
-
-              </div>
             </div>
 
             {/* Section Header Radio Buttons */}

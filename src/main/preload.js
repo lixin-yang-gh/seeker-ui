@@ -50,6 +50,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   callOpenRouter: (systemPrompt, userPrompt, model, options) =>
     ipcRenderer.invoke('openRouter:call', { systemPrompt, userPrompt, model, ...options }),
 
+  cancelOpenRouter: () => ipcRenderer.invoke('openRouter:cancel'),
+
   on: (channel, callback) => {
     ipcRenderer.on(channel, (_, ...args) => callback(...args));
   },

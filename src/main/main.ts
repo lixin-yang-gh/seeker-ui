@@ -315,6 +315,9 @@ ipcMain.handle('dialog:saveFile', async (_, options?: { filters?: { name: string
   return result.filePath || null;
 });
 
+// Active inference abort controller (one at a time)
+let activeInferenceAbortController: AbortController | null = null;
+
 // OpenRouter API call
 ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, deepThinking, webSearch, temperature, temperature_claude }) => {
   const apiSettings = store.get('apiSettings');
@@ -339,17 +342,41 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
     mainWindow?.webContents.send('main:log', { level, msg });
   };
 
+  // Abort any previous in-flight call
+  if (activeInferenceAbortController) {
+    activeInferenceAbortController.abort();
+  }
+  const abortController = new AbortController();
+  activeInferenceAbortController = abortController;
+
   const MAX_RETRIES = 3;
   let result;
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    result = await callOpenRouter(callParams);
-    sendLog('log', `[openRouter] attempt ${attempt} raw response:`, result);
-    if (!isMalformedBlockResponse(result.text)) break;
-    if (attempt === MAX_RETRIES) throw new Error('OpenRouter returned a malformed block-replacement response after 3 attempts.');
-    sendLog('warn', `[openRouter] Malformed response on attempt ${attempt}, retrying…\nResponse text:\n${result.text}`);
+  try {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      if (abortController.signal.aborted) throw new Error('Inference cancelled.');
+      result = await callOpenRouter(callParams, abortController.signal);
+      sendLog('log', `[openRouter] attempt ${attempt} raw response:`, result);
+      if (!isMalformedBlockResponse(result.text)) break;
+      if (attempt === MAX_RETRIES) throw new Error('OpenRouter returned a malformed block-replacement response after 3 attempts.');
+      sendLog('warn', `[openRouter] Malformed response on attempt ${attempt}, retrying…\nResponse text:\n${result.text}`);
+    }
+  } finally {
+    if (activeInferenceAbortController === abortController) {
+      activeInferenceAbortController = null;
+    }
   }
 
   return { success: true, content: result!.text, reasoning: result!.reasoning, usage: result!.usage };
+});
+
+// Cancel ongoing inference
+ipcMain.handle('openRouter:cancel', async () => {
+  if (activeInferenceAbortController) {
+    activeInferenceAbortController.abort();
+    activeInferenceAbortController = null;
+    return { cancelled: true };
+  }
+  return { cancelled: false };
 });
 
 // App lifecycle

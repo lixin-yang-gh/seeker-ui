@@ -9,6 +9,7 @@ interface InferenceTabProps {
   inferenceError?: string;
   inferenceStatus?: 'idle' | 'running' | 'success' | 'error';
   onClearResult?: () => void;
+  onCancelInference?: () => void;
   onRunInference?: () => void;
   inferenceLastSavedTimestamp?: number | null;
 }
@@ -212,6 +213,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   inferenceError = '',
   inferenceStatus = 'idle',
   onClearResult,
+  onCancelInference,
   inferenceLastSavedTimestamp,
 }) => {
   const [model, setModel] = useState<string>('');
@@ -222,6 +224,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   const [updateConfirming, setUpdateConfirming] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateResults, setUpdateResults] = useState<FileUpdateResult[]>([]);
+  const [showUpdateSummary, setShowUpdateSummary] = useState(false);
 
   useEffect(() => {
     const loadState = async () => {
@@ -252,13 +255,35 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   useEffect(() => {
     setUpdateConfirming(false);
     setUpdateResults([]);
+    setShowUpdateSummary(false);
   }, [inferenceResult]);
 
   const segments = useMemo(() => parseSegments(inferenceResult), [inferenceResult]);
 
+  const blockItems = useMemo(() => extractBlockItems(segments), [segments]);
+
+  // Group update results by file path, collecting unique operation types
+  const groupedResults = useMemo(() => {
+    const map = new Map<string, { operations: Set<string>; errors: string[]; overall: boolean }>();
+    for (const r of updateResults) {
+      if (!map.has(r.path)) {
+        map.set(r.path, { operations: new Set(), errors: [], overall: r.success });
+      }
+      const entry = map.get(r.path)!;
+      if (r.operation) entry.operations.add(r.operation);
+      if (r.error) entry.errors.push(r.error);
+      if (!r.success) entry.overall = false;
+    }
+    return Array.from(map.entries()).map(([path, data]) => ({
+      path,
+      operations: Array.from(data.operations),
+      success: data.overall,
+      error: data.errors.length > 0 ? data.errors.join('; ') : undefined,
+    }));
+  }, [updateResults]);
+
   const handleUpdateFiles = useCallback(async () => {
     if (!rootFolder || !inferenceResult) return;
-    const blockItems = extractBlockItems(segments);
     if (blockItems.length === 0) {
       setUpdateConfirming(false);
       return;
@@ -272,8 +297,10 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         rootFolder
       );
       setUpdateResults(results);
+      setShowUpdateSummary(true);
     } catch (err: any) {
       setUpdateResults([{ path: '(unknown)', success: false, error: err?.message ?? String(err) }]);
+      setShowUpdateSummary(true);
     } finally {
       setIsUpdating(false);
       setUpdateConfirming(false);
@@ -334,12 +361,22 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
             )}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {inferenceStatus === 'running' && (
+              <button
+                className="inference-action-button"
+                style={{ background: '#8b2020' }}
+                onClick={() => onCancelInference?.()}
+                title="Abort the current inference request"
+              >
+                Cancel Inference
+              </button>
+            )}
             <button className="inference-action-button" onClick={() => onClearResult?.()} disabled={!hasContent}>Clear</button>
             <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '500' }} />
             {!updateConfirming ? (
               <button
                 className="inference-action-button"
-                disabled={!inferenceResult || !rootFolder}
+                disabled={!inferenceResult || !rootFolder || blockItems.length === 0}
                 onClick={() => setUpdateConfirming(true)}
               >
                 Update File(s)
@@ -368,18 +405,21 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
           </div>
         </div>
 
-        {/* Update results feedback */}
-        {updateResults.length > 0 && (
+        {/* Update results feedback inline (shown only while not showing popup) */}
+        {!showUpdateSummary && updateResults.length > 0 && (
           <div style={{ marginBottom: '8px', background: '#1e1e1e', border: '1px solid #444', borderRadius: '4px', padding: '8px 12px', fontSize: '12px' }}>
             {updateResults.map((r, i) => (
               <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '3px' }}>
                 <span style={{ color: r.success ? '#4ec9b0' : '#f48771', fontWeight: 700 }}>{r.success ? '✓' : '✗'}</span>
                 <span style={{ fontFamily: 'Consolas, monospace', color: '#9cdcfe', wordBreak: 'break-all' }}>{r.path}</span>
+                {r.operation && <span style={{ color: '#ccc', fontSize: '11px', marginLeft: '4px' }}>({r.operation})</span>}
                 {r.error && <span style={{ color: '#f48771', fontStyle: 'italic' }}>{r.error}</span>}
               </div>
             ))}
           </div>
         )}
+
+        
 
         <div
           className="inference-result-area"
@@ -394,6 +434,138 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
           )}
         </div>
       </div>
+
+      {/* Update Summary Popup Overlay — rendered at tab-panel root so fixed positioning is unobstructed */}
+      {showUpdateSummary && groupedResults.length > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => setShowUpdateSummary(false)}
+        >
+          <div
+            style={{
+              background: '#1e1e1e',
+              border: '1px solid #555',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '720px',
+              width: '90%',
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#e0e0e0', fontSize: '16px', fontWeight: 500 }}>
+                File Update Summary
+              </h3>
+              <button
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#ccc',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                }}
+                onClick={() => setShowUpdateSummary(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1, maxHeight: '60vh' }}>
+              {groupedResults.map((r, i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: '10px 12px',
+                    borderBottom: '1px solid #2a2a2a',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: r.success ? '#4ec9b0' : '#f48771',
+                        minWidth: '20px',
+                        fontSize: '14px',
+                      }}
+                    >
+                      {r.success ? '✓' : '✗'}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'Consolas, monospace',
+                        color: '#9cdcfe',
+                        wordBreak: 'break-all',
+                        flex: 1,
+                        fontSize: '13px',
+                      }}
+                    >
+                      {r.path}
+                    </span>
+                  </div>
+                  {r.operations.length > 0 && (
+                    <div style={{ marginLeft: '30px', marginTop: '4px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {r.operations.map((operation, j) => {
+                        const opColor = opColors[operation.toLowerCase()] ?? '#aaa';
+                        return (
+                          <span
+                            key={j}
+                            style={{
+                              padding: '1px 7px',
+                              borderRadius: '3px',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                              color: opColor,
+                              background: `${opColor}22`,
+                              border: `1px solid ${opColor}66`,
+                            }}
+                          >
+                            {operation}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {r.error && (
+                    <div style={{ marginLeft: '30px', marginTop: '4px', color: '#f48771', fontSize: '11px', fontStyle: 'italic' }}>
+                      {r.error}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '16px', textAlign: 'right' }}>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: '#0e639c',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setShowUpdateSummary(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

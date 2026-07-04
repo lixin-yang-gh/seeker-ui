@@ -145,7 +145,7 @@ export function isMalformedBlockResponse(text: string): boolean {
   }
 }
 
-export async function callOpenRouter(params: OpenRouterRequest): Promise<OpenRouterResult> {
+export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSignal): Promise<OpenRouterResult> {
   const {
     systemPrompt,
     userPrompt,
@@ -200,6 +200,7 @@ export async function callOpenRouter(params: OpenRouterRequest): Promise<OpenRou
       'X-Title': 'Seeker UI',
     },
     body: JSON.stringify(body),
+    signal,
   });
 
   if (!response.ok) {

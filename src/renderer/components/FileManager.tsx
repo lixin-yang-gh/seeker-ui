@@ -89,6 +89,17 @@ const FileManager: React.FC<FileManagerProps> = ({
     setInferenceStatus('idle');
   };
 
+  const handleCancelInference = useCallback(async () => {
+    try {
+      await window.electronAPI.cancelOpenRouter();
+    } catch (e) {
+      console.error('Failed to cancel inference:', e);
+    }
+    // Reset status so user can reconfigure and re-run
+    setInferenceStatus('idle');
+    setInferenceError('');
+  }, []);
+
   useEffect(() => {
     if (filePath) {
       loadFile(filePath);
@@ -233,6 +244,7 @@ const FileManager: React.FC<FileManagerProps> = ({
                   inferenceError={inferenceError}
                   inferenceStatus={inferenceStatus}
                   onClearResult={handleClearInferenceResult}
+                  onCancelInference={handleCancelInference}
                   inferenceLastSavedTimestamp={inferenceLastSaveTime}
                 />
               )}

@@ -91,6 +91,8 @@ declare global {
         }
       ) => Promise<{ success: true; content: string; reasoning?: string; usage?: object }>;
 
+      cancelOpenRouter: () => Promise<{ cancelled: boolean }>;
+
       // Events
       on: (channel: string, callback: (...args: any[]) => void) => void;
       onMainLog: (callback: (data: { level: 'log' | 'warn' | 'error'; msg: string }) => void) => void;
