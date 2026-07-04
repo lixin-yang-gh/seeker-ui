@@ -129,12 +129,20 @@ function extractContent(choice: OpenRouterChoice): Pick<OpenRouterResult, 'text'
  * produced a malformed block-replacement response that must be retried.
  */
 export function isMalformedBlockResponse(text: string): boolean {
-  const hasPath = /path="[^"]+"/.test(text);
-  const hasOp = /op="[^"]+"/.test(text);
-  if (!hasPath || !hasOp) return false;           // no markers at all → fine
-  const hasFence = /```/.test(text);
-  const hasScope = /scope="[^"]+"/.test(text);
-  return !hasFence && !hasScope;                  // markers present but malformed
+  // Check for a ```json fenced block
+  const jsonFenceMatch = text.match(/```json\s*\n([\s\S]*?)```/);
+  if (!jsonFenceMatch) return false; // no JSON block at all → not a block response
+  try {
+    const parsed = JSON.parse(jsonFenceMatch[1]);
+    const items = Array.isArray(parsed) ? parsed : [parsed];
+    // A valid block item needs at minimum 'path' and 'op'
+    const hasValidItem = items.some(
+      item => item && typeof item === 'object' && 'path' in item && 'op' in item
+    );
+    return !hasValidItem; // JSON present but missing required fields → malformed
+  } catch {
+    return true; // JSON fence present but unparseable → malformed
+  }
 }
 
 export async function callOpenRouter(params: OpenRouterRequest): Promise<OpenRouterResult> {
@@ -206,6 +214,7 @@ export async function callOpenRouter(params: OpenRouterRequest): Promise<OpenRou
   }
 
   const data = (await response.json()) as OpenRouterResponse;
+  console.log('[OpenRouter] Raw API response:', JSON.stringify(data, null, 2));
 
   if (!data.choices?.length) throw new Error('No choices returned from OpenRouter');
 

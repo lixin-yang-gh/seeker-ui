@@ -4,7 +4,12 @@ import Sidebar from './components/Sidebar';
 import FileManager from './components/FileManager';
 import './styles/main.css';
 import './styles/file_tree.css';
-import './styles/file_manager.css';
+// Forward main-process logs to the renderer DevTools console
+if (window.electronAPI?.onMainLog) {
+  window.electronAPI.onMainLog(({ level, msg }: { level: 'log' | 'warn' | 'error'; msg: string }) => {
+    console[level]('[main]', msg);
+  });
+}
 
 const App: React.FC = () => {
   const [currentFile, setCurrentFile] = useState<string | null>(null);

@@ -52,5 +52,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   on: (channel, callback) => {
     ipcRenderer.on(channel, (_, ...args) => callback(...args));
+  },
+  onMainLog: (callback) => {
+    ipcRenderer.on('main:log', (_, data) => callback(data));
   }
 });

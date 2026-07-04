@@ -87,6 +87,7 @@ declare global {
 
       // Events
       on: (channel: string, callback: (...args: any[]) => void) => void;
+      onMainLog: (callback: (data: { level: 'log' | 'warn' | 'error'; msg: string }) => void) => void;
     };
   }
 }

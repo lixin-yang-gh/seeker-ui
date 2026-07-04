@@ -36,45 +36,48 @@ const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Report', value: 'Please create a report.' },
 ];
 
-const block_replacement_prompt = `\n---\nFor each file that requires changes, combine all changes of the same operation type into a single block. For a replacement operation, identify a contiguous range of lines that includes sufficient surrounding context (e.g., 3-5 lines before and after) to maximize the uniqueness of the block, while still covering all changes (from the earliest start anchor to the latest end anchor). Provide a single fenced code block with the language tag matching the file's language. Above the code block, include a header line of the form [path="<file path>", op="<operation type>", scope="<scope>"], where op is "add", "replace", or "delete", and scope is "file" when replacing the entire file content or "block" when replacing a partial block within the file. The path must be relative to project root, prefixed with "<project_root>/".
+const block_replacement_prompt = `\n---\nFor each file that requires changes, return a JSON array of change objects. Each object must have the following fields:
 
-Inside the block, use the following structure:
+- "path": string — file path relative to project root, prefixed with "<project_root>/"
+- "op": string — one of "add", "replace", or "delete"
+- "is_full_file": boolean — true if the replacement covers the entire file content, false if it is a partial block
+- "original": string — the full, verbatim original text block from the referenced file that is being changed (for op="add", this is the full text of the line or block after which content is inserted; for op="delete", this is the full text of the block to remove; omit or set to null for full-file replacement)
+- "replacement": string — the new content to replace or insert (omit or set to null for op="delete")
 
-- For replacement (op="replace"):
-  [start]
-  <starting anchor, 3-5 lines that uniquely identify the start of the range to be replaced; this must be the earliest line among all changes, include extra context for uniqueness>
-  [end]
-  <ending anchor, 3-5 lines that uniquely identify the end of the range; this must be the latest line among all changes, include extra context for uniqueness>
-  [replacement]
-  <new content to replace the entire range from start to end, inclusive, incorporating all modifications>
+Return the JSON array inside a fenced code block with the language tag "json".
 
-- For addition (op="add"):
-  [start]
-  <anchor line after which the new content should be inserted>
-  [replacement]
-  <new content to insert>
+Example structure:
+\`\`\`json
+[
+  {
+    "path": "<project_root>/src/example.ts",
+    "op": "replace",
+    "is_full_file": false,
+    "original": "function foo() {\n  return 1;\n}",
+    "replacement": "function foo() {\n  return 2;\n}"
+  },
+  {
+    "path": "<project_root>/src/other.ts",
+    "op": "replace",
+    "is_full_file": true,
+    "original": null,
+    "replacement": "<full new file content>"
+  }
+]
+\`\`\`
 
-- For deletion (op="delete"):
-  [start]
-  <starting anchor>
-  [end]
-  <ending anchor>
-  (no replacement section)
-
-- For full file replacement: use op="replace" and include only [replacement] with the full new content, omitting [start] and [end].
-
-All anchors must be unique lines in the file and should include enough surrounding context (3-5 lines) to ensure the block is unambiguously identifiable. Keep the replacement content itself minimal; only modify essential lines. Do not include standalone symbols or decorative characters. All content must be directly copy-pasteable.
+Keep the replacement content minimal; only modify essential lines. All content must be directly copy-pasteable.
 `;
 
 const block_replacement_prompt_conditional = block_replacement_prompt.replace(
-  '\n---\nProvide all changes',
-  '\n---\nIf changes are required, provide all changes'
+  '\n---\nFor each file that requires changes',
+  '\n---\nIf changes are required, for each file that requires changes'
 );
 
 const APPEND_BUTTONS: Array<{ key: string; value: string }> = [
-  { key: 'Current File', value: '\n---\nProvide the full content of the updated file together with its relative path from the project_root. For deletions, simply provide the relative file path from the project_root. Include a brief reason for each file change.' },
-  { key: 'Files', value: '\n---\nProvide the full content for any new or replaced files together with their relative paths from the project_root. For deletions, simply provide the relative file path from the project_root. Include a brief reason for each file change.' },
-  { key: 'Files - conditional', value: '\n---\nIf changes are required, provide the full content for any new or replaced files together with their relative paths from the project_root. For deletions, simply provide the relative file path from the project_root. Include a brief reason for each file change.' },
+  { key: 'Current File', value: '\n---\nReturn a JSON array with one object for the updated file. The object must include: "path" (relative to project root, prefixed with "<project_root>/"), "op" ("replace" or "delete"), "is_full_file": true, and "replacement" with the full new file content (omit for deletions). Return the array inside a ```json code block. Include a brief "reason" field per object.' },
+  { key: 'Files', value: '\n---\nReturn a JSON array of change objects for any new, replaced, or deleted files. Each object must include: "path" (relative to project root, prefixed with "<project_root>/"), "op" ("replace" or "delete"), "is_full_file": true, and "replacement" with the full new file content (omit for deletions). Return the array inside a ```json code block. Include a brief "reason" field per object.' },
+  { key: 'Files - conditional', value: '\n---\nIf changes are required, return a JSON array of change objects for any new, replaced, or deleted files. Each object must include: "path" (relative to project root, prefixed with "<project_root>/"), "op" ("replace" or "delete"), "is_full_file": true, and "replacement" with the full new file content (omit for deletions). Return the array inside a ```json code block. Include a brief "reason" field per object.' },
   { key: 'Update blocks', value: block_replacement_prompt },
   { key: 'Update blocks - conditional', value: block_replacement_prompt_conditional },
   { key: 'Minimal changes', value: '\n---\nPlease try to keep the proposed text/code changes minimal; modify only the essential lines; avoid any unnecessary refactoring or rewriting of surrounding text or code.' }

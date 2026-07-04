@@ -327,13 +327,20 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
     ...(temperature_claude !== undefined && { temperature_claude }),
   };
 
+  const sendLog = (level: 'log' | 'warn' | 'error', ...args: unknown[]) => {
+    const msg = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a, null, 2))).join(' ');
+    console[level](msg);
+    mainWindow?.webContents.send('main:log', { level, msg });
+  };
+
   const MAX_RETRIES = 3;
   let result;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     result = await callOpenRouter(callParams);
+    sendLog('log', `[openRouter] attempt ${attempt} raw response:`, result);
     if (!isMalformedBlockResponse(result.text)) break;
     if (attempt === MAX_RETRIES) throw new Error('OpenRouter returned a malformed block-replacement response after 3 attempts.');
-    console.warn(`[openRouter] Malformed response on attempt ${attempt}, retrying…`);
+    sendLog('warn', `[openRouter] Malformed response on attempt ${attempt}, retrying…\nResponse text:\n${result.text}`);
   }
 
   return { success: true, content: result!.text, reasoning: result!.reasoning, usage: result!.usage };
