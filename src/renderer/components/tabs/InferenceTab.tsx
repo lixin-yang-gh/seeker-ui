@@ -12,6 +12,8 @@ interface InferenceTabProps {
   onCancelInference?: () => void;
   onRunInference?: () => void;
   inferenceLastSavedTimestamp?: number | null;
+  /** Callback to re‑run inference with the existing configuration */
+  onRunInferenceAgain?: () => void;
 }
 
 // ─── Block Replacement Parser ─────────────────────────────────────
@@ -215,11 +217,16 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   inferenceStatus = 'idle',
   onClearResult,
   onCancelInference,
+  onRunInferenceAgain,
   inferenceLastSavedTimestamp,
 }) => {
   const [model, setModel] = useState<string>('');
   const [temperature, setTemperature] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+
+  // Paste from clipboard success/failure states
+  const [pasteSuccess, setPasteSuccess] = useState(false);
+  const [pasteFailure, setPasteFailure] = useState(false);
 
   // Update File(s) confirm flow
   const [updateConfirming, setUpdateConfirming] = useState(false);
@@ -252,14 +259,30 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
     loadState();
   }, [rootFolder]);
 
-  // Reset confirm state when result changes
+  // Local state to hold pasted inference result (so we can update inferenceResult locally)
+  const [pastedResult, setPastedResult] = useState<string | null>(null);
+
+  const setInferenceResultFromClipboard = useCallback((text: string) => {
+    setPastedResult(text);
+    // Also update the prop if possible via onClearResult or set it in the parent?
+    // We cannot directly modify inferenceResult because it's a prop.
+    // Instead, we store it locally and display it via the ResultRenderer.
+    // We'll use a local state that overrides the prop display.
+  }, []);
+
+  // Reset confirm and paste states when result changes
   useEffect(() => {
     setUpdateConfirming(false);
     setUpdateResults([]);
     setShowUpdateSummary(false);
+    setPasteSuccess(false);
+    setPasteFailure(false);
   }, [inferenceResult]);
 
-  const segments = useMemo(() => parseSegments(inferenceResult), [inferenceResult]);
+  // When pastedResult changes, also handle the display. If pastedResult is set, show that.
+  const effectiveResult = pastedResult ?? inferenceResult;
+
+  const segments = useMemo(() => parseSegments(effectiveResult), [effectiveResult]);
 
   const blockItems = useMemo(() => extractBlockItems(segments), [segments]);
 
@@ -284,7 +307,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   }, [updateResults]);
 
   const handleUpdateFiles = useCallback(async () => {
-    if (!rootFolder || !inferenceResult) return;
+    if (!rootFolder || !effectiveResult) return;
     if (blockItems.length === 0) {
       setUpdateConfirming(false);
       return;
@@ -306,9 +329,9 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
       setIsUpdating(false);
       setUpdateConfirming(false);
     }
-  }, [rootFolder, inferenceResult, segments]);
+  }, [rootFolder, effectiveResult, blockItems]);
 
-  const hasContent = !!(inferenceResult || inferenceReasoning || inferenceError);
+  const hasContent = !!(effectiveResult || inferenceReasoning || inferenceError);
 
   return (
     <div className="tab-panel inference-tab">
@@ -372,6 +395,48 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
                 Cancel Inference
               </button>
             )}
+            <button
+              className="inference-action-button"
+              onClick={() => onRunInferenceAgain?.()}
+              disabled={inferenceStatus === 'running' || !onRunInferenceAgain}
+              title="Re‑run inference with the current model, temperature, and prompts"
+            >
+              Run Inference Again
+            </button>
+            <button
+              className={`inference-action-button ${pasteSuccess ? 'success' : ''} ${pasteFailure ? 'failure' : ''}`}
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  console.log('[InferenceTab] Clipboard text length:', text.length);
+                  console.log('[InferenceTab] Clipboard text preview:', text.slice(0, 200));
+                  // Try to parse as Open Router API response: look for fenced JSON blocks
+                  const segments = parseSegments(text);
+                  const blocks = extractBlockItems(segments);
+                  console.log('[InferenceTab] Parsed segments count:', segments.length);
+                  console.log('[InferenceTab] Block items found:', blocks.length);
+                  // Always display the pasted text in the result area
+                  setInferenceResultFromClipboard(text);
+                  if (blocks.length > 0) {
+                    setPasteSuccess(true);
+                    setPasteFailure(false);
+                    setTimeout(() => setPasteSuccess(false), 2000);
+                  } else {
+                    setPasteFailure(true);
+                    setPasteSuccess(false);
+                    setTimeout(() => setPasteFailure(false), 2000);
+                  }
+                } catch (err) {
+                  console.error('[InferenceTab] Paste error:', err);
+                  setPasteFailure(true);
+                  setPasteSuccess(false);
+                  setTimeout(() => setPasteFailure(false), 2000);
+                }
+              }}
+              title="Paste from clipboard and try to parse as Open Router API response"
+            >
+              {pasteSuccess ? '✓ Parsed' : pasteFailure ? '✗ Parse failed' : 'Paste'}
+            </button>
             <button className="inference-action-button" onClick={() => onClearResult?.()} disabled={!hasContent}>Clear</button>
             <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '500' }} />
             {!updateConfirming ? (
@@ -426,8 +491,8 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
           className="inference-result-area"
           style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}
         >
-          {inferenceStatus === 'success' && inferenceResult ? (
-            <ResultRenderer text={inferenceResult} />
+          {effectiveResult ? (
+            <ResultRenderer text={effectiveResult} />
           ) : (
             <span style={{ color: '#666', fontStyle: 'italic' }}>
               {inferenceStatus === 'running' ? 'Waiting for response…' : 'No result yet. Run inference from the Prompt tab.'}
