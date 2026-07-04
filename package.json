@@ -1,6 +1,7 @@
 {
-  "name": "seeker-ui",
+  "name": "Seeker-UI",
   "version": "0.9.0",
+  "author": "Lixin Yang",
   "type": "module",
   "main": "./dist/main/index.js",
   "scripts": {
