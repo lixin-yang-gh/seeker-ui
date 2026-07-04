@@ -378,6 +378,22 @@ ipcMain.handle('openRouter:cancel', async () => {
   return { cancelled: false };
 });
 
+// ─── EULA Agreement IPC ─────────────────────────────────────────────
+ipcMain.handle('store:getEulaAgreed', () => {
+  return store.get('eulaAgreed', false);
+});
+
+ipcMain.handle('store:setEulaAgreed', (_, value: boolean) => {
+  store.set('eulaAgreed', value);
+  return { success: true };
+});
+
+// ─── App Quit IPC ────────────────────────────────────────────────
+ipcMain.handle('app:quit', () => {
+  app.quit();
+  return { success: true };
+});
+
 // App lifecycle
 app.whenReady().then(createWindow);
 

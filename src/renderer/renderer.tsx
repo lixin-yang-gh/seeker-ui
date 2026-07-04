@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import Sidebar from './components/Sidebar';
 import FileManager from './components/FileManager';
+import EulaModal from './components/EulaModal';
 import './styles/main.css';
 import './styles/file_tree.css';
 // Forward main-process logs to the renderer DevTools console
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState(300);
+  const [eulaAgreed, setEulaAgreed] = useState(false);
   const isResizingRef = useRef(false);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -49,30 +51,35 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div
-      className="app-container"
-      style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
-    >
-      <Sidebar
-        onFileSelect={handleFileSelect}
-        currentPath={currentPath}
-        onFolderOpen={setCurrentPath}
-        onSelectedPathsChange={handleSelectedPathsChange}
-        previewedFile={previewedFile}
-      />
-      <div
-        className="resizer"
-        onMouseDown={handleMouseDown}
-      />
-      <div className="main-content">
-        <FileManager
-          filePath={currentFile}
-          rootFolder={currentPath}
-          selectedFilePaths={selectedFilePaths}
-          onPreviewChange={handlePreviewChange}
-        />
-      </div>
-    </div>
+    <>
+      <EulaModal onAgreed={() => setEulaAgreed(true)} />
+      {eulaAgreed && (
+        <div
+          className="app-container"
+          style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
+        >
+          <Sidebar
+            onFileSelect={handleFileSelect}
+            currentPath={currentPath}
+            onFolderOpen={setCurrentPath}
+            onSelectedPathsChange={handleSelectedPathsChange}
+            previewedFile={previewedFile}
+          />
+          <div
+            className="resizer"
+            onMouseDown={handleMouseDown}
+          />
+          <div className="main-content">
+            <FileManager
+              filePath={currentFile}
+              rootFolder={currentPath}
+              selectedFilePaths={selectedFilePaths}
+              onPreviewChange={handlePreviewChange}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 ReactDOM.createRoot(document.getElementById('root')!).render(

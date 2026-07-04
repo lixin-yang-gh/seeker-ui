@@ -57,5 +57,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   onMainLog: (callback) => {
     ipcRenderer.on('main:log', (_, data) => callback(data));
-  }
+  },
+
+  // EULA agreement
+  getEulaAgreed: () => ipcRenderer.invoke('store:getEulaAgreed'),
+  setEulaAgreed: (value) => ipcRenderer.invoke('store:setEulaAgreed', value),
+
+  // Quit application
+  quitApp: () => ipcRenderer.invoke('app:quit'),
 });

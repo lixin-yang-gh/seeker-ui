@@ -93,6 +93,13 @@ declare global {
 
       cancelOpenRouter: () => Promise<{ cancelled: boolean }>;
 
+      // EULA agreement
+      getEulaAgreed: () => Promise<boolean>;
+      setEulaAgreed: (value: boolean) => Promise<{ success: boolean }>;
+
+      // Quit application
+      quitApp: () => Promise<{ success: boolean }>;
+
       // Events
       on: (channel: string, callback: (...args: any[]) => void) => void;
       onMainLog: (callback: (data: { level: 'log' | 'warn' | 'error'; msg: string }) => void) => void;
