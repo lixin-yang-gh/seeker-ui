@@ -15,7 +15,7 @@ const InferenceControls: React.FC<InferenceControlsProps> = ({
 }) => {
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
-  const [temperature, setTemperature] = useState<number>(0.1);
+  const [temperature, setTemperature] = useState<number>(0.7);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -41,7 +41,7 @@ const InferenceControls: React.FC<InferenceControlsProps> = ({
           const folderState = await window.electronAPI.getFolderState(rootFolder);
           if (folderState) {
             setSelectedModel(folderState.inferenceModel || (parsedModels.length > 0 ? parsedModels[0] : ''));
-            setTemperature(folderState.temperature ?? 0.1);
+            setTemperature(folderState.temperature ?? 0.7);
           } else {
             // default to first model if available
             if (parsedModels.length > 0) setSelectedModel(parsedModels[0]);

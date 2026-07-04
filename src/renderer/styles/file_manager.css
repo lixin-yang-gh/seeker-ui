@@ -1348,7 +1348,7 @@ pre::-webkit-scrollbar-thumb:hover,
 }
 
 .inference-result-area {
-    margin-top: 12px;
+    margin: 12px 0;
     background: #1e1e1e;
     border: 1px solid #333;
     border-radius: 4px;
@@ -1367,7 +1367,7 @@ pre::-webkit-scrollbar-thumb:hover,
 
 /* Inference action buttons (Clear, Copy, Update File(s)) */
 .inference-action-button {
-    padding: 12px 10px;
+    padding: 12px 20px;
     background: #0e639c;
     color: white;
     border: none;
@@ -1379,7 +1379,6 @@ pre::-webkit-scrollbar-thumb:hover,
     position: relative;
     overflow: hidden;
     word-wrap: nowrap;
-    width: 120px;
 }
 
 .inference-action-button:hover:not(:disabled) {

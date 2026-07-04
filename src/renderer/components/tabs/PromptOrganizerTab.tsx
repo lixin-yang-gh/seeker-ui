@@ -718,7 +718,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
               onClick={handleCopyPrompt}
               disabled={!canGeneratePrompt || generationStatus === 'generating'}
             >
-              Copy Prompt
+              {generationStatus === 'success' ? '✓ Copied!' : 'Copy Prompt'}
             </button>
             <InferenceControls
               rootFolder={rootFolder ?? null}
@@ -729,9 +729,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           </div>
         </div>
 
-        {generationStatus === 'success' && (
-          <div className="alert-message alert-success">✓ Prompt copied to clipboard!</div>
-        )}
         {generationStatus === 'error' && (
           <div className="alert-message alert-error">Failed to copy prompt</div>
         )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { applyBlockReplacements, BlockReplacementItem as UtilBlockReplacementItem, FileUpdateResult } from '../../../shared/file-updater';
 
 interface InferenceTabProps {
   rootFolder?: string | null;
@@ -8,6 +9,7 @@ interface InferenceTabProps {
   inferenceError?: string;
   inferenceStatus?: 'idle' | 'running' | 'success' | 'error';
   onClearResult?: () => void;
+  onRunInference?: () => void;
   inferenceLastSavedTimestamp?: number | null;
 }
 
@@ -78,6 +80,11 @@ function parseSegments(text: string): Segment[] {
   return segments;
 }
 
+/** Extract all block items from parsed segments */
+function extractBlockItems(segments: Segment[]): BlockReplacementItem[] {
+  return segments.filter((s): s is { type: 'block'; item: BlockReplacementItem } => s.type === 'block').map(s => s.item);
+}
+
 // ─── Copy Button ──────────────────────────────────────────────────
 
 const CopyButton: React.FC<{ text: string; label?: string; style?: React.CSSProperties }> = ({
@@ -99,7 +106,7 @@ const CopyButton: React.FC<{ text: string; label?: string; style?: React.CSSProp
   );
 };
 
-// ─── Text Renderer (simple, no external deps) ─────────────────────
+// ─── Text Renderer ────────────────────────────────────────────────
 
 const TextSegment: React.FC<{ content: string }> = ({ content }) => (
   <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#d4d4d4', fontSize: '13px', lineHeight: 1.6, padding: '4px 0' }}>
@@ -129,7 +136,6 @@ const BlockSegment: React.FC<{ item: BlockReplacementItem }> = ({ item }) => {
   const color = opColors[item.op.toLowerCase()] ?? '#aaa';
   return (
     <div style={{ margin: '10px 0', border: `1px solid ${color}55`, borderRadius: '6px', overflow: 'hidden', background: '#1e2330' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 12px', background: '#252a38', borderBottom: `1px solid ${color}44`, flexWrap: 'wrap' }}>
         <span style={{ padding: '1px 8px', borderRadius: '3px', background: `${color}22`, color, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', border: `1px solid ${color}66` }}>
           {item.op}
@@ -147,7 +153,6 @@ const BlockSegment: React.FC<{ item: BlockReplacementItem }> = ({ item }) => {
         )}
         <CopyButton text={item.replacement ?? item.original ?? item.raw} />
       </div>
-      {/* Body */}
       <div style={{ padding: '10px 14px' }}>
         {item.original != null && (
           <div style={{ marginBottom: '8px' }}>
@@ -213,6 +218,11 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   const [temperature, setTemperature] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
+  // Update File(s) confirm flow
+  const [updateConfirming, setUpdateConfirming] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateResults, setUpdateResults] = useState<FileUpdateResult[]>([]);
+
   useEffect(() => {
     const loadState = async () => {
       if (!rootFolder) { setLoading(false); return; }
@@ -228,7 +238,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
           if (match[1].trim()) parsedModels.push(match[1].trim());
         }
         setModel(folderState?.inferenceModel || parsedModels[0] || '');
-        setTemperature(folderState?.temperature ?? 0.1);
+        setTemperature(folderState?.temperature ?? 0.7);
       } catch (e) {
         console.error('Failed to load inference state:', e);
       } finally {
@@ -237,6 +247,38 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
     };
     loadState();
   }, [rootFolder]);
+
+  // Reset confirm state when result changes
+  useEffect(() => {
+    setUpdateConfirming(false);
+    setUpdateResults([]);
+  }, [inferenceResult]);
+
+  const segments = useMemo(() => parseSegments(inferenceResult), [inferenceResult]);
+
+  const handleUpdateFiles = useCallback(async () => {
+    if (!rootFolder || !inferenceResult) return;
+    const blockItems = extractBlockItems(segments);
+    if (blockItems.length === 0) {
+      setUpdateConfirming(false);
+      return;
+    }
+    setIsUpdating(true);
+    setUpdateResults([]);
+    try {
+      // Cast local BlockReplacementItem to the shared utility type (shapes are identical minus `raw`)
+      const results = await applyBlockReplacements(
+        blockItems as UtilBlockReplacementItem[],
+        rootFolder
+      );
+      setUpdateResults(results);
+    } catch (err: any) {
+      setUpdateResults([{ path: '(unknown)', success: false, error: err?.message ?? String(err) }]);
+    } finally {
+      setIsUpdating(false);
+      setUpdateConfirming(false);
+    }
+  }, [rootFolder, inferenceResult, segments]);
 
   const hasContent = !!(inferenceResult || inferenceReasoning || inferenceError);
 
@@ -267,7 +309,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         </div>
       )}
 
-      {/* Model reasoning (from thinking block) */}
+      {/* Model reasoning */}
       {inferenceReasoning && (
         <div style={{ marginBottom: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
@@ -291,12 +333,54 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button className="inference-action-button" onClick={() => onClearResult?.()} disabled={!hasContent}>Clear</button>
             <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '6px 10px', fontSize: '12px' }} />
-            <button className="inference-action-button" disabled={!inferenceResult}>Update File(s)</button>
+            {!updateConfirming ? (
+              <button
+                className="inference-action-button"
+                disabled={!inferenceResult || !rootFolder}
+                onClick={() => setUpdateConfirming(true)}
+              >
+                Update File(s)
+              </button>
+            ) : (
+              <>
+                <span style={{ fontSize: '12px', color: '#ffb300' }}>Apply changes?</span>
+                <button
+                  className="inference-action-button"
+                  style={{ background: isUpdating ? '#555' : '#2e7d32' }}
+                  onClick={handleUpdateFiles}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? 'Updating…' : 'OK'}
+                </button>
+                <button
+                  className="inference-action-button"
+                  style={{ background: '#555' }}
+                  onClick={() => { setUpdateConfirming(false); setUpdateResults([]); }}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
         </div>
+
+        {/* Update results feedback */}
+        {updateResults.length > 0 && (
+          <div style={{ marginBottom: '8px', background: '#1e1e1e', border: '1px solid #444', borderRadius: '4px', padding: '8px 12px', fontSize: '12px' }}>
+            {updateResults.map((r, i) => (
+              <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '3px' }}>
+                <span style={{ color: r.success ? '#4ec9b0' : '#f48771', fontWeight: 700 }}>{r.success ? '✓' : '✗'}</span>
+                <span style={{ fontFamily: 'Consolas, monospace', color: '#9cdcfe', wordBreak: 'break-all' }}>{r.path}</span>
+                {r.error && <span style={{ color: '#f48771', fontStyle: 'italic' }}>{r.error}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div
           className="inference-result-area"
           style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}

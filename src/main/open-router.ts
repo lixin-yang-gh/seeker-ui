@@ -151,7 +151,7 @@ export async function callOpenRouter(params: OpenRouterRequest): Promise<OpenRou
     userPrompt,
     model,
     apiKey,
-    temperature = 0.1,
+    temperature = 0.7,
     temperature_claude = 1,
     maxTokens = 8_192,
     topP = 1.0,
