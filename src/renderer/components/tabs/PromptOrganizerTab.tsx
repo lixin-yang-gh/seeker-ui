@@ -24,8 +24,8 @@ interface PromptOrganizerTabProps {
 
 // Define prepend and append button configurations for scalability
 const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
-  { key: 'Feasibility', value: 'Please explore feasibility.' },
-  { key: 'Analysis', value: 'Please provide analysis.' },
+  { key: 'Feasibility', value: 'Please explore feasibility ' },
+  { key: 'Analysis', value: 'Please provide analysis ' },
   { key: 'Review', value: 'Please review ' },
   { key: 'Solution', value: 'Please propose the best solution.' },
   { key: 'Enhancements', value: 'Please propose enhancement.' },
@@ -36,25 +36,52 @@ const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Report', value: 'Please create a report.' },
 ];
 
-const block_replacement_prompt = `\n---\nFor each file that requires changes, return a JSON array of change objects. Each object must have the following fields:
+const block_replacement_prompt = `
+---
+For each file that requires changes, return a JSON array of change objects wrapped in a fenced code block with language tag "json". Do not include any explanatory text or markdown outside the fence.
+
+\`\`\`json
+[ ... ]
+\`\`\`
+
+Each object must contain exactly these fields:
 
 - "path": string — file path relative to project root, prefixed with "<project_root>/"
 - "op": string — one of "add", "replace", or "delete"
-- "is_full_file": boolean — true if the replacement covers the entire file content, false if it is a partial block
-- "original": string — the full, verbatim original text block from the referenced file that is being changed (for op="add", this is the full text of the line or block after which content is inserted; for op="delete", this is the full text of the block to remove; omit or set to null for full-file replacement)
-- "replacement": string — the new content to replace or insert (omit or set to null for op="delete")
+- "is_full_file": boolean — true if the operation applies to the entire file; false if it applies to a specific block
+  * "add" + true: create a new file with content in "replacement"
+  * "add" + false: insert "replacement" after the anchor block in "original"
+  * "replace" + true: overwrite the entire file with "replacement"
+  * "replace" + false: replace the exact block in "original" with "replacement"
+  * "delete" + true: delete the entire file
+  * "delete" + false: remove the exact block in "original"
+- "original": string or null — the verbatim, exact text from the target file
+  * For partial "replace" or "delete": copy the complete contiguous block character-for-character from the file, including all whitespace and indentation. Include enough surrounding lines so the block is globally unique within the file.
+  * For partial "add": the exact anchor block after which new content will be inserted.
+  * When is_full_file is true: set to null.
+- "replacement": string or null — the new content to insert or replace. Set to null for "delete".
 
-Return the JSON array inside a fenced code block with the language tag "json".
+JSON STRING ESCAPING RULES:
+- Use \\n for newlines, \\t for tabs inside all string values.
+- Do not embed unescaped literal newlines inside JSON string values.
+- Do not wrap "replacement" content in internal markdown code fences.
+- Output must be immediately parseable by a standard JSON parser.
 
-Example structure:
+Guidelines:
+- Keep replacements minimal — change only what is necessary; avoid rewriting surrounding unchanged lines.
+- For partial operations, "original" must match the file content character-for-character.
+- Prefer fewer, larger contiguous blocks over many small fragmented ones.
+- All content must be directly copy-pasteable.
+
+Example:
 \`\`\`json
 [
   {
     "path": "<project_root>/src/example.ts",
     "op": "replace",
     "is_full_file": false,
-    "original": "function foo() {\n  return 1;\n}",
-    "replacement": "function foo() {\n  return 2;\n}"
+    "original": "function foo() {\\n  return 1;\\n}",
+    "replacement": "function foo() {\\n  return 2;\\n}"
   },
   {
     "path": "<project_root>/src/other.ts",
@@ -65,13 +92,11 @@ Example structure:
   }
 ]
 \`\`\`
-
-Keep the replacement content minimal; only modify essential lines. All content must be directly copy-pasteable.
 `;
 
 const block_replacement_prompt_conditional = block_replacement_prompt.replace(
-  '\n---\nFor each file that requires changes',
-  '\n---\nIf changes are required, for each file that requires changes'
+  '\nFor each file that requires changes',
+  '\nIf changes are required, for each file that requires changes'
 );
 
 const APPEND_BUTTONS: Array<{ key: string; value: string }> = [
