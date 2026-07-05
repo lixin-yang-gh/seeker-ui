@@ -230,27 +230,6 @@ The UI renders each block with the original and replacement side‑by‑side, al
 
 ---
 
-## 9. Missing or Unselected but Anticipated Files
-
-Based on the current codebase, the following components or features are either missing or not yet integrated, but are anticipated for future releases:
-
-| File / Feature                        | Status & Notes                                                                                         |
-|---------------------------------------|--------------------------------------------------------------------------------------------------------|
-| **Validation models usage**           | The `validationModels` setting exists in `SettingsTab`, but there is no UI or logic that uses it. Likely planned for a “validation” or “review” pass. |
-| **Full‑file delete operation**        | The `file-updater.ts` currently returns an error for `delete` + `is_full_file: true`. A true file‑delete IPC would be needed. |
-| **Global hotkeys / shortcuts**        | No keyboard shortcuts are defined (e.g., for copying prompt, running inference). |
-| **Dark/light theme toggle**           | The app uses a fixed dark theme; a theme switcher is not present. |
-| **Application‑wide progress indicator**| Inference progress is only shown as a spinner; no detailed progress or token usage display. |
-| **Export/Import of folder states**    | Individual folder states can be exported/imported only via the Settings import/export (global settings). Per‑folder export is not supported. |
-| **OpenRouter streaming**              | The current implementation uses non‑streaming requests. Streaming would allow incremental display of the response. |
-| **Local LLM support**                 | The app only supports OpenRouter; local models via Ollama, LM Studio, etc., are not integrated. |
-| **Tests**                             | No test suite is present (unit, integration, or end‑to‑end). |
-| **Documentation for developers**      | There is no developer‑friendly documentation on building, packaging, or contributing. |
-
-These are natural areas for future enhancement. If you are a developer, consider contributing!
-
----
-
 ## Final Notes
 
 - **All settings, prompts, and inference results are stored locally** in `electron-store`. No data is sent anywhere except to OpenRouter when you explicitly run inference.
