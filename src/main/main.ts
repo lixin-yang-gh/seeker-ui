@@ -23,6 +23,8 @@ interface FolderSpecificState {
   inferenceError?: string;
   inferenceStatus?: 'idle' | 'running' | 'success' | 'error';
   inferenceResultSavedAt?: number;
+  lastSystemPrompt?: string;
+  lastUserPrompt?: string;
 }
 
 // Define the store schema

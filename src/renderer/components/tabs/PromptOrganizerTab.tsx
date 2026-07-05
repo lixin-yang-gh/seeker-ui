@@ -648,6 +648,16 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
         }
       }
 
+      // Cache the final prompts so "Run Inference Again" can re-use them
+      if (rootFolder) {
+        const currentState = await window.electronAPI.getFolderState(rootFolder) || {};
+        await window.electronAPI.saveFolderState(rootFolder, {
+          ...currentState,
+          lastSystemPrompt: sysPrompt,
+          lastUserPrompt: userPrompt,
+        });
+      }
+
       const result = await window.electronAPI.callOpenRouter(
         sysPrompt,
         userPrompt,

@@ -100,6 +100,45 @@ const FileManager: React.FC<FileManagerProps> = ({
     setInferenceError('');
   }, []);
 
+  const handleRunInferenceAgain = useCallback(async () => {
+    if (!rootFolder) return;
+    try {
+      const folderState = await window.electronAPI.getFolderState(rootFolder);
+      if (!folderState?.lastSystemPrompt || !folderState?.lastUserPrompt) {
+        setInferenceError('No previous inference found. Run inference from the Prompt tab first.');
+        setInferenceStatus('error');
+        return;
+      }
+      const model = folderState.inferenceModel || '';
+      const temperature = folderState.temperature ?? 0.7;
+      if (!model) {
+        setInferenceError('No inference model configured.');
+        setInferenceStatus('error');
+        return;
+      }
+
+      setInferenceStatus('running');
+      setInferenceResult('');
+      setInferenceReasoning('');
+      setInferenceError('');
+
+      const result = await window.electronAPI.callOpenRouter(
+        folderState.lastSystemPrompt,
+        folderState.lastUserPrompt,
+        model,
+        { temperature }
+      );
+
+      setInferenceResult(result.content || '');
+      if (result.reasoning) setInferenceReasoning(result.reasoning);
+      setInferenceStatus('success');
+    } catch (error) {
+      const errMsg = getErrorMessage(error);
+      setInferenceError(errMsg);
+      setInferenceStatus('error');
+    }
+  }, [rootFolder]);
+
   useEffect(() => {
     if (filePath) {
       loadFile(filePath);
@@ -250,6 +289,7 @@ const FileManager: React.FC<FileManagerProps> = ({
                   inferenceStatus={inferenceStatus}
                   onClearResult={handleClearInferenceResult}
                   onCancelInference={handleCancelInference}
+                  onRunInferenceAgain={handleRunInferenceAgain}
                   inferenceLastSavedTimestamp={inferenceLastSaveTime}
                 />
               )}

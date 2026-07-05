@@ -117,7 +117,6 @@ The **Prompt** tab (`PromptOrganizerTab.tsx`) is where you craft the instruction
 - **Required** – must be filled for inference.
 - **Prepend / Append buttons** – quickly add common task prefixes (e.g., “Please explore feasibility”) or structural instructions (e.g., “Update blocks – conditional”).
 - **New Task** clears the task field.
-- **“Get Standalone Prompt from Task”** – copies the task text (with custom masking applied) to the clipboard, so you can paste it directly into an external chat.
 
 ### 4.3 Issues (Optional)
 - A free‑form field for listing known issues, errors, logs, feedback, or any additional context.
@@ -137,9 +136,17 @@ When you click **“Copy Prompt”**, the app builds a combined prompt with the 
   [your system prompt]
 </system_prompt>
 <user_prompt content="User Prompt">
-  <task>[task]</task>
-  <issues>[issues]</issues>   (if provided)
-  <referenced_files>          (if files are selected)
+  <task content="Task">
+    [task]
+    ---
+    **Please nominate missing or unselected but still anticipated files if there are any**
+  </task>
+  ---
+  <issues content="Issues">   (if provided; tag name and content attribute depend on the selected header)
+    [issues]
+  </issues>
+  ---
+  <referenced_files content="Referenced Files">          (if files are selected)
     <file path="...">...</file>
     ...
   </referenced_files>
