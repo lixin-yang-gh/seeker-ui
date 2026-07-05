@@ -66,6 +66,7 @@ JSON STRING ESCAPING RULES:
 - Use \\n for newlines, \\t for tabs inside all string values.
 - Do not embed unescaped literal newlines inside JSON string values.
 - Do not wrap "replacement" content in internal markdown code fences.
+- CRITICAL — Escape ALL backtick characters (the \` character) that appear inside any JSON string value (especially "original" and "replacement") as the unicode escape \\u0060. This includes single backticks and fenced code block sequences (three consecutive backticks must be written as \\u0060\\u0060\\u0060). This prevents any embedded fenced code block from prematurely closing the outer JSON code fence. A standard JSON parser decodes \\u0060 back into a literal backtick, so the file content is restored exactly and applied correctly — no extra unescaping is needed.
 - Output must be immediately parseable by a standard JSON parser.
 
 Guidelines:
@@ -122,6 +123,7 @@ Each object must contain exactly these fields:
 JSON STRING ESCAPING RULES:
 - Use \\n for newlines, \\t for tabs inside all string values.
 - Do not embed unescaped literal newlines inside JSON string values.
+- CRITICAL — Escape ALL backtick characters (the \` character) that appear inside any JSON string value (especially "replacement") as the unicode escape \\u0060. This includes single backticks and fenced code block sequences (three consecutive backticks must be written as \\u0060\\u0060\\u0060). This prevents any embedded fenced code block from prematurely closing the outer JSON code fence. A standard JSON parser decodes \\u0060 back into a literal backtick, so the file content is restored exactly and applied correctly — no extra unescaping is needed.
 - Output must be immediately parseable by a standard JSON parser.
 
 Example:
