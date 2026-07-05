@@ -33,13 +33,141 @@ type Segment =
   | { type: 'code'; lang: string; content: string }
   | { type: 'block'; item: BlockReplacementItem };
 
+/**
+ * Pre-process a raw LLM response before attempting to extract fenced JSON blocks.
+ *
+ * The LLM is instructed to escape backticks inside JSON string values as \u0060,
+ * but some models instead emit literal backtick characters.  When the "original"
+ * or "replacement" field contains a fenced-code-block sequence (```) those
+ * literal backticks confuse the outer fence-extraction regex and/or JSON.parse.
+ *
+ * Strategy:
+ *   1. Walk the text character-by-character tracking fenced-block state so that
+ *      overlapping or nested fence markers are handled correctly.
+ *   2. For every ```json ... ``` fence found, escape bare backticks that appear
+ *      inside JSON string values within the fence body.
+ *   3. All other text (non-JSON fences, plain prose) is passed through verbatim.
+ *
+ * This approach works for both:
+ *   - Normal inference results returned by the main process.
+ *   - Raw text pasted from the clipboard (the "Paste" button path).
+ *
+ * After JSON.parse the JS runtime automatically converts \u0060 back to `,
+ * so no extra unescaping is needed in the parsed objects.
+ */
+function preprocessLlmResponse(text: string): string {
+  // We need to find every ```json ... ``` fence and process its body.
+  // A naive global regex can be confused when the fence body itself contains
+  // backtick triplets (which is exactly the problem we are solving), so we use
+  // a state-machine approach that scans for the opening tag and then finds the
+  // matching closing ``` by counting backtick runs.
+
+  const JSON_OPEN = '```json';
+  const FENCE_CLOSE = '```';
+
+  let result = '';
+  let i = 0;
+
+  while (i < text.length) {
+    // Look for the next ```json opening
+    const openIdx = text.indexOf(JSON_OPEN, i);
+    if (openIdx === -1) {
+      // No more json fences – copy the rest verbatim
+      result += text.slice(i);
+      break;
+    }
+
+    // Copy text before the opening fence verbatim
+    result += text.slice(i, openIdx);
+
+    // Advance past the opening tag
+    const bodyStart = openIdx + JSON_OPEN.length;
+
+    // Scan from bodyStart to find the REAL closing fence, while escaping backticks
+    // inside JSON string values. A naive text.indexOf('```') is wrong when the
+    // fence body contains a literal ``` inside a string value (exactly what we
+    // sanitize). We therefore track JSON-string state: a triple backtick that
+    // appears while NOT inside a string is the closing fence; any backtick inside
+    // a string is escaped to \u0060.
+    let inString = false;
+    let escape = false;
+    let backtickCount = 0; // pending backtick run while OUTSIDE a string
+    let closeIdx = -1;
+    let processedBody = '';
+    let j = bodyStart;
+
+    while (j < text.length) {
+      const ch = text[j];
+
+      if (inString) {
+        if (escape) {
+          // Backslash-escaped character: copy verbatim, clear escape flag.
+          escape = false;
+          processedBody += ch;
+        } else if (ch === '\\') {
+          escape = true;
+          processedBody += ch;
+        } else if (ch === '"') {
+          inString = false;
+          processedBody += ch;
+        } else if (ch === '`') {
+          // Bare backtick inside a string (single or part of a triple) → escape.
+          // This absorbs literal ``` sequences so they are never mistaken for
+          // the closing fence.
+          processedBody += '\\u0060';
+        } else {
+          processedBody += ch;
+        }
+      } else {
+        // Outside a JSON string value.
+        if (ch === '`') {
+          backtickCount++;
+          if (backtickCount === 3) {
+            // Real closing fence — first backtick of the triple is at j - 2.
+            closeIdx = j - 2;
+            backtickCount = 0;
+            break;
+          }
+        } else {
+          // Flush any accumulated (incomplete) backtick run as literal chars.
+          if (backtickCount > 0) {
+            processedBody += '`'.repeat(backtickCount);
+            backtickCount = 0;
+          }
+          if (ch === '"') inString = true;
+          processedBody += ch;
+        }
+      }
+      j++;
+    }
+
+    if (closeIdx === -1) {
+      // No closing fence found — flush any trailing partial backtick run and
+      // append the sanitized body (best-effort), then stop.
+      if (backtickCount > 0) processedBody += '`'.repeat(backtickCount);
+      result += JSON_OPEN + processedBody;
+      break;
+    }
+
+    result += JSON_OPEN + processedBody + FENCE_CLOSE;
+
+    // Continue scanning after the closing fence.
+    i = closeIdx + FENCE_CLOSE.length;
+  }
+
+  return result;
+}
+
 function parseSegments(text: string): Segment[] {
   const segments: Segment[] = [];
+  // Pre-process the full response to escape backticks inside JSON string values
+  // before the fence-extraction regex runs.
+  const processedText = preprocessLlmResponse(text);
   const pattern = /```(\w*)\s*\n([\s\S]*?)```/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = pattern.exec(text)) !== null) {
+  while ((match = pattern.exec(processedText)) !== null) {
     if (match.index > lastIndex) {
       segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
     }
@@ -53,6 +181,7 @@ function parseSegments(text: string): Segment[] {
         for (const item of items) {
           if (item && typeof item === 'object' && 'path' in item && 'op' in item) {
             const rec = item as Record<string, unknown>;
+            // JSON.parse already decoded \u0060 back to ` — no extra unescaping needed.
             segments.push({
               type: 'block',
               item: {
@@ -73,11 +202,13 @@ function parseSegments(text: string): Segment[] {
         segments.push({ type: 'code', lang, content: body });
       }
     } else {
-      segments.push({ type: 'code', lang, content: body });
+      // For non-JSON fences, use the original (unprocessed) text slice so that
+      // display is unchanged.
+      segments.push({ type: 'code', lang, content: text.slice(match.index + match[0].indexOf(body), match.index + match[0].indexOf(body) + body.length) });
     }
     lastIndex = match.index + match[0].length;
   }
-  if (lastIndex < text.length) {
+  if (lastIndex < processedText.length) {
     segments.push({ type: 'text', content: text.slice(lastIndex) });
   }
   return segments;
@@ -411,7 +542,11 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
                   const text = await navigator.clipboard.readText();
                   console.log('[InferenceTab] Clipboard text length:', text.length);
                   console.log('[InferenceTab] Clipboard text preview:', text.slice(0, 200));
-                  // Try to parse as Open Router API response: look for fenced JSON blocks
+                  // Always sanitize 3-consecutive-backtick sequences in the pasted
+                  // inference result before parsing into the block update list.
+                  // parseSegments() internally runs preprocessLlmResponse(), so
+                  // pasted text follows the exact same sanitization path as
+                  // inference results produced in-app.
                   const segments = parseSegments(text);
                   const blocks = extractBlockItems(segments);
                   console.log('[InferenceTab] Parsed segments count:', segments.length);
@@ -489,7 +624,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
           </div>
         )}
 
-        
+
 
         <div
           className="inference-result-area"
