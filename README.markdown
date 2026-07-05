@@ -226,7 +226,7 @@ The UI renders each block with the original and replacement side‑by‑side, al
    - Write the updated content back to disk.
 4. A **File Update Summary** popup shows the result for each file (success/failure, operation type, and any errors).
 
-**Important:** Always back up your project before applying AI‑generated changes – the app does not provide an undo function for file modifications.
+**Important:** Before applying AI‑generated changes, ensure all uncommitted changes are committed to your source control system (e.g., Git) or create a backup of your project files. The app does not provide an undo function for file modifications, so taking these precautions protects your work.
 
 ---
 

@@ -33,31 +33,27 @@ export interface FileUpdateResult {
   operation?: string;
 }
 
-/**
-* Normalize indentation in a source string by replacing leading whitespace 
-* at the start of each line with a flexible regex that matches any whitespace.
-* This allows matching even when the LLM-provided block has mismatched indentation.
-* Returns a RegExp object with 'gs' flags (global, dotall) to match across lines.
-*/
 function createFlexiblePattern(original: string): RegExp {
-  const lines = original.split('\n');
+  // Normalize line endings to \n for pattern building
+  const lines = original.replace(/\r\n/g, '\n').split('\n');
   const patternParts = lines.map(line => {
-    // Capture leading whitespace and the rest
-    const match = line.match(/^(\s*)(.*)$/);
-    if (!match) return ''; // should not happen
-    const [, leading, rest] = match;
-    // Escape regex special characters in the rest
-    const escapedRest = rest.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // If line is blank (leading empty and rest empty), just represent as optional whitespace
-    if (leading === '' && rest === '') {
-      return '\\s*';
+    // Trim leading/trailing whitespace and collapse internal whitespace
+    const cleanedLine = line.trim().replace(/\s+/g, ' ');
+    if (cleanedLine === '') {
+      // For empty lines, allow any amount of horizontal whitespace (or empty)
+      return '[ \\t]*';
     }
-    // Use [ \t]* to match any combination of spaces and tabs (but not newlines)
-    return `[ \\t]*${escapedRest}`;
+    // Escape regex special characters
+    const escaped = cleanedLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Tolerate multiple spaces/tabs between words by replacing literal space with [ \\t]+
+    const spaceTolerant = escaped.replace(/ /g, '[ \\t]+');
+    // Allow leading and trailing horizontal whitespace on the line
+    return `[ \\t]*${spaceTolerant}[ \\t]*`;
   });
-  // Join with newline (must match newline in content)
-  const pattern = patternParts.join('\n');
-  return new RegExp(pattern, 'gs');
+  // Join with \r?\n to tolerate different line endings
+  const pattern = patternParts.join('\\r?\\n');
+  // Do not use 'g' flag so String.match returns a match object with index
+  return new RegExp(pattern, 's');
 }
 
 /**
