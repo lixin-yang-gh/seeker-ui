@@ -36,7 +36,13 @@ There are currently no plans to release a pre-compiled Linux binary. However, th
 2. Run `npm install` to install dependencies.
 3. Run `npm run package:linux` to generate an AppImage or distribution-specific package.
 
+#### Future Roadmap
 
+The app is currently integrated with the **OpenRouter API**. 
+
+I'm planning to expand its capabilities by adding support for the **Venice API** and exploring other powerful AI providers. 
+
+If you're interested in shaping the future of this project, I'd love to hear your ideas and suggestions! Contributions, feature requests, and creative input are always welcome.
 
 ---
 
