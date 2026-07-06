@@ -283,39 +283,9 @@ a {
     border-color: rgba(255, 255, 255, 0.18);
 }
 
-/* ── SCREENSHOTS HEADER ── */
-.screenshots-header {
-    margin-top: 3.5rem;
-    margin-bottom: 0;
-    text-align: center;
-    padding: 0 1rem;
-}
-
-.screenshots-eyebrow {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.68rem;
-    color: var(--blue-strong);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin-bottom: 0.75rem;
-}
-
-.screenshots-title {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: clamp(1.35rem, 2.8vw, 2rem);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1.18;
-    color: var(--fg);
-    margin: 0 0 0.9rem;
-}
-
-.screenshots-sub {
-    font-size: 0.93rem;
-    color: var(--fg-muted);
-    line-height: 1.78;
-    max-width: 680px;
-    margin: 0 auto;
+/* ── SCREENSHOTS SECTION ── */
+#screenshots {
+    border-top: 1px solid var(--border);
 }
 
 /* ── MOCKUP ── */
