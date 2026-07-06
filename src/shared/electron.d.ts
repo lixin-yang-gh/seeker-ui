@@ -55,6 +55,10 @@ declare global {
       getLastOpenedFolder: () => Promise<string | undefined>;
       saveLastOpenedFolder: (path: string) => Promise<{ success: true }>;
 
+      // Recent folders
+      getRecentFolders: () => Promise<string[]>;
+      addRecentFolder: (path: string) => Promise<{ success: boolean }>;
+
       // Bulk folder state operations
       getFolderState: (folderPath: string) => Promise<FolderSpecificState | undefined>;
       saveFolderState: (folderPath: string, state: FolderSpecificState) => Promise<{ success: true }>;

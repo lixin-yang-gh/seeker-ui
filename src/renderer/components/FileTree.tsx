@@ -38,6 +38,8 @@ const FileTree: React.FC<FileTreeProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [recentlyCopied, setRecentlyCopied] = useState<string | null>(null);
+  const [showOpenFolderModal, setShowOpenFolderModal] = useState(false);
+  const [recentFolders, setRecentFolders] = useState<string[]>([]);
 
   const prevSelectedPathsRef = useRef<string[]>([]);
   const selectedFilePathsRef = useRef<Set<string>>(selectedFilePaths);
@@ -91,10 +93,13 @@ const FileTree: React.FC<FileTreeProps> = ({
         isHighlighted: false
       }));
       setTree(sortFileItems(itemsWithState));
-      onFolderOpen?.(dirPath);
     } catch (error) {
       console.error('Error loading directory:', error);
+      setTree([]);
     }
+    // Always propagate the folder path to the parent, even on error,
+    // so the UI reflects the attempted folder open.
+    onFolderOpen?.(dirPath);
   };
 
   // Recursively load all children for a folder path, returning populated FileItem[]
@@ -252,6 +257,43 @@ const FileTree: React.FC<FileTreeProps> = ({
     }
   }, [rootPath, isRefreshing, onFolderOpen]);
 
+  const openFolderPath = useCallback(async (path: string) => {
+    if (!path) return;
+    try {
+      await window.electronAPI.addRecentFolder(path);
+    } catch (err) {
+      console.error('Failed to record recent folder:', err);
+    }
+    await loadDirectory(path);
+    setSelectedFilePaths(new Set());
+    setHighlightedFile(null);
+    setExpandedFolders(new Set());
+  }, []);
+
+  const handleOpenFolderClick = useCallback(async () => {
+    try {
+      const folders = await window.electronAPI.getRecentFolders();
+      setRecentFolders(Array.isArray(folders) ? folders.slice(0, 10) : []);
+    } catch (err) {
+      console.error('Failed to load recent folders:', err);
+      setRecentFolders([]);
+    }
+    setShowOpenFolderModal(true);
+  }, []);
+
+  const handleBrowseFolder = useCallback(async () => {
+    setShowOpenFolderModal(false);
+    const path = await window.electronAPI.openDirectory();
+    if (path) {
+      await openFolderPath(path);
+    }
+  }, [openFolderPath]);
+
+  const handleSelectRecentFolder = useCallback(async (path: string) => {
+    setShowOpenFolderModal(false);
+    await openFolderPath(path);
+  }, [openFolderPath]);
+
   const togglePreview = (item: FileItem) => {
     if (item.path === previewedFilePath) {
       setTree(prev => {
@@ -361,15 +403,7 @@ const FileTree: React.FC<FileTreeProps> = ({
       <div className="tree-header">
         <h3>Explorer</h3>
         <div className="tree-header-actions">
-          <button className="button" onClick={async () => {
-            const path = await window.electronAPI.openDirectory();
-            if (path) {
-              loadDirectory(path);
-              setSelectedFilePaths(new Set());
-              setHighlightedFile(null);
-              setExpandedFolders(new Set());
-            }
-          }} title="Open a folder to browse files">Open Folder</button>
+          <button className="button" onClick={handleOpenFolderClick} title="Open a folder to browse files">Open Folder</button>
           <button className="button" onClick={() => {
             setSelectedFilePaths(new Set());
             setHighlightedFile(null);
@@ -406,6 +440,131 @@ const FileTree: React.FC<FileTreeProps> = ({
           tree.map(item => renderTreeItem(item))
         )}
       </div>
+
+      {showOpenFolderModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => setShowOpenFolderModal(false)}
+        >
+          <div
+            style={{
+              background: '#1e1e1e',
+              border: '1px solid #555',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '620px',
+              width: '90%',
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#e0e0e0', fontSize: '16px', fontWeight: 500 }}>
+                Open Folder
+              </h3>
+              <button
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#ccc',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                }}
+                onClick={() => setShowOpenFolderModal(false)}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ color: '#9cdcfe', fontSize: '12px', marginBottom: '10px' }}>
+              Recent Folders
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1, maxHeight: '50vh', border: '1px solid #333', borderRadius: '4px' }}>
+              {recentFolders.length === 0 ? (
+                <div style={{ padding: '16px', textAlign: 'center', color: '#888', fontStyle: 'italic', fontSize: '13px' }}>
+                  No recent folders yet
+                </div>
+              ) : (
+                recentFolders.map((folder, i) => {
+                  const isCurrent = folder === rootPath;
+                  return (
+                    <div
+                      key={folder + i}
+                      onClick={() => { if (!isCurrent) handleSelectRecentFolder(folder); }}
+                      title={isCurrent ? `${folder} (currently open)` : folder}
+                      aria-disabled={isCurrent}
+                      style={{
+                        padding: '10px 12px',
+                        borderBottom: i < recentFolders.length - 1 ? '1px solid #2a2a2a' : 'none',
+                        cursor: isCurrent ? 'not-allowed' : 'pointer',
+                        color: isCurrent ? '#666' : '#d4d4d4',
+                        opacity: isCurrent ? 0.6 : 1,
+                        fontFamily: 'Consolas, monospace',
+                        fontSize: '13px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        pointerEvents: isCurrent ? 'none' : 'auto',
+                      }}
+                      onMouseEnter={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.background = '#2a2d2e'; }}
+                      onMouseLeave={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                    >
+                      📁 {folder}{isCurrent ? '  (currently open)' : ''}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: '#2a2d2e',
+                  color: '#ccc',
+                  border: '1px solid #444',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setShowOpenFolderModal(false)}
+                title="Cancel and close this dialog"
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: '#0e639c',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+                onClick={handleBrowseFolder}
+                title="Open the system file picker to browse for a folder"
+              >
+                Browse…
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -192,6 +192,30 @@ export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSi
     body['plugins'] = [{ id: 'web', max_results: 5 }];
   }
 
+  // Combine caller-provided signal (if any) with a 10-minute (600s) timeout.
+  const timeoutSignal = AbortSignal.timeout(600_000);
+  const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+
+  // Node/Electron's built-in fetch is backed by undici, whose default
+  // headersTimeout (~300s) and bodyTimeout would abort a slow (up to 10-minute)
+  // model response long before our 600s AbortSignal fires. Attach an undici
+  // Agent dispatcher with the relevant timeouts raised to >= 600s so a full
+  // 10-minute turnaround is tolerated. If undici cannot be loaded (e.g. an
+  // environment without it), fall back to a plain fetch.
+  let dispatcher: unknown;
+  try {
+    const undici = await import('undici');
+    dispatcher = new undici.Agent({
+      headersTimeout: 620_000, // slightly above 600s abort window
+      bodyTimeout: 620_000,
+      keepAliveTimeout: 620_000,
+      keepAliveMaxTimeout: 620_000,
+      connectTimeout: 30_000,
+    });
+  } catch {
+    dispatcher = undefined;
+  }
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -200,7 +224,9 @@ export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSi
       'X-Title': 'Seeker UI',
     },
     body: JSON.stringify(body),
-    signal,
+    signal: combinedSignal,
+    // @ts-expect-error - `dispatcher` is a Node/undici-specific fetch option not in the DOM lib types
+    ...(dispatcher ? { dispatcher } : {}),
   });
 
   if (!response.ok) {

@@ -30,6 +30,7 @@ interface FolderSpecificState {
 // Define the store schema
 interface StoreSchema {
   lastOpenedFolder?: string;
+  recentFolders?: string[];
   windowBounds?: { x: number; y: number; width: number; height: number };
   // Map of absolute folder paths to their specific state
   folderStates?: Record<string, FolderSpecificState>;
@@ -47,6 +48,7 @@ interface StoreSchema {
 const store = new Store<StoreSchema>({
   defaults: {
     lastOpenedFolder: undefined,
+    recentFolders: [],
     windowBounds: { width: 1200, height: 800, x: 100, y: 100 },
     folderStates: {}
   },
@@ -194,6 +196,21 @@ ipcMain.handle('store:getLastOpenedFolder', () => {
 
 ipcMain.handle('store:saveLastOpenedFolder', (_, folderPath: string) => {
   store.set('lastOpenedFolder', folderPath);
+  return { success: true };
+});
+
+// Recent folders (last 10 memorized opened folder paths)
+ipcMain.handle('store:getRecentFolders', () => {
+  return store.get('recentFolders') || [];
+});
+
+ipcMain.handle('store:addRecentFolder', (_, folderPath: string) => {
+  if (!folderPath) return { success: false };
+  const existing = (store.get('recentFolders') || []) as string[];
+  // Remove any existing occurrence, then prepend the new path
+  const filtered = existing.filter((p) => p !== folderPath);
+  const updated = [folderPath, ...filtered].slice(0, 10);
+  store.set('recentFolders', updated);
   return { success: true };
 });
 

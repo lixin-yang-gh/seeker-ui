@@ -14,6 +14,7 @@ export default defineConfig({
       },
       emptyOutDir: true,
       rollupOptions: {
+        external: ['undici'],
         output: {
           entryFileNames: 'index.js'
         }

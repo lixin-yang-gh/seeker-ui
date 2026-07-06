@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLastOpenedFolder: () => ipcRenderer.invoke('store:getLastOpenedFolder'),
   saveLastOpenedFolder: (path) => ipcRenderer.invoke('store:saveLastOpenedFolder', path),
 
+  // Recent folders
+  getRecentFolders: () => ipcRenderer.invoke('store:getRecentFolders'),
+  addRecentFolder: (path) => ipcRenderer.invoke('store:addRecentFolder', path),
+
   // Bulk folder state operations
   getFolderState: (folderPath) => ipcRenderer.invoke('store:getFolderState', folderPath),
   saveFolderState: (folderPath, state) => ipcRenderer.invoke('store:saveFolderState', folderPath, state),
