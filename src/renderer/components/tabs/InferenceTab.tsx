@@ -199,7 +199,19 @@ function parseSegments(text: string): Segment[] {
         }
         if (!anyBlock) segments.push({ type: 'code', lang, content: body });
       } catch {
-        segments.push({ type: 'code', lang, content: body });
+        // Strict JSON.parse failed. This commonly happens when the LLM did not
+        // follow the escaping rules in PromptOrganizerTab.tsx and emitted string
+        // values containing unescaped double quotes (e.g. HCL resource labels)
+        // or literal backticks. Attempt a tolerant, schema-anchored recovery
+        // before giving up and rendering the fence as raw code.
+        const recovered = recoverMalformedBlockJson(body);
+        if (recovered.length > 0) {
+          for (const item of recovered) {
+            segments.push({ type: 'block', item });
+          }
+        } else {
+          segments.push({ type: 'code', lang, content: body });
+        }
       }
     } else {
       // For non-JSON fences, use the original (unprocessed) text slice so that
@@ -217,6 +229,146 @@ function parseSegments(text: string): Segment[] {
 /** Extract all block items from parsed segments */
 function extractBlockItems(segments: Segment[]): BlockReplacementItem[] {
   return segments.filter((s): s is { type: 'block'; item: BlockReplacementItem } => s.type === 'block').map(s => s.item);
+}
+
+/**
+ * Tolerant, schema-anchored recovery parser for a ```json fence body that
+ * FAILED strict JSON.parse. This is a best-effort fallback for the common
+ * failure mode where the LLM did not follow the prompt's escaping rules and
+ * emitted string values containing unescaped double quotes (e.g. Terraform/HCL
+ * resource labels) or literal backticks.
+ *
+ * IMPORTANT: This is intentionally conservative. It relies on the FIXED key
+ * schema defined by the prompt in PromptOrganizerTab.tsx
+ * (path, op, reason, is_full_file, original, replacement) as structural
+ * anchors. It only runs when strict JSON.parse has already thrown, so it can
+ * never regress well-formed responses. It cannot guarantee correctness for
+ * pathological inputs and returns [] when the structure is unrecoverable.
+ */
+function recoverMalformedBlockJson(body: string): BlockReplacementItem[] {
+  const KEYS = ['path', 'op', 'reason', 'is_full_file', 'original', 'replacement'] as const;
+  // Boundary lookahead: a comma/brace followed by a known key, OR the end of the
+  // object. Used to decide where a mis-escaped string value really ends.
+  const keyAlternation = KEYS.join('|');
+  const nextKeyOrEnd = new RegExp(
+    '\\s*,\\s*"(?:' + keyAlternation + ')"\\s*:|\\s*\\n?\\s*\\}',
+    ''
+  );
+
+  // Split the fence body into candidate object chunks by locating each
+  // top-level '{' ... '}' that contains a "path" key. We scan for object starts
+  // heuristically rather than via brace-matching (brace-matching is unreliable
+  // once quotes are broken).
+  const items: BlockReplacementItem[] = [];
+
+  // Find each occurrence of a "path" key as the start-of-object anchor.
+  const objAnchor = /"path"\s*:/g;
+  const anchors: number[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = objAnchor.exec(body)) !== null) anchors.push(m.index);
+  if (anchors.length === 0) return [];
+
+  for (let a = 0; a < anchors.length; a++) {
+    const start = anchors[a];
+    const end = a + 1 < anchors.length ? anchors[a + 1] : body.length;
+    const chunk = body.slice(start, end);
+
+    const rec: Record<string, unknown> = {};
+
+    for (const key of KEYS) {
+      const keyRe = new RegExp('"' + key + '"\\s*:\\s*', 'g');
+      keyRe.lastIndex = 0;
+      const km = keyRe.exec(chunk);
+      if (!km) continue;
+      let p = km.index + km[0].length;
+
+      // Skip whitespace.
+      while (p < chunk.length && /\s/.test(chunk[p])) p++;
+
+      const ch = chunk[p];
+      if (ch === undefined) continue;
+
+      // Non-string literals: null / true / false.
+      if (chunk.startsWith('null', p)) { rec[key] = null; continue; }
+      if (chunk.startsWith('true', p)) { rec[key] = true; continue; }
+      if (chunk.startsWith('false', p)) { rec[key] = false; continue; }
+
+      if (ch !== '"') continue; // unexpected shape for this key; skip.
+
+      // String value: opening quote at p. Find the true closing quote as the
+      // LAST '"' that occurs immediately before the next key boundary or the
+      // object end. This tolerates unescaped inner double quotes.
+      const valueStart = p + 1;
+      const rest = chunk.slice(valueStart);
+
+      nextKeyOrEnd.lastIndex = 0;
+      const boundary = nextKeyOrEnd.exec(rest);
+      const searchEnd = boundary ? boundary.index : rest.length;
+
+      // Within rest[0..searchEnd], the value's terminating quote is the last '"'
+      // in that window (the boundary regex begins at a comma or brace, so the
+      // closing quote precedes it).
+      const window = rest.slice(0, searchEnd);
+      const lastQuote = window.lastIndexOf('"');
+      if (lastQuote === -1) continue;
+
+      const rawValue = window.slice(0, lastQuote);
+      rec[key] = decodeRecoveredString(rawValue);
+    }
+
+    if (typeof rec.path === 'string' && typeof rec.op === 'string') {
+      items.push({
+        path: String(rec.path),
+        op: String(rec.op ?? 'replace'),
+        is_full_file: Boolean(rec.is_full_file ?? false),
+        original: rec.original != null ? String(rec.original) : null,
+        replacement: rec.replacement != null ? String(rec.replacement) : null,
+        reason: rec.reason != null ? String(rec.reason) : undefined,
+        raw: chunk,
+      });
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Decode a recovered JSON string value: interpret standard JSON escape
+ * sequences (\n, \t, \r, \\, \", \/, \uXXXX) while leaving any unescaped inner
+ * double quotes intact (they were the reason strict parsing failed).
+ */
+function decodeRecoveredString(raw: string): string {
+  let out = '';
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c === '\\') {
+      const n = raw[i + 1];
+      switch (n) {
+        case 'n': out += '\n'; i++; break;
+        case 't': out += '\t'; i++; break;
+        case 'r': out += '\r'; i++; break;
+        case 'b': out += '\b'; i++; break;
+        case 'f': out += '\f'; i++; break;
+        case '"': out += '"'; i++; break;
+        case '\\': out += '\\'; i++; break;
+        case '/': out += '/'; i++; break;
+        case 'u': {
+          const hex = raw.slice(i + 2, i + 6);
+          if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+            out += String.fromCharCode(parseInt(hex, 16));
+            i += 5;
+          } else {
+            out += n; i++;
+          }
+          break;
+        }
+        default: out += n; i++; break;
+      }
+    } else {
+      out += c;
+    }
+  }
+  return out;
 }
 
 // ─── Copy Button ──────────────────────────────────────────────────
