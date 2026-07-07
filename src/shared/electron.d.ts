@@ -95,7 +95,7 @@ declare global {
           temperature?: number;
           temperature_claude?: number;
         }
-      ) => Promise<{ success: true; content: string; reasoning?: string; usage?: object }>;
+      ) => Promise<{ success: true; content: string; reasoning?: string; usage?: object; finishReason?: string; truncated?: boolean }>;
 
       cancelOpenRouter: () => Promise<{ cancelled: boolean }>;
 

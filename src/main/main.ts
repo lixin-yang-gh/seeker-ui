@@ -384,7 +384,18 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
     }
   }
 
-  return { success: true, content: result!.text, reasoning: result!.reasoning, usage: result!.usage };
+  if (result!.truncated) {
+    sendLog('warn', '[openRouter] Response truncated by token limit (finish_reason=length). The returned content may be incomplete.');
+  }
+
+  return {
+    success: true,
+    content: result!.text,
+    reasoning: result!.reasoning,
+    usage: result!.usage,
+    finishReason: result!.finishReason,
+    truncated: result!.truncated,
+  };
 });
 
 // Cancel ongoing inference

@@ -76,6 +76,10 @@ export interface OpenRouterResult {
   /** Internal reasoning trace, if the model returned one */
   reasoning?: string;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  /** Raw finish_reason reported by the provider (e.g. 'stop', 'length', 'content_filter') */
+  finishReason?: string;
+  /** True when the response was cut off before completion (finish_reason === 'length') */
+  truncated?: boolean;
 }
 
 // ─── Internal Response Shape ─────────────────────────────────────
@@ -153,7 +157,7 @@ export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSi
     apiKey,
     temperature = 0.7,
     temperature_claude = 1,
-    maxTokens = 8_192,
+    maxTokens = 32_768,
     topP = 1.0,
     deepThinking = false,
     thinkingBudget = 10_000,
@@ -168,8 +172,11 @@ export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSi
   const searchActive = webSearch && cap.webSearch;
 
   const effectiveTemp = thinkingActive && cap.requiresTempOne ? temperature_claude  : temperature;
+  // When reasoning is active the hidden reasoning tokens are billed against the
+  // completion budget, so we must leave a generous ceiling on top of any
+  // per-model minimum to avoid the visible answer being truncated.
   const effectiveMaxTokens = thinkingActive
-    ? Math.max(maxTokens, cap.thinkingMinTokens ?? 16_000)
+    ? Math.max(maxTokens, (cap.thinkingMinTokens ?? 16_000) + thinkingBudget)
     : maxTokens;
 
   const body: Record<string, unknown> = {
@@ -245,8 +252,39 @@ export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSi
 
   if (!data.choices?.length) throw new Error('No choices returned from OpenRouter');
 
-  const extracted = extractContent(data.choices[0]);
-  if (!extracted.text) throw new Error('Empty content in OpenRouter response');
+  const choice = data.choices[0];
+  const finishReason = choice.finish_reason;
+  const extracted = extractContent(choice);
 
-  return { text: extracted.text, reasoning: extracted.reasoning, usage: data.usage };
+  // A 'length' finish_reason means the provider stopped because the completion
+  // hit max_tokens — the returned text is incomplete/truncated.
+  const truncated = finishReason === 'length';
+
+  if (finishReason === 'content_filter') {
+    console.warn('[OpenRouter] Response stopped by content filter.');
+  }
+  if (truncated) {
+    console.warn(
+      `[OpenRouter] Response was TRUNCATED (finish_reason=length). ` +
+      `Completion tokens: ${data.usage?.completion_tokens ?? 'unknown'}. ` +
+      `Consider increasing max_tokens or reducing prompt/output size.`
+    );
+  }
+
+  if (!extracted.text) {
+    if (truncated) {
+      throw new Error(
+        'OpenRouter response was truncated (hit max_tokens) before any visible content was produced. Try increasing max_tokens or shortening the prompt.'
+      );
+    }
+    throw new Error('Empty content in OpenRouter response');
+  }
+
+  return {
+    text: extracted.text,
+    reasoning: extracted.reasoning,
+    usage: data.usage,
+    finishReason,
+    truncated,
+  };
 }
