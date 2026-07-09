@@ -636,7 +636,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', marginLeft: '3px' }}>
-            <label style={{ fontSize: '15px', color: '#aaa', fontWeight: 'bold' }}>Inference Result</label>
+            <label style={{ fontSize: '15px', color: '#aaa', fontWeight: 'bold' }}>Result</label>
             {inferenceLastSavedTimestamp && (
               <div style={{ fontSize: '11px', color: '#4ec9b0' }}>
                 Saved {new Date(inferenceLastSavedTimestamp).toLocaleTimeString()}

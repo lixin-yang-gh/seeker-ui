@@ -23,6 +23,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const [showUnsavedModal, setShowUnsavedModal] = useState<boolean>(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [wordWrap, setWordWrap] = useState<boolean>(false);
   const originalContentRef = useRef<string>(initialContent);
 
   // Reset state whenever the overlay is (re)opened with new content/file
@@ -194,6 +195,18 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
             )}
           </div>
           <div className="file-preview-overlay__toolbar-group">
+            <button
+              type="button"
+              className={
+                'file-preview-overlay__toolbar-btn' +
+                (wordWrap ? ' file-preview-overlay__toolbar-btn--primary' : ' file-preview-overlay__toolbar-btn--secondary')
+              }
+              onClick={() => setWordWrap((w) => !w)}
+              title={wordWrap ? 'Disable word wrap (show long lines on a single line with horizontal scrolling)' : 'Enable word wrap (wrap long lines to fit the editor width)'}
+              aria-pressed={wordWrap}
+            >
+              Word {wordWrap ? 'Wrap: On' : 'Wrap: Off'}
+            </button>
             {!isEditable && (
               <button
                 type="button"
@@ -246,6 +259,11 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
             onChange={handleContentChange}
             readOnly={!isEditable}
             spellCheck={false}
+            style={{
+              whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
+              wordBreak: wordWrap ? 'break-word' : 'normal',
+              overflowWrap: wordWrap ? 'break-word' : 'normal',
+            }}
           />
         </div>
 
