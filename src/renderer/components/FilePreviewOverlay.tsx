@@ -396,7 +396,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
               title="Search substrings and highlight matches (Ctrl/Cmd+F)"
               aria-pressed={showSearch}
             >
-              🔭 Search
+              🔍 Search
             </button>
             {!isEditable && (
               <button
@@ -445,7 +445,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
 
         {showSearch && (
           <div className="file-preview-overlay__search">
-            <span className="file-preview-overlay__search-icon" aria-hidden="true">🔭</span>
+            <span className="file-preview-overlay__search-icon" aria-hidden="true">🔍</span>
             <input
               ref={searchInputRef}
               type="text"
