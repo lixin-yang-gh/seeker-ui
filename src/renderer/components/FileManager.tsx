@@ -189,7 +189,7 @@ const FileManager: React.FC<FileManagerProps> = ({
     }
   };
 
-  const headerText = `File Manager${rootFolder ? ` - ${rootFolder}` : ''}`;
+  const headerText = `Location${rootFolder ? ` - ${rootFolder}` : ''}`;
 
   // Tab titles
   const overviewTabName = selectedFilePaths.length === 0

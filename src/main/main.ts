@@ -41,6 +41,8 @@ interface StoreSchema {
     openRouterApiKey: string;
     inferenceModels: string;
     validationModels: string;
+    veniceApiKey: string;
+    veniceInferenceModels: string;
   };
 }
 
@@ -310,10 +312,10 @@ ipcMain.handle('store:saveDefaultSystemPrompt', (_, value: string) => {
 
 // API Settings handlers
 ipcMain.handle('store:getApiSettings', () => {
-  return store.get('apiSettings') || { openRouterApiKey: '', inferenceModels: '', validationModels: '' };
+  return store.get('apiSettings') || { openRouterApiKey: '', inferenceModels: '', validationModels: '', veniceApiKey: '', veniceInferenceModels: '' };
 });
 
-ipcMain.handle('store:saveApiSettings', (_, settings: { openRouterApiKey: string; inferenceModels: string; validationModels: string }) => {
+ipcMain.handle('store:saveApiSettings', (_, settings: { openRouterApiKey: string; inferenceModels: string; validationModels: string; veniceApiKey: string; veniceInferenceModels: string }) => {
   store.set('apiSettings', settings);
   return { success: true };
 });

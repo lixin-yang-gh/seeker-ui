@@ -80,8 +80,8 @@ declare global {
       saveDefaultSystemPrompt: (value: string) => Promise<{ success: true }>;
 
       // API Settings (global)
-      getApiSettings: () => Promise<{ openRouterApiKey: string; inferenceModels: string; validationModels: string }>;
-      saveApiSettings: (settings: { openRouterApiKey: string; inferenceModels: string; validationModels: string }) => Promise<{ success: true }>;
+      getApiSettings: () => Promise<{ openRouterApiKey: string; inferenceModels: string; validationModels: string; veniceApiKey: string; veniceInferenceModels: string }>;
+      saveApiSettings: (settings: { openRouterApiKey: string; inferenceModels: string; validationModels: string; veniceApiKey: string; veniceInferenceModels: string }) => Promise<{ success: true }>;
 
       redactText: (text: string) => Promise<string>;
 
