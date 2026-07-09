@@ -1,267 +1,282 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-
-export type ApiTarget = 'OpenRouter' | 'Venice';
-export type MaxTokenChoice = '32K' | '64K';
-
-export const MAX_TOKEN_VALUES: Record<MaxTokenChoice, number> = {
-  '32K': 32_768,
-  '64K': 65_536,
-};
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 interface InferenceControlsProps {
+  /** Root folder path used to persist per-folder inference settings */
   rootFolder: string | null;
+  /** Called when the user clicks the start button */
   onStartInference: (
     model: string,
     temperature: number,
-    apiTarget: ApiTarget,
+    apiTarget: 'OpenRouter' | 'Venice',
     maxTokens: number
   ) => void;
+  /** Disable all controls (e.g. while an inference is already running) */
   disabled?: boolean;
+  /** Whether to render the start button (some hosts render their own) */
   showStartButton?: boolean;
-  /** Optional override label for the start button */
+  /** Custom label for the start button */
   startButtonLabel?: string;
+}
+
+const MAX_TOKEN_CHOICES = ['4096', '8192', '16384', '32768', '65536'] as const;
+type MaxTokenChoice = typeof MAX_TOKEN_CHOICES[number];
+
+const DEFAULT_MODEL_FALLBACK = '';
+const DEFAULT_TEMPERATURE = 0.7;
+const DEFAULT_API_TARGET: 'OpenRouter' | 'Venice' = 'OpenRouter';
+const DEFAULT_MAX_TOKEN_CHOICE: MaxTokenChoice = '32768';
+
+/**
+ * Parse a comma-separated string of quoted model names, e.g.
+ *   "model-a", "model-b", "model-c"
+ * into an array of trimmed model ids.
+ */
+function parseModelList(raw: string): string[] {
+  if (!raw) return [];
+  const models: string[] = [];
+  const regex = /"([^"]*)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(raw)) !== null) {
+    const v = m[1].trim();
+    if (v) models.push(v);
+  }
+  return models;
 }
 
 const InferenceControls: React.FC<InferenceControlsProps> = ({
   rootFolder,
   onStartInference,
   disabled = false,
-  showStartButton = false,
+  showStartButton = true,
   startButtonLabel = 'Start Inference',
 }) => {
+  const [apiTarget, setApiTarget] = useState<'OpenRouter' | 'Venice'>(DEFAULT_API_TARGET);
   const [openRouterModels, setOpenRouterModels] = useState<string[]>([]);
   const [veniceModels, setVeniceModels] = useState<string[]>([]);
-  const [apiTarget, setApiTarget] = useState<ApiTarget>('OpenRouter');
-  const [selectedModel, setSelectedModel] = useState<string>('');
-  const [temperature, setTemperature] = useState<number>(0.7);
-  const [maxTokenChoice, setMaxTokenChoice] = useState<MaxTokenChoice>('32K');
-  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [model, setModel] = useState<string>(DEFAULT_MODEL_FALLBACK);
+  const [temperature, setTemperature] = useState<number>(DEFAULT_TEMPERATURE);
+  const [maxTokenChoice, setMaxTokenChoice] = useState<MaxTokenChoice>(DEFAULT_MAX_TOKEN_CHOICE);
+  const [loaded, setLoaded] = useState(false);
+  const [lastSaved, setLastSaved] = useState<number | null>(null);
 
-  const parseModels = (modelsStr: string): string[] => {
-    const parsed: string[] = [];
-    const regex = /"([^"]*)"/g;
-    let match;
-    while ((match = regex.exec(modelsStr || '')) !== null) {
-      if (match[1].trim()) parsed.push(match[1].trim());
-    }
-    return parsed;
-  };
-
-  // Load saved state and model list
+  // Load API settings (global) and per-folder inference settings.
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoadingModels(true);
+    let cancelled = false;
+    const load = async () => {
       try {
-        const settings = await window.electronAPI.getApiSettings();
-        const orModels = parseModels(settings.inferenceModels || '');
-        const venModels = parseModels(settings.veniceInferenceModels || '');
+        const apiSettings = await window.electronAPI.getApiSettings();
+        const orModels = parseModelList(apiSettings?.inferenceModels || '');
+        const veModels = parseModelList(apiSettings?.veniceInferenceModels || '');
+        if (cancelled) return;
         setOpenRouterModels(orModels);
-        setVeniceModels(venModels);
+        setVeniceModels(veModels);
 
-        let initialApi: ApiTarget = 'OpenRouter';
-        let initialModel = orModels[0] || '';
-        let initialTemp = 0.7;
-        let initialMax: MaxTokenChoice = '32K';
+        let savedApiTarget: 'OpenRouter' | 'Venice' = DEFAULT_API_TARGET;
+        let savedModel = '';
+        let savedTemp = DEFAULT_TEMPERATURE;
+        let savedMaxTok: MaxTokenChoice = DEFAULT_MAX_TOKEN_CHOICE;
 
         if (rootFolder) {
           const folderState = await window.electronAPI.getFolderState(rootFolder);
           if (folderState) {
-            const savedApi = (folderState as any).apiTarget as ApiTarget | undefined;
-            if (savedApi === 'OpenRouter' || savedApi === 'Venice') initialApi = savedApi;
-            const savedMax = (folderState as any).maxTokenChoice as MaxTokenChoice | undefined;
-            if (savedMax === '32K' || savedMax === '64K') initialMax = savedMax;
-            initialTemp = folderState.temperature ?? 0.7;
-
-            const poolForApi = initialApi === 'Venice' ? venModels : orModels;
-            initialModel = folderState.inferenceModel || poolForApi[0] || '';
-            // If saved model isn't in the pool, fall back to first model of the pool
-            if (initialModel && !poolForApi.includes(initialModel)) {
-              initialModel = poolForApi[0] || '';
+            if (folderState.apiTarget === 'Venice' || folderState.apiTarget === 'OpenRouter') {
+              savedApiTarget = folderState.apiTarget;
+            }
+            if (folderState.inferenceModel) savedModel = folderState.inferenceModel;
+            if (typeof folderState.temperature === 'number') savedTemp = folderState.temperature;
+            if (
+              folderState.maxTokenChoice &&
+              (MAX_TOKEN_CHOICES as readonly string[]).includes(folderState.maxTokenChoice)
+            ) {
+              savedMaxTok = folderState.maxTokenChoice as MaxTokenChoice;
             }
           }
         }
 
-        setApiTarget(initialApi);
-        setSelectedModel(initialModel);
-        setTemperature(initialTemp);
-        setMaxTokenChoice(initialMax);
-      } catch (error) {
-        console.error('Failed to load inference settings:', error);
+        // Pick a sensible model default if the saved one is missing.
+        const listForTarget = savedApiTarget === 'Venice' ? veModels : orModels;
+        if (!savedModel || !listForTarget.includes(savedModel)) {
+          savedModel = listForTarget[0] || '';
+        }
+
+        if (cancelled) return;
+        setApiTarget(savedApiTarget);
+        setModel(savedModel);
+        setTemperature(savedTemp);
+        setMaxTokenChoice(savedMaxTok);
+      } catch (err) {
+        console.error('InferenceControls: failed to load settings', err);
       } finally {
-        setIsLoadingModels(false);
+        if (!cancelled) setLoaded(true);
       }
     };
-    loadData();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [rootFolder]);
 
-  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
-  const saveState = useCallback(
-    async (model: string, temp: number, api: ApiTarget, mtc: MaxTokenChoice) => {
-      if (!rootFolder) return;
+  const currentModelList = useMemo(
+    () => (apiTarget === 'Venice' ? veniceModels : openRouterModels),
+    [apiTarget, openRouterModels, veniceModels]
+  );
+
+  // If the API target changes and the current model is not in the new list,
+  // fall back to the first available model for that target.
+  useEffect(() => {
+    if (!loaded) return;
+    if (currentModelList.length === 0) {
+      if (model !== '') setModel('');
+      return;
+    }
+    if (!currentModelList.includes(model)) {
+      setModel(currentModelList[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiTarget, currentModelList, loaded]);
+
+  // Persist per-folder inference settings (debounced) whenever they change.
+  useEffect(() => {
+    if (!loaded || !rootFolder) return;
+    const t = setTimeout(async () => {
       try {
         const currentState = (await window.electronAPI.getFolderState(rootFolder)) || {};
         await window.electronAPI.saveFolderState(rootFolder, {
           ...currentState,
+          apiTarget,
           inferenceModel: model,
-          temperature: temp,
-          apiTarget: api,
-          maxTokenChoice: mtc,
-        } as any);
-      } catch (error) {
-        console.error('Failed to save inference state:', error);
+          temperature,
+          maxTokenChoice,
+        });
+        setLastSaved(Date.now());
+      } catch (err) {
+        console.error('InferenceControls: failed to persist settings', err);
       }
-    },
-    [rootFolder]
-  );
+    }, 400);
+    return () => clearTimeout(t);
+  }, [apiTarget, model, temperature, maxTokenChoice, rootFolder, loaded]);
 
-  const scheduleSave = (
-    model: string,
-    temp: number,
-    api: ApiTarget,
-    mtc: MaxTokenChoice
-  ) => {
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(() => saveState(model, temp, api, mtc), 500);
-  };
+  const handleStart = useCallback(() => {
+    if (!model) return;
+    const maxTokens = parseInt(maxTokenChoice, 10);
+    onStartInference(model, temperature, apiTarget, maxTokens);
+  }, [model, temperature, apiTarget, maxTokenChoice, onStartInference]);
 
-  const activeModels = apiTarget === 'Venice' ? veniceModels : openRouterModels;
-
-  const handleApiChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newApi = e.target.value as ApiTarget;
-    const pool = newApi === 'Venice' ? veniceModels : openRouterModels;
-    const newModel = pool.includes(selectedModel) ? selectedModel : pool[0] || '';
-    setApiTarget(newApi);
-    setSelectedModel(newModel);
-    scheduleSave(newModel, temperature, newApi, maxTokenChoice);
-  };
-
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newModel = e.target.value;
-    setSelectedModel(newModel);
-    scheduleSave(newModel, temperature, apiTarget, maxTokenChoice);
-  };
-
-  const handleTemperatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    if (isNaN(val) || val < 0 || val > 2) return;
-    setTemperature(val);
-    scheduleSave(selectedModel, val, apiTarget, maxTokenChoice);
-  };
-
-  const handleMaxTokenChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value as MaxTokenChoice;
-    setMaxTokenChoice(val);
-    scheduleSave(selectedModel, temperature, apiTarget, val);
-  };
-
-  const handleStart = () => {
-    if (selectedModel && !disabled) {
-      onStartInference(selectedModel, temperature, apiTarget, MAX_TOKEN_VALUES[maxTokenChoice]);
-    }
-  };
-
-  const isDisabled = disabled || !rootFolder || isLoadingModels || activeModels.length === 0;
-
-  // Two-row layout: row 1 = API + Model + Max Token (+ Start button),
-  // row 2 = Temp (moved down per UX request).
-  const rowStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    flexWrap: 'wrap',
-  };
-  const groupStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  };
-  const labelStyle: React.CSSProperties = {
-    fontSize: '11px',
-    color: '#aaa',
-    fontWeight: 500,
-  };
+  const controlsDisabled = disabled || !loaded;
 
   return (
     <div className="inference-controls">
-      <div style={rowStyle}>
-        <div style={groupStyle}>
-          <label htmlFor="inference-api" style={labelStyle}>API</label>
-          <select
-            id="inference-api"
-            value={apiTarget}
-            onChange={handleApiChange}
-            disabled={disabled || !rootFolder || isLoadingModels}
-            className="inference-select"
-            style={{ minWidth: 90 }}
-          >
-            <option value="OpenRouter">OpenRouter</option>
-            <option value="Venice">Venice</option>
-          </select>
+      <div className="inference-controls-row">
+        <div className="inference-controls-column">
+          <div className="inference-control-group">
+            <label htmlFor="inference-api-target">API</label>
+            <select
+              id="inference-api-target"
+              className="inference-select"
+              value={apiTarget}
+              onChange={(e) => setApiTarget(e.target.value as 'OpenRouter' | 'Venice')}
+              disabled={controlsDisabled}
+              title="Choose the inference API provider"
+            >
+              <option value="OpenRouter">OpenRouter</option>
+              <option value="Venice">Venice</option>
+            </select>
+          </div>
+
+          <div className="inference-control-group">
+            <label htmlFor="inference-model">Model</label>
+            <select
+              id="inference-model"
+              className="inference-select"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              disabled={controlsDisabled || currentModelList.length === 0}
+              title="Select the inference model"
+            >
+              {currentModelList.length === 0 ? (
+                <option value="">(no models configured)</option>
+              ) : (
+                currentModelList.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          <div className="inference-control-group">
+            {lastSaved && (
+              <div
+                style={{ fontSize: '10px', color: '#4ec9b0', margin: '3px 8px 0 0' }}
+                title="Inference settings were persisted for this folder"
+              >
+                Settings saved {new Date(lastSaved).toLocaleTimeString()}
+              </div>
+            )}
+
+          </div>
+
         </div>
 
-        <div style={groupStyle}>
-          <label htmlFor="inference-model" style={labelStyle}>Model</label>
-          <select
-            id="inference-model"
-            value={selectedModel}
-            onChange={handleModelChange}
-            disabled={isDisabled}
-            className="inference-select"
-            style={{ minWidth: 140 }}
-          >
-            {activeModels.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+        <div className="inference-controls-column">
+          <div className="inference-control-group">
+            <label htmlFor="inference-temperature">Temp</label>
+            <input
+              id="inference-temperature"
+              type="number"
+              className="inference-temp-input"
+              min={0}
+              max={2}
+              step={0.1}
+              value={temperature}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                setTemperature(Number.isFinite(v) ? v : DEFAULT_TEMPERATURE);
+              }}
+              disabled={controlsDisabled}
+              title="Sampling temperature (0.0 – 2.0)"
+            />
+          </div>
+
+          <div className="inference-control-group">
+            <label htmlFor="inference-max-tokens">Max Tokens</label>
+            <select
+              id="inference-max-tokens"
+              className="inference-select"
+              value={maxTokenChoice}
+              onChange={(e) => setMaxTokenChoice(e.target.value as MaxTokenChoice)}
+              disabled={controlsDisabled}
+              title="Maximum completion tokens"
+            >
+              {MAX_TOKEN_CHOICES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div style={groupStyle}>
-          <label htmlFor="inference-max-tokens" style={labelStyle}>Max Token</label>
-          <select
-            id="inference-max-tokens"
-            value={maxTokenChoice}
-            onChange={handleMaxTokenChange}
-            disabled={isDisabled}
-            className="inference-select"
-            style={{ minWidth: 70 }}
-          >
-            <option value="32K">32K</option>
-            <option value="64K">64K</option>
-          </select>
+        <div className="inference-controls-column">
+          <div className="inference-control-group">
+            {showStartButton && (
+              <button
+                className="inference-start-button"
+                onClick={handleStart}
+                disabled={controlsDisabled || !model}
+                title={
+                  !model
+                    ? 'Configure at least one model in Settings first'
+                    : 'Start inference with the selected configuration'
+                }
+              >
+                {startButtonLabel}
+              </button>
+            )}
+          </div>
         </div>
-        <label htmlFor="inference-temperature" style={labelStyle}>Temp</label>
-          <input
-            id="inference-temperature"
-            type="number"
-            step="0.01"
-            min="0"
-            max="2"
-            value={temperature}
-            onChange={handleTemperatureChange}
-            disabled={isDisabled}
-            className="inference-temp-input"
-          />
-
-        {showStartButton && (
-          <button
-            className="inference-start-button"
-            onClick={handleStart}
-            disabled={isDisabled || !selectedModel}
-            title="Start inference with the selected API, model, temperature, and max token limit"
-          >
-            {startButtonLabel}
-          </button>
-        )}
       </div>
-
-      {isLoadingModels && <div className="inference-loading">Loading models…</div>}
-      {!isLoadingModels && activeModels.length === 0 && (
-        <div className="inference-warning">
-          No {apiTarget} models configured in Settings.
-        </div>
-      )}
     </div>
   );
 };

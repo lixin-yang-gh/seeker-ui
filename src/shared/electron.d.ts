@@ -10,6 +10,8 @@ interface FolderSpecificState {
   maskedSubstrings?: string;
   inferenceModel?: string;
   temperature?: number;
+  apiTarget?: string;
+  maxTokenChoice?: string;
   inferenceResultRaw?: string;
   inferenceResult?: string;
   inferenceReasoning?: string;

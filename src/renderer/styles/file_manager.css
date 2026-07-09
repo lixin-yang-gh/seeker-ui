@@ -414,6 +414,62 @@
     background: #d55;
     border-color: #b44;
 }
+.toolbar-button.confirm {
+    background: #c44545;
+    border-color: #a33;
+    color: white;
+    animation: pulseWarning 1.5s infinite;
+}
+
+.toolbar-button.confirm:hover:not(:disabled) {
+    background: #d55;
+    border-color: #b44;
+}
+
+/* ────────────────────────────────────────
+   Block Scan & Replace — distinctive purple/violet scheme
+   Sets this button apart from the other prefix/suffix buttons.
+───────────────────────────────────────── */
+.toolbar-button.block-scan-replace-button {
+    background: linear-gradient(135deg, #400050 0%, #602070 100%);
+    border: 1px solid #400050;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    box-shadow: 0 0 0 1px rgba(177, 131, 232, 0.25), 0 2px 6px rgba(106, 47, 181, 0.35);
+    transition: all 0.2s ease;
+}
+
+.toolbar-button.block-scan-replace-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #602070 0%, #804090 100%);
+    border-color: #602070;
+    box-shadow: 0 0 0 1px rgba(198, 161, 239, 0.4), 0 3px 10px rgba(106, 47, 181, 0.5);
+}
+
+.toolbar-button.block-scan-replace-button:active:not(:disabled) {
+    background: linear-gradient(135deg, #5a1fa5 0%, #7a2ec8 100%);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* When the button is disabled BECAUSE the merged prompt is already active,
+   keep the purple identity but dim it and show a subtle 'locked' pulse so
+   users can see the feature is currently engaged. */
+.toolbar-button.block-scan-replace-button:disabled {
+    background: linear-gradient(135deg, #200030 0%, #400050 100%);
+    border-color: #200030;
+    color: #804090;
+    opacity: 0.85;
+    cursor: not-allowed;
+    animation: blockScanReplaceLocked 2.4s ease-in-out infinite;
+}
+
+@keyframes blockScanReplaceLocked {
+    0%, 100% {
+        box-shadow: 0 0 0 1px rgba(177, 131, 232, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 0 2px rgba(177, 131, 232, 0.5), 0 0 8px rgba(138, 62, 216, 0.4);
+    }
+}
 
 @keyframes pulseWarning {
     0% {
@@ -1259,18 +1315,25 @@ pre::-webkit-scrollbar-thumb:hover,
 .inference-controls {
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
     gap: 8px;
     margin-left: 12px;
     border-left: 1px solid #333;
     border-right: 1px solid #333;
     padding: 0 10px;
-    max-width: 420px;
+    max-width: 580px;
 }
 
 .inference-controls-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
+}
+
+.inference-controls-column {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .inference-control-group {
@@ -1283,6 +1346,7 @@ pre::-webkit-scrollbar-thumb:hover,
     font-size: 12px;
     color: #aaa;
     font-weight: 500;
+    width: 50px;
 }
 
 .inference-select {
@@ -1328,7 +1392,7 @@ pre::-webkit-scrollbar-thumb:hover,
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
-    white-space: nowrap;
+    max-width: 100px;
 }
 
 .inference-start-button:hover:not(:disabled) {
@@ -1338,12 +1402,6 @@ pre::-webkit-scrollbar-thumb:hover,
 .inference-start-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-}
-
-.inference-controls-column {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
 }
 
 .inference-controls-button-column {
