@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { redactContent } from './redaction-config';
 import { callOpenRouter, isMalformedBlockResponse } from '../shared/open-router';
+import { callVenice } from '../shared/venice';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -339,14 +340,16 @@ ipcMain.handle('dialog:saveFile', async (_, options?: { filters?: { name: string
 // Active inference abort controller (one at a time)
 let activeInferenceAbortController: AbortController | null = null;
 
-// OpenRouter API call
-ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, deepThinking, webSearch, temperature, temperature_claude }) => {
+// Inference API call — dispatches to OpenRouter or Venice based on apiTarget.
+ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, deepThinking, webSearch, temperature, temperature_claude, apiTarget, maxTokens }) => {
   const apiSettings = store.get('apiSettings');
-  const apiKey = apiSettings?.openRouterApiKey;
-  if (!apiKey) throw new Error('OpenRouter API key not configured. Please set it in Settings.');
+  const target: 'OpenRouter' | 'Venice' = apiTarget === 'Venice' ? 'Venice' : 'OpenRouter';
+
+  const apiKey = target === 'Venice' ? apiSettings?.veniceApiKey : apiSettings?.openRouterApiKey;
+  if (!apiKey) throw new Error(`${target} API key not configured. Please set it in Settings.`);
   if (!model) throw new Error('Model name is required');
 
-  const callParams = {
+  const callParams: any = {
     systemPrompt,
     userPrompt,
     model,
@@ -355,13 +358,17 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
     webSearch,
     ...(temperature !== undefined && { temperature }),
     ...(temperature_claude !== undefined && { temperature_claude }),
+    ...(maxTokens !== undefined && { maxTokens }),
   };
 
+  const logTag = target === 'Venice' ? '[venice]' : '[openRouter]';
   const sendLog = (level: 'log' | 'warn' | 'error', ...args: unknown[]) => {
     const msg = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a, null, 2))).join(' ');
     console[level](msg);
     mainWindow?.webContents.send('main:log', { level, msg });
   };
+
+  sendLog('log', `${logTag} dispatch → apiTarget=${target}, model=${model}, maxTokens=${maxTokens ?? 'default'}, temperature=${temperature ?? 'default'}`);
 
   // Abort any previous in-flight call
   if (activeInferenceAbortController) {
@@ -373,8 +380,12 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
   let result;
   try {
     if (abortController.signal.aborted) throw new Error('Inference cancelled.');
-    result = await callOpenRouter(callParams, abortController.signal);
-    sendLog('log', `[openRouter] raw response:`, result);
+    if (target === 'Venice') {
+      result = await callVenice(callParams, abortController.signal);
+    } else {
+      result = await callOpenRouter(callParams, abortController.signal);
+    }
+    sendLog('log', `${logTag} raw response:`, result);
   } catch (err: any) {
     if (activeInferenceAbortController === abortController) {
       activeInferenceAbortController = null;
@@ -387,7 +398,7 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
   }
 
   if (result!.truncated) {
-    sendLog('warn', '[openRouter] Response truncated by token limit (finish_reason=length). The returned content may be incomplete.');
+    sendLog('warn', `${logTag} Response truncated by token limit (finish_reason=length). The returned content may be incomplete.`);
   }
 
   return {
@@ -397,6 +408,7 @@ ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, d
     usage: result!.usage,
     finishReason: result!.finishReason,
     truncated: result!.truncated,
+    apiTarget: target,
   };
 });
 

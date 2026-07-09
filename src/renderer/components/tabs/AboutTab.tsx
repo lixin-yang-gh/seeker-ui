@@ -24,7 +24,7 @@ const AboutTab: React.FC = () => {
     <div className="tab-panel" style={{ padding: '24px', overflowY: 'auto' }}>
       <h3 style={{ color: '#e0e0e0', margin: 0 }}>About Seeker UI</h3>
       <p style={{ color: '#888', fontSize: '13px', margin: '4px 0 20px 0' }}>
-        The Visual AI Assistant
+        The Visual AI Workspace
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '540px' }}>

@@ -100,7 +100,12 @@ const FileManager: React.FC<FileManagerProps> = ({
     setInferenceError('');
   }, []);
 
-  const handleRunInferenceAgain = useCallback(async () => {
+  const handleRunInferenceAgain = useCallback(async (
+    modelOverride?: string,
+    temperatureOverride?: number,
+    apiTargetOverride?: 'OpenRouter' | 'Venice',
+    maxTokensOverride?: number,
+  ) => {
     if (!rootFolder) return;
     try {
       const folderState = await window.electronAPI.getFolderState(rootFolder);
@@ -109,8 +114,8 @@ const FileManager: React.FC<FileManagerProps> = ({
         setInferenceStatus('error');
         return;
       }
-      const model = folderState.inferenceModel || '';
-      const temperature = folderState.temperature ?? 0.7;
+      const model = modelOverride || folderState.inferenceModel || '';
+      const temperature = temperatureOverride ?? folderState.temperature ?? 0.7;
       if (!model) {
         setInferenceError('No inference model configured.');
         setInferenceStatus('error');
@@ -126,7 +131,11 @@ const FileManager: React.FC<FileManagerProps> = ({
         folderState.lastSystemPrompt,
         folderState.lastUserPrompt,
         model,
-        { temperature }
+        {
+          temperature,
+          ...(maxTokensOverride ? { maxTokens: maxTokensOverride } : {}),
+          ...(apiTargetOverride ? { apiTarget: apiTargetOverride } : {}),
+        } as any
       );
 
       setInferenceResult(result.content || '');
@@ -289,7 +298,10 @@ const FileManager: React.FC<FileManagerProps> = ({
                   inferenceStatus={inferenceStatus}
                   onClearResult={handleClearInferenceResult}
                   onCancelInference={handleCancelInference}
-                  onRunInferenceAgain={handleRunInferenceAgain}
+                  onRunInferenceAgain={() => handleRunInferenceAgain()}
+                  onRunInferenceWithConfig={(model, temperature, apiTarget, maxTokens) =>
+                    handleRunInferenceAgain(model, temperature, apiTarget, maxTokens)
+                  }
                   inferenceLastSavedTimestamp={inferenceLastSaveTime}
                 />
               )}

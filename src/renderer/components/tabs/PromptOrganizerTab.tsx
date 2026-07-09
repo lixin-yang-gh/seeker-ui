@@ -622,7 +622,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
   const canGeneratePrompt = systemPrompt.trim() && task.trim();
 
-  const handleStartInference = useCallback(async (model: string, temperature: number) => {
+  const handleStartInference = useCallback(async (model: string, temperature: number, apiTarget?: 'OpenRouter' | 'Venice', maxTokens?: number) => {
     if (!canGeneratePrompt) return;
 
     setInferenceStatus2('running');
@@ -682,7 +682,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
         sysPrompt,
         userPrompt,
         model,
-        { temperature }
+        { temperature, ...(maxTokens ? { maxTokens } : {}), ...(apiTarget ? { apiTarget } : {}) } as any
       );
 
       setInferenceResult(result.content || result.text || '');
@@ -737,23 +737,27 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           </div>
 
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#ccc', fontSize: '13px' }}>
-              Redaction<br />Applied<br />
-              <input
-                type="checkbox"
-                checked={redactionApplied}
-                onChange={(e) => setRedactionApplied(e.target.checked)}
-              />
-            </label>
-            <button
-              className={`generate-prompt-button ${!canGeneratePrompt ? 'disabled' : ''} ${generationStatus === 'success' ? 'success' : ''
-                }`}
-              onClick={handleCopyPrompt}
-              disabled={!canGeneratePrompt || generationStatus === 'generating'}
-              title="Copy the combined prompt (system + user) to clipboard"
-            >
-              {generationStatus === 'success' ? '✓ Copied!' : 'Copy Prompt'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', whiteSpace: 'nowrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#888', fontSize: '13px' }}>
+                  <input
+                    type="checkbox"
+                    checked={redactionApplied}
+                    onChange={(e) => setRedactionApplied(e.target.checked)}
+                  />
+                  Redaction Applied
+                </label>
+              </div>
+              <button
+                className={`generate-prompt-button ${!canGeneratePrompt ? 'disabled' : ''} ${generationStatus === 'success' ? 'success' : ''
+                  }`}
+                onClick={handleCopyPrompt}
+                disabled={!canGeneratePrompt || generationStatus === 'generating'}
+                title="Copy the combined prompt (system + user) to clipboard"
+              >
+                {generationStatus === 'success' ? '✓ Copied!' : 'Copy Prompt'}
+              </button>
+            </div>
             <InferenceControls
               rootFolder={rootFolder ?? null}
               onStartInference={handleStartInference}

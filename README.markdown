@@ -1,4 +1,4 @@
-# Seeker UI – The Visual AI Assistant
+# Seeker UI – The Visual AI Workspace
 
 **Future Roadmap**
 
@@ -247,4 +247,4 @@ The UI renders each block with the original and replacement side‑by‑side, al
 - The app is **open‑source and free for personal, non‑commercial use**. For enterprise or bulk usage, please contact the authors for licensing terms.
 - **Security** – the app includes built‑in redaction for common secrets and custom masking for user‑defined substrings. However, you are ultimately responsible for reviewing what you send to third‑party APIs.
 
-Enjoy using Seeker UI – the visual AI assistant that puts you in control of your code, your prompts, and your workflow.
+Enjoy using Seeker UI – The Visual AI Workspace that puts you in control of your code, your prompts, and your workflow.

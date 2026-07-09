@@ -256,19 +256,18 @@
 }
 
 .generate-prompt-button {
-    padding: 12px 10px;
+    padding: 7px 10px;
     background: #0e639c;
     color: white;
     border: none;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
-    word-wrap: nowrap;
-    width: 80px;
+    white-space: nowrap;
 }
 
 .generate-prompt-button:hover:not(:disabled) {
@@ -1262,6 +1261,10 @@ pre::-webkit-scrollbar-thumb:hover,
     flex-direction: column;
     gap: 8px;
     margin-left: 12px;
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+    padding: 0 10px;
+    max-width: 420px;
 }
 
 .inference-controls-row {
@@ -1314,8 +1317,8 @@ pre::-webkit-scrollbar-thumb:hover,
 }
 
 .inference-start-button {
-    padding: 12px 10px;
-    background: #0e639c;
+    padding: 8px 10px;
+    background: #e07000;
     color: white;
     border: none;
     border-radius: 4px;
@@ -1325,12 +1328,11 @@ pre::-webkit-scrollbar-thumb:hover,
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
-    word-wrap: nowrap;
-    width: 80px;
+    white-space: nowrap;
 }
 
 .inference-start-button:hover:not(:disabled) {
-    background: #1177bb;
+    background: #f08010;
 }
 
 .inference-start-button:disabled {
@@ -1382,7 +1384,7 @@ pre::-webkit-scrollbar-thumb:hover,
 
 /* Inference action buttons (Clear, Copy, Update File(s)) */
 .inference-action-button {
-    padding: 12px;
+    padding: 10px;
     background: #0e639c;
     color: white;
     border: none;
@@ -1393,7 +1395,7 @@ pre::-webkit-scrollbar-thumb:hover,
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
-    word-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .inference-action-button:hover:not(:disabled) {

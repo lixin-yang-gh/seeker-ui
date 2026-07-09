@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { applyBlockReplacements, BlockReplacementItem as UtilBlockReplacementItem, FileUpdateResult } from '../../../shared/file-updater';
+import InferenceControls from '../shared/InferenceControls';
 
 interface InferenceTabProps {
   rootFolder?: string | null;
@@ -12,8 +13,19 @@ interface InferenceTabProps {
   onCancelInference?: () => void;
   onRunInference?: () => void;
   inferenceLastSavedTimestamp?: number | null;
-  /** Callback to re‑run inference with the existing configuration */
+  /** Callback to re-run inference with the existing configuration */
   onRunInferenceAgain?: () => void;
+  /**
+   * Callback to re-run inference with the cached prompt using the values
+   * chosen inside the embedded InferenceControls component (API target,
+   * model, temperature, max tokens).
+   */
+  onRunInferenceWithConfig?: (
+    model: string,
+    temperature: number,
+    apiTarget: 'OpenRouter' | 'Venice',
+    maxTokens: number
+  ) => void;
 }
 
 // ─── Block Replacement Parser ─────────────────────────────────────
@@ -502,6 +514,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   onClearResult,
   onCancelInference,
   onRunInferenceAgain,
+  onRunInferenceWithConfig,
   inferenceLastSavedTimestamp,
 }) => {
   const [model, setModel] = useState<string>('');
@@ -660,7 +673,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
       {/* Main result */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', marginLeft: '3px' }}>
             <label style={{ fontSize: '15px', color: '#aaa', fontWeight: 'bold' }}>Inference Result</label>
             {inferenceLastSavedTimestamp && (
               <div style={{ fontSize: '11px', color: '#4ec9b0' }}>
@@ -679,14 +692,19 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
                 Cancel Inference
               </button>
             )}
-            <button
-              className="inference-action-button"
-              onClick={() => onRunInferenceAgain?.()}
+            <InferenceControls
+              rootFolder={rootFolder ?? null}
+              onStartInference={(model, temperature, apiTarget, maxTokens) => {
+                if (onRunInferenceWithConfig) {
+                  onRunInferenceWithConfig(model, temperature, apiTarget, maxTokens);
+                } else {
+                  onRunInferenceAgain?.();
+                }
+              }}
               disabled={inferenceStatus === 'running'}
-              title="Re‑run inference with the current model, temperature, and prompts"
-            >
-              Run Inference Again
-            </button>
+              showStartButton={true}
+              startButtonLabel="Run Inference Again"
+            />
             <button
               className={`inference-action-button ${pasteSuccess ? 'success' : ''} ${pasteFailure ? 'failure' : ''}`}
               onClick={async () => {
@@ -726,7 +744,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
               {pasteSuccess ? '✓ Parsed' : pasteFailure ? '✗ Parse failed' : 'Paste'}
             </button>
             <button className="inference-action-button" onClick={() => onClearResult?.()} disabled={!hasContent} title="Clear the inference result and reasoning">Clear</button>
-            <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '12px 20px', fontSize: '12px', fontWeight: '500' }} />
+            <CopyButton text={inferenceResult} label="Copy All" style={{ padding: '10px', fontSize: '12px', fontWeight: '500' }} />
             {!updateConfirming ? (
               <button
                 className="inference-action-button"
