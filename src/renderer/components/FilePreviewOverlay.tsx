@@ -211,6 +211,97 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     []
   );
 
+  // Clipboard shortcut handling for the editor textarea.
+  //  - Read-only mode: Ctrl/Cmd+C copies the currently highlighted text.
+  //  - Edit mode:      Ctrl/Cmd+C copies, Ctrl/Cmd+X cuts (removing the
+  //                    selection and updating content), and Ctrl/Cmd+V pastes
+  //                    clipboard text at the current caret/selection position.
+  //
+  // We handle these explicitly (rather than relying purely on native browser
+  // behavior) so that cut/paste correctly mutate editedContent + isDirty, and
+  // so copy works reliably even while the textarea is readOnly.
+  const handleEditorKeyDown = useCallback(
+    async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      const isMod = e.ctrlKey || e.metaKey;
+      if (!isMod) return;
+
+      const key = e.key.toLowerCase();
+      const el = e.currentTarget;
+      const selStart = el.selectionStart ?? 0;
+      const selEnd = el.selectionEnd ?? 0;
+      const hasSelection = selEnd > selStart;
+
+      // ── Copy (both read-only and edit mode) ──
+      if (key === 'c') {
+        if (!hasSelection) return; // nothing highlighted → let default no-op
+        e.preventDefault();
+        const selected = editedContent.slice(selStart, selEnd);
+        try {
+          await navigator.clipboard.writeText(selected);
+        } catch (err) {
+          console.error('FilePreviewOverlay: copy failed', err);
+        }
+        return;
+      }
+
+      // ── Cut (edit mode only) ──
+      if (key === 'x') {
+        if (!isEditable) return;
+        if (!hasSelection) return; // nothing highlighted → let default no-op
+        e.preventDefault();
+        const selected = editedContent.slice(selStart, selEnd);
+        try {
+          await navigator.clipboard.writeText(selected);
+        } catch (err) {
+          console.error('FilePreviewOverlay: cut (copy phase) failed', err);
+          return; // do not mutate content if clipboard write failed
+        }
+        const newValue =
+          editedContent.slice(0, selStart) + editedContent.slice(selEnd);
+        setEditedContent(newValue);
+        setIsDirty(newValue !== originalContentRef.current);
+        // Restore caret to where the removed selection started.
+        requestAnimationFrame(() => {
+          const node = editorRef.current;
+          if (node) {
+            node.selectionStart = selStart;
+            node.selectionEnd = selStart;
+          }
+        });
+        return;
+      }
+
+      // ── Paste (edit mode only) ──
+      if (key === 'v') {
+        if (!isEditable) return;
+        e.preventDefault();
+        let clip = '';
+        try {
+          clip = await navigator.clipboard.readText();
+        } catch (err) {
+          console.error('FilePreviewOverlay: paste failed', err);
+          return;
+        }
+        if (!clip) return;
+        const newValue =
+          editedContent.slice(0, selStart) + clip + editedContent.slice(selEnd);
+        setEditedContent(newValue);
+        setIsDirty(newValue !== originalContentRef.current);
+        // Place caret at the end of the inserted text.
+        const caret = selStart + clip.length;
+        requestAnimationFrame(() => {
+          const node = editorRef.current;
+          if (node) {
+            node.selectionStart = caret;
+            node.selectionEnd = caret;
+          }
+        });
+        return;
+      }
+    },
+    [editedContent, isEditable]
+  );
+
   // Intercept close attempts to warn about unsaved changes
   const attemptClose = useCallback(() => {
     if (isDirty) {
@@ -537,6 +628,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
             className="file-preview-overlay__editor"
             value={editedContent}
             onChange={handleContentChange}
+            onKeyDown={handleEditorKeyDown}
             onScroll={syncHighlightScroll}
             readOnly={!isEditable}
             spellCheck={false}
