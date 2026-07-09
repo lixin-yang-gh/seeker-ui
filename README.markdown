@@ -2,9 +2,9 @@
 
 **Future Roadmap**
 
-- Add **Venice API** support alongside the existing **OpenRouter API** integration.
-- Replace the current inference orchestration with an **agentic orchestration** system, enabling multi-node workflows.
-- Integrate a remote **web search and scraping MCP server** to provide richer contextual information for coding (relevant online documents) and writing tasks (relevant internet contents).
+- Add **Venice API** support alongside **OpenRouter**, prioritising guaranteed privacy protection and data security.
+- Migrate inference orchestration to an **agentic** architecture, enabling multi-node workflows.
+- Integrate a remote **web search and scraping MCP server** for **enriched context** in coding (documentation lookup) and writing (live web content) tasks.
 
 ## Introduction
 
