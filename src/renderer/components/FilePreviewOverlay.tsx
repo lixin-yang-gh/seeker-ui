@@ -27,6 +27,14 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const [wordWrap, setWordWrap] = useState<boolean>(false);
   const DEFAULT_FONT_SIZE = 13;
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
+  // ── Substring search (telescope) state ──
+  const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
+  const [activeMatchIndex, setActiveMatchIndex] = useState<number>(0);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const highlightLayerRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const originalContentRef = useRef<string>(initialContent);
   // Track whether the initial font size has been loaded from the store so we
   // do not immediately overwrite a freshly-loaded value on the first render.
@@ -81,14 +89,106 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     setSaveError(null);
   }, [initialContent, filePath]);
 
-  const handleContentChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newValue = e.target.value;
-      setEditedContent(newValue);
-      setIsDirty(newValue !== originalContentRef.current);
-    },
-    []
-  );
+
+
+  // ── Substring search helpers ──
+  const escapeHtml = useCallback((s: string): string => {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }, []);
+
+  // Compute all match ranges (start/end char offsets) for the current query.
+  const matchRanges = React.useMemo<Array<{ start: number; end: number }>>(() => {
+    if (!showSearch || !searchQuery) return [];
+    const ranges: Array<{ start: number; end: number }> = [];
+    const haystack = caseSensitive ? editedContent : editedContent.toLowerCase();
+    const needle = caseSensitive ? searchQuery : searchQuery.toLowerCase();
+    if (needle.length === 0) return [];
+    let from = 0;
+    while (true) {
+      const idx = haystack.indexOf(needle, from);
+      if (idx === -1) break;
+      ranges.push({ start: idx, end: idx + needle.length });
+      from = idx + needle.length;
+    }
+    return ranges;
+  }, [showSearch, searchQuery, caseSensitive, editedContent]);
+
+  // Build HTML for the highlight overlay: escaped content with <mark> around matches.
+  const highlightHtml = React.useMemo<string>(() => {
+    if (matchRanges.length === 0) return '';
+    let html = '';
+    let cursor = 0;
+    matchRanges.forEach((r, i) => {
+      html += escapeHtml(editedContent.slice(cursor, r.start));
+      const cls =
+        i === activeMatchIndex
+          ? 'file-preview-overlay__mark file-preview-overlay__mark--active'
+          : 'file-preview-overlay__mark';
+      html += '<mark class="' + cls + '">' + escapeHtml(editedContent.slice(r.start, r.end)) + '</mark>';
+      cursor = r.end;
+    });
+    html += escapeHtml(editedContent.slice(cursor));
+    return html;
+  }, [matchRanges, editedContent, activeMatchIndex, escapeHtml]);
+
+  // Keep the highlight overlay scrolled in sync with the editor textarea.
+  const syncHighlightScroll = useCallback(() => {
+    if (highlightLayerRef.current && editorRef.current) {
+      highlightLayerRef.current.scrollTop = editorRef.current.scrollTop;
+      highlightLayerRef.current.scrollLeft = editorRef.current.scrollLeft;
+    }
+  }, []);
+
+  // Reset the active match when the query or results change.
+  useEffect(() => {
+    setActiveMatchIndex(0);
+  }, [searchQuery, caseSensitive]);
+
+  // Focus the search input when the search box is opened.
+  useEffect(() => {
+    if (showSearch) {
+      const t = setTimeout(() => searchInputRef.current?.focus(), 0);
+      return () => clearTimeout(t);
+    }
+  }, [showSearch]);
+
+  // Scroll the editor to reveal the active match.
+  const scrollToActiveMatch = useCallback(() => {
+    const el = editorRef.current;
+    const range = matchRanges[activeMatchIndex];
+    if (!el || !range) return;
+    const before = editedContent.slice(0, range.start);
+    const lineNumber = before.split('\n').length - 1;
+    const style = window.getComputedStyle(el);
+    const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.45;
+    const targetTop = lineNumber * lineHeight - el.clientHeight / 2;
+    el.scrollTop = Math.max(0, targetTop);
+    syncHighlightScroll();
+  }, [matchRanges, activeMatchIndex, editedContent, fontSize, syncHighlightScroll]);
+
+  useEffect(() => {
+    if (showSearch && matchRanges.length > 0) {
+      scrollToActiveMatch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMatchIndex, matchRanges.length, showSearch]);
+
+  const gotoNextMatch = useCallback(() => {
+    if (matchRanges.length === 0) return;
+    setActiveMatchIndex((i) => (i + 1) % matchRanges.length);
+  }, [matchRanges.length]);
+
+  const gotoPrevMatch = useCallback(() => {
+    if (matchRanges.length === 0) return;
+    setActiveMatchIndex((i) => (i - 1 + matchRanges.length) % matchRanges.length);
+  }, [matchRanges.length]);
+
+  const toggleSearch = useCallback(() => {
+    setShowSearch((s) => !s);
+  }, []);
 
   const performSave = useCallback(
     async (newContent: string) => {
@@ -100,6 +200,15 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
       }
     },
     [onSave, filePath]
+  );
+
+  const handleContentChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const newValue = e.target.value;
+      setEditedContent(newValue);
+      setIsDirty(newValue !== originalContentRef.current);
+    },
+    []
   );
 
   // Intercept close attempts to warn about unsaved changes
@@ -181,12 +290,21 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     setSaveError(null);
   }, [filePath]);
 
-  // Handle ESC key to close (also routed through attemptClose) and Ctrl/Cmd+S to save
+  // Handle ESC key to close (also routed through attemptClose), Ctrl/Cmd+S to
+  // save, and Ctrl/Cmd+F to toggle the substring search box.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        setShowSearch(true);
+        searchInputRef.current?.focus();
+        return;
+      }
       if (e.key === 'Escape') {
         if (showUnsavedModal) {
           handleCancelClose();
+        } else if (showSearch) {
+          setShowSearch(false);
         } else {
           attemptClose();
         }
@@ -199,7 +317,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showUnsavedModal, attemptClose, handleCancelClose, isEditable, isDirty, saveStatus, handleSave]);
+  }, [showUnsavedModal, attemptClose, handleCancelClose, isEditable, isDirty, saveStatus, handleSave, showSearch]);
 
   return (
     <div className="file-preview-overlay" onClick={attemptClose}>
@@ -268,6 +386,18 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
             >
               Font: +2 ({fontSize}px)
             </button>
+            <button
+              type="button"
+              className={
+                'file-preview-overlay__toolbar-btn' +
+                (showSearch ? ' file-preview-overlay__toolbar-btn--primary' : ' file-preview-overlay__toolbar-btn--secondary')
+              }
+              onClick={toggleSearch}
+              title="Search substrings and highlight matches (Ctrl/Cmd+F)"
+              aria-pressed={showSearch}
+            >
+              🔭 Search
+            </button>
             {!isEditable && (
               <button
                 type="button"
@@ -313,11 +443,97 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
           </div>
         </div>
 
+        {showSearch && (
+          <div className="file-preview-overlay__search">
+            <span className="file-preview-overlay__search-icon" aria-hidden="true">🔭</span>
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="file-preview-overlay__search-input"
+              placeholder="Search substring…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (e.shiftKey) gotoPrevMatch();
+                  else gotoNextMatch();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setShowSearch(false);
+                }
+              }}
+              spellCheck={false}
+            />
+            <span className="file-preview-overlay__search-count">
+              {searchQuery
+                ? matchRanges.length > 0
+                  ? `${activeMatchIndex + 1}/${matchRanges.length}`
+                  : '0/0'
+                : ''}
+            </span>
+            <button
+              type="button"
+              className="file-preview-overlay__search-btn"
+              onClick={gotoPrevMatch}
+              disabled={matchRanges.length === 0}
+              title="Previous match (Shift+Enter)"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className="file-preview-overlay__search-btn"
+              onClick={gotoNextMatch}
+              disabled={matchRanges.length === 0}
+              title="Next match (Enter)"
+            >
+              ↓
+            </button>
+            <label
+              className="file-preview-overlay__search-toggle"
+              title="Match case"
+            >
+              <input
+                type="checkbox"
+                checked={caseSensitive}
+                onChange={(e) => setCaseSensitive(e.target.checked)}
+              />
+              Aa
+            </label>
+            <button
+              type="button"
+              className="file-preview-overlay__search-close"
+              onClick={() => setShowSearch(false)}
+              title="Close search (Esc)"
+              aria-label="Close search"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <div className="file-preview-overlay__body">
+          {showSearch && matchRanges.length > 0 && (
+            <div
+              ref={highlightLayerRef}
+              className="file-preview-overlay__highlight-layer"
+              aria-hidden="true"
+              style={{
+                whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
+                wordBreak: wordWrap ? 'break-word' : 'normal',
+                overflowWrap: wordWrap ? 'break-word' : 'normal',
+                fontSize: `${fontSize}px`,
+              }}
+              dangerouslySetInnerHTML={{ __html: highlightHtml }}
+            />
+          )}
           <textarea
+            ref={editorRef}
             className="file-preview-overlay__editor"
             value={editedContent}
             onChange={handleContentChange}
+            onScroll={syncHighlightScroll}
             readOnly={!isEditable}
             spellCheck={false}
             style={{
@@ -325,6 +541,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
               wordBreak: wordWrap ? 'break-word' : 'normal',
               overflowWrap: wordWrap ? 'break-word' : 'normal',
               fontSize: `${fontSize}px`,
+              background: showSearch && matchRanges.length > 0 ? 'transparent' : undefined,
             }}
           />
         </div>
