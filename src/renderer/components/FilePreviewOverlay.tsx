@@ -296,8 +296,12 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
-        setShowSearch(true);
-        searchInputRef.current?.focus();
+        if (showSearch) {
+          setShowSearch(false);
+        } else {
+          setShowSearch(true);
+          searchInputRef.current?.focus();
+        }
         return;
       }
       if (e.key === 'Escape') {
