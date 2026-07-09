@@ -1,57 +1,17 @@
-// src/main/open-router.ts
+// src/shared/open-router.ts
 // -------------------------------------------------------------------
 // OpenRouter API client – pure function, no side effects.
 // Supports standard chat, per-model deep thinking, and web search.
 // -------------------------------------------------------------------
 
-// ─── Model Capability Registry ──────────────────────────────────
+// ─── Model Capability Registry ──────────────────────────────────────────────
+// Registry has moved to src/shared/model-capabilities.ts so that Venice and
+// any future provider can reuse the exact same table + resolution logic.
 
-interface ModelCapability {
-  /** Inject Anthropic-style { type, budget_tokens } thinking block */
-  anthropicThinking?: boolean;
-  /** Model self-reasons (DeepSeek R1 style); no extra config needed */
-  nativeReasoning?: boolean;
-  /** OpenRouter :online web-search plugin supported */
-  webSearch?: boolean;
-  /** Must use temperature === 1 when thinking is active */
-  requiresTempOne?: boolean;
-  /** Minimum safe max_tokens when thinking is active */
-  thinkingMinTokens?: number;
-}
+import { getCapability, ModelCapability } from './model-capabilities';
+export type { ModelCapability } from './model-capabilities';
 
-const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
-  'anthropic/claude-sonnet-4-6': {
-    anthropicThinking: true,
-    requiresTempOne: true,
-    webSearch: true,
-    thinkingMinTokens: 16_000,
-  },
-  'deepseek/deepseek-v4-pro': {
-    nativeReasoning: true,
-    webSearch: true,
-    thinkingMinTokens: 16_000,
-  },
-  'z-ai/glm-5-2': {
-    nativeReasoning: true,
-    webSearch: true,
-    thinkingMinTokens: 8_000,
-  },
-  'moonshotai/kimi-k2-7-code': {
-    nativeReasoning: true,
-    webSearch: true,
-    thinkingMinTokens: 8_000,
-  },
-};
-
-/** Resolve capability entry, tolerating minor slug variations (dots↔dashes). */
-function getCapability(model: string): ModelCapability {
-  if (MODEL_CAPABILITIES[model]) return MODEL_CAPABILITIES[model];
-  // Normalise: replace dots with dashes for lookup
-  const normalised = model.replace(/\./g, '-');
-  return MODEL_CAPABILITIES[normalised] ?? {};
-}
-
-// ─── Public Types ────────────────────────────────────────────────
+// ─── Public Types ─────────────────────────────────────────────────────
 
 export interface OpenRouterRequest {
   systemPrompt: string;
@@ -82,7 +42,7 @@ export interface OpenRouterResult {
   truncated?: boolean;
 }
 
-// ─── Internal Response Shape ─────────────────────────────────────
+// ─── Internal Response Shape ───────────────────────────────────────────────────
 
 interface ContentBlock {
   type: 'text' | 'thinking' | 'redacted_thinking';
@@ -105,7 +65,7 @@ interface OpenRouterResponse {
   usage?: OpenRouterResult['usage'];
 }
 
-// ─── Helpers ────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function extractContent(choice: OpenRouterChoice): Pick<OpenRouterResult, 'text' | 'reasoning'> {
   const { message } = choice;
@@ -121,12 +81,8 @@ function extractContent(choice: OpenRouterChoice): Pick<OpenRouterResult, 'text'
   };
 }
 
-// ─── Main Export ─────────────────────────────────────────────────
+// ─── Main Export ─────────────────────────────────────────────────────────────
 
-/**
- * Call the OpenRouter Chat Completions API.
- * Returns an OpenRouterResult; for callers that only need the text, use `.text`.
- */
 /**
  * Returns true when the response text has `path=` and `op=` markers but
  * neither a fenced code block nor a `scope=` attribute — i.e. the model
@@ -149,6 +105,10 @@ export function isMalformedBlockResponse(text: string): boolean {
   }
 }
 
+/**
+ * Call the OpenRouter Chat Completions API.
+ * Returns an OpenRouterResult; for callers that only need the text, use `.text`.
+ */
 export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSignal): Promise<OpenRouterResult> {
   const {
     systemPrompt,
@@ -171,10 +131,7 @@ export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSi
   const thinkingActive = deepThinking && (cap.anthropicThinking || cap.nativeReasoning);
   const searchActive = webSearch && cap.webSearch;
 
-  const effectiveTemp = thinkingActive && cap.requiresTempOne ? temperature_claude  : temperature;
-  // When reasoning is active the hidden reasoning tokens are billed against the
-  // completion budget, so we must leave a generous ceiling on top of any
-  // per-model minimum to avoid the visible answer being truncated.
+  const effectiveTemp = thinkingActive && cap.requiresTempOne ? temperature_claude : temperature;
   const effectiveMaxTokens = thinkingActive
     ? Math.max(maxTokens, (cap.thinkingMinTokens ?? 16_000) + thinkingBudget)
     : maxTokens;
@@ -199,21 +156,14 @@ export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSi
     body['plugins'] = [{ id: 'web', max_results: 5 }];
   }
 
-  // Combine caller-provided signal (if any) with a 10-minute (600s) timeout.
   const timeoutSignal = AbortSignal.timeout(600_000);
   const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 
-  // Node/Electron's built-in fetch is backed by undici, whose default
-  // headersTimeout (~300s) and bodyTimeout would abort a slow (up to 10-minute)
-  // model response long before our 600s AbortSignal fires. Attach an undici
-  // Agent dispatcher with the relevant timeouts raised to >= 600s so a full
-  // 10-minute turnaround is tolerated. If undici cannot be loaded (e.g. an
-  // environment without it), fall back to a plain fetch.
   let dispatcher: unknown;
   try {
     const undici = await import('undici');
     dispatcher = new undici.Agent({
-      headersTimeout: 620_000, // slightly above 600s abort window
+      headersTimeout: 620_000,
       bodyTimeout: 620_000,
       keepAliveTimeout: 620_000,
       keepAliveMaxTimeout: 620_000,
@@ -256,8 +206,6 @@ export async function callOpenRouter(params: OpenRouterRequest, signal?: AbortSi
   const finishReason = choice.finish_reason;
   const extracted = extractContent(choice);
 
-  // A 'length' finish_reason means the provider stopped because the completion
-  // hit max_tokens — the returned text is incomplete/truncated.
   const truncated = finishReason === 'length';
 
   if (finishReason === 'content_filter') {

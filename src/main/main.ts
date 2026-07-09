@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { redactContent } from './redaction-config';
-import { callOpenRouter, isMalformedBlockResponse } from './open-router';
+import { callOpenRouter, isMalformedBlockResponse } from '../shared/open-router';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
