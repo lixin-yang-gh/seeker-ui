@@ -7,25 +7,36 @@
     <title>Seeker UI — Your Visual AI Workspace</title>
     <meta name="description"
         content="Seeker UI puts a full AI-powered workspace at your fingertips. No terminal. No syntax. Just results." />
+
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Seeker UI — Your Visual AI Workspace" />
+    <meta property="og:description"
+        content="Point, tick, and run. A visual, local-first workspace for AI-assisted development." />
+    <meta property="og:image" content="seeker-ui.pic1.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Seeker UI — Your Visual AI Workspace" />
+    <meta name="twitter:description"
+        content="Point, tick, and run. A visual, local-first workspace for AI-assisted development." />
+    <meta name="twitter:image" content="seeker-ui.pic1.jpg" />
+
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="shortcut icon" href="favicon.ico" />
     <link rel="apple-touch-icon" href="favicon.ico" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="shortcut icon" href="favicon.ico" />
-    <link rel="apple-touch-icon" href="favicon.ico" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Figtree:wght@300;400;500;600;700&display=swap"
         rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
 
     <!-- NAV -->
-    <nav id="navbar">
+    <nav id="navbar" aria-label="Primary navigation">
         <div class="nav-logo">Seeker<span> </span>UI</div>
-        <link rel="stylesheet" href="style.css" />
         <div class="nav-links">
             <a href="#hero">Home</a>
             <a href="#why">Why Seeker</a>
@@ -39,16 +50,16 @@
 
     <!-- HERO -->
     <section id="hero">
-        <div class="hero-glow-blue"></div>
-        <div class="hero-glow-orange"></div>
+        <div class="hero-glow-blue" aria-hidden="true"></div>
+        <div class="hero-glow-orange" aria-hidden="true"></div>
 
         <div class="brand-badge-wrap">
             <img src="seeker-ui.svg" alt="Seeker UI" />
         </div>
 
         <div class="hero-badge">
-            <span class="hero-badge-dot"></span>
-            Free &amp; Open Source
+            <span class="hero-badge-dot" aria-hidden="true"></span>
+            Free & Open Source
         </div>
 
         <h1 class="hero-h1">
@@ -66,7 +77,7 @@
         <div class="hero-btns">
             <a class="btn-primary" href="https://github.com/lixin-yang-gh/seeker-ui/releases" target="_blank"
                 rel="noopener">
-                &#8595; Download Free
+                &darr; Download Free
             </a>
             <a class="btn-ghost" href="https://github.com/lixin-yang-gh/seeker-ui" target="_blank" rel="noopener">
                 View on GitHub &nearr;
@@ -86,7 +97,7 @@
             </p>
             <div class="vs-grid">
                 <div class="vs-col bad">
-                    <span class="vs-col-title">&cross;&nbsp;&nbsp;CLI-Based AI Tools</span>
+                    <span class="vs-col-title">&cross;  CLI-Based AI Tools</span>
                     <div class="vs-item"><span class="vs-icon">&cross;</span>Paste walls of code and hope the context
                         limit holds</div>
                     <div class="vs-item"><span class="vs-icon">&cross;</span>Copy file contents manually, one file at a
@@ -99,7 +110,7 @@
                         sending</div>
                 </div>
                 <div class="vs-col good">
-                    <span class="vs-col-title">&check;&nbsp;&nbsp;Seeker UI</span>
+                    <span class="vs-col-title">&check;  Seeker UI</span>
                     <div class="vs-item"><span class="vs-icon">&check;</span>Tick the files you want &mdash; context is
                         assembled automatically</div>
                     <div class="vs-item"><span class="vs-icon">&check;</span>Structured editor keeps system role, task,
@@ -123,12 +134,14 @@
             <h2 class="section-h2 center">A workspace built for <span class="accent-blue">clarity</span><br />and <span class="accent-orange">speed</span></h2>
             <p class="section-intro center">The screenshots below show the real Seeker UI interface &mdash; file explorer on the left, structured prompt editor in the centre, and AI response with one-click apply on the right. Everything you need, exactly where you expect it.</p>
             <div class="mockup-wrap">
-                <a href="javascript:void(0)" onclick="window.open('seeker-ui.pic1.jpg','seeker-ui.pic1.jpg')">
-                    <img src="seeker-ui.pic1.jpg" alt="Seeker UI screenshot 1"
+                <a href="seeker-ui.pic1.jpg" target="_blank" rel="noopener" aria-label="Open screenshot 1 in new tab">
+                    <img src="seeker-ui.pic1.jpg" alt="Seeker UI screenshot: file explorer and prompt editor"
+                        loading="lazy"
                         style="width:100%;height:auto;display:block;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" />
                 </a>
-                <a href="javascript:void(0)" onclick="window.open('seeker-ui.pic2.jpg','seeker-ui.pic2.jpg')">
-                    <img src="seeker-ui.pic2.jpg" alt="Seeker UI screenshot 2"
+                <a href="seeker-ui.pic2.jpg" target="_blank" rel="noopener" aria-label="Open screenshot 2 in new tab">
+                    <img src="seeker-ui.pic2.jpg" alt="Seeker UI screenshot: AI response and diff review"
+                        loading="lazy"
                         style="width:100%;height:auto;display:block;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" />
                 </a>
             </div>
@@ -144,37 +157,37 @@
             </p>
             <div class="feat-grid">
                 <div class="feat-card">
-                    <div class="feat-icon">&#128194;</div>
+                    <div class="feat-icon" aria-hidden="true">📁</div>
                     <span class="feat-title">File Explorer</span>
                     <p class="feat-desc">Browse your project, tick the files you need, and they are woven into your
                         prompt automatically. Subfolder navigation and live preview included.</p>
                 </div>
                 <div class="feat-card">
-                    <div class="feat-icon">&#9999;&#65039;</div>
+                    <div class="feat-icon" aria-hidden="true">✏️</div>
                     <span class="feat-title">Structured Prompts</span>
                     <p class="feat-desc">Separate sections for system role, task description, known issues, and file
                         context &mdash; write once, reuse across sessions without reformatting.</p>
                 </div>
                 <div class="feat-card">
-                    <div class="feat-icon">&#9889;</div>
+                    <div class="feat-icon" aria-hidden="true">⚡</div>
                     <span class="feat-title">One-Click Inference</span>
                     <p class="feat-desc">Choose a model, set temperature with a slider, and hit Run. No API boilerplate,
                         no terminal &mdash; ready to go in seconds.</p>
                 </div>
                 <div class="feat-card">
-                    <div class="feat-icon">&#128269;</div>
+                    <div class="feat-icon" aria-hidden="true">✅</div>
                     <span class="feat-title">Review Before Applying</span>
                     <p class="feat-desc">AI-proposed file edits appear as readable blocks. Approve, skip, or copy each
                         one &mdash; you remain in control of every change.</p>
                 </div>
                 <div class="feat-card">
-                    <div class="feat-icon">&#128203;</div>
+                    <div class="feat-icon" aria-hidden="true">📋</div>
                     <span class="feat-title">Clipboard Workflow</span>
                     <p class="feat-desc">Copy your assembled prompt to any AI service and paste the response back in.
                         Works with every provider, not just one.</p>
                 </div>
                 <div class="feat-card">
-                    <div class="feat-icon">&#128737;&#65039;</div>
+                    <div class="feat-icon" aria-hidden="true">🔒</div>
                     <span class="feat-title">Data Redaction</span>
                     <p class="feat-desc">Built-in secret masking and custom substring redaction prevents sensitive
                         strings from slipping into your prompts.</p>
@@ -189,7 +202,7 @@
             <div class="section-label" style="text-align:center">Privacy</div>
             <h2 class="section-h2 center">Your files stay<br /><span class="accent-blue">on your machine</span></h2>
             <div class="privacy-card">
-                <div class="privacy-icon">&#128274;</div>
+                <div class="privacy-icon" aria-hidden="true">🔐</div>
                 <p class="privacy-text">
                     Seeker UI is <strong>local-first</strong>. Your API keys,
                     project files, and prompt history are stored only on your own device &mdash;
@@ -205,7 +218,7 @@
 
     <!-- DOWNLOAD CTA -->
     <section id="download" class="section">
-        <div class="download-glow"></div>
+        <div class="download-glow" aria-hidden="true"></div>
         <div class="download-inner">
             <div class="section-label" style="text-align:center">Get Started</div>
             <h2 class="section-h2 center">Free to download.<br /><span class="accent-orange">Free to keep.</span></h2>
@@ -216,14 +229,14 @@
             <div class="platform-cards">
                 <a class="platform-card" href="https://github.com/lixin-yang-gh/seeker-ui/releases" target="_blank"
                     rel="noopener">
-                    <span class="platform-icon">&#129695;</span>
+                    <span class="platform-icon" aria-hidden="true">💻</span>
                     <span class="platform-name">Windows</span>
-                    <span class="platform-sub">Windows 10 &amp; 11</span>
+                    <span class="platform-sub">Windows 10 & 11</span>
                     <span class="platform-link">Download on GitHub &rarr;</span>
                 </a>
                 <a class="platform-card" href="https://github.com/lixin-yang-gh/seeker-ui/releases" target="_blank"
                     rel="noopener">
-                    <span class="platform-icon">&#127822;</span>
+                    <span class="platform-icon" aria-hidden="true">🖥️</span>
                     <span class="platform-name">macOS</span>
                     <span class="platform-sub">Monterey 12 and later</span>
                     <span class="platform-link">Download on GitHub &rarr;</span>
@@ -253,10 +266,20 @@
 
     <script>
         // Navbar scroll effect
-        const navbar = document.getElementById('navbar');
-        window.addEventListener('scroll', () => {
-            navbar.classList.toggle('scrolled', window.scrollY > 24);
-        });
+        (function () {
+            var navbar = document.getElementById('navbar');
+            if (!navbar) return;
+            var ticking = false;
+            window.addEventListener('scroll', function () {
+                if (!ticking) {
+                    window.requestAnimationFrame(function () {
+                        navbar.classList.toggle('scrolled', window.scrollY > 24);
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            }, { passive: true });
+        })();
     </script>
 
 </body>

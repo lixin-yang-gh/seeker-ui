@@ -19,11 +19,15 @@
       "./src/shared"
     ],
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
   },
   "include": [
     "src/**/*",
-    "src/shared/**/*.d.ts"  // Explicitly include declaration files
+    "src/shared/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
