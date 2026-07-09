@@ -36,11 +36,14 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const highlightLayerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const originalContentRef = useRef<string>(initialContent);
-  // Track whether the initial font size has been loaded from the store so we
-  // do not immediately overwrite a freshly-loaded value on the first render.
+  // Track whether the initial font size / word wrap settings have been loaded
+  // from the store so we do not immediately overwrite a freshly-loaded value on
+  // the first render.
   const fontSizeLoadedRef = useRef<boolean>(false);
+  const wordWrapLoadedRef = useRef<boolean>(false);
 
-  // Load persisted font size for this root folder on mount (or when rootFolder changes).
+  // Load persisted font size AND word wrap for this root folder on mount
+  // (or when rootFolder changes).
   useEffect(() => {
     if (!rootFolder) return;
     let cancelled = false;
@@ -51,10 +54,16 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
         if (folderState?.previewFontSize && typeof folderState.previewFontSize === 'number') {
           setFontSize(folderState.previewFontSize);
         }
+        if (typeof folderState?.previewWordWrap === 'boolean') {
+          setWordWrap(folderState.previewWordWrap);
+        }
       } catch (err) {
-        console.error('FilePreviewOverlay: failed to load font size', err);
+        console.error('FilePreviewOverlay: failed to load preview settings', err);
       } finally {
-        if (!cancelled) fontSizeLoadedRef.current = true;
+        if (!cancelled) {
+          fontSizeLoadedRef.current = true;
+          wordWrapLoadedRef.current = true;
+        }
       }
     };
     load();
@@ -77,6 +86,23 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     }, 400);
     return () => clearTimeout(t);
   }, [fontSize, rootFolder]);
+
+  // Debounce-persist word wrap changes to the folder-specific store.
+  useEffect(() => {
+    if (!rootFolder || !wordWrapLoadedRef.current) return;
+    const t = setTimeout(async () => {
+      try {
+        const currentState = (await window.electronAPI.getFolderState(rootFolder)) || {};
+        await window.electronAPI.saveFolderState(rootFolder, {
+          ...currentState,
+          previewWordWrap: wordWrap,
+        });
+      } catch (err) {
+        console.error('FilePreviewOverlay: failed to persist word wrap', err);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [wordWrap, rootFolder]);
 
   // Reset state whenever the overlay is (re)opened with new content/file
   useEffect(() => {

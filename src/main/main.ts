@@ -29,6 +29,7 @@ interface FolderSpecificState {
   lastSystemPrompt?: string;
   lastUserPrompt?: string;
   previewFontSize?: number;
+  previewWordWrap?: boolean;
 }
 
 // Define the store schema

@@ -21,6 +21,7 @@ interface FolderSpecificState {
   lastSystemPrompt?: string;
   lastUserPrompt?: string;
   previewFontSize?: number;
+  previewWordWrap?: boolean;
 }
 
 declare global {
