@@ -30,6 +30,14 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [inferenceStatus, setInferenceStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [inferenceLastSaveTime, setInferenceLastSaveTime] = useState<number | null>(null);
 
+  // Close the file preview overlay whenever the root folder changes.
+  useEffect(() => {
+    if (showPreview) {
+      closePreview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootFolder]);
+
   // Load saved inference result on folder change
   useEffect(() => {
     if (!rootFolder) return;

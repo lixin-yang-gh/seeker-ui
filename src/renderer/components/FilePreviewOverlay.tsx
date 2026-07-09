@@ -12,6 +12,7 @@ interface FilePreviewOverlayProps {
 
 const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   filePath,
+  rootFolder,
   content,
   onClose,
   onSave,
@@ -24,7 +25,50 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [wordWrap, setWordWrap] = useState<boolean>(false);
+  const DEFAULT_FONT_SIZE = 13;
+  const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   const originalContentRef = useRef<string>(initialContent);
+  // Track whether the initial font size has been loaded from the store so we
+  // do not immediately overwrite a freshly-loaded value on the first render.
+  const fontSizeLoadedRef = useRef<boolean>(false);
+
+  // Load persisted font size for this root folder on mount (or when rootFolder changes).
+  useEffect(() => {
+    if (!rootFolder) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const folderState = await window.electronAPI.getFolderState(rootFolder);
+        if (cancelled) return;
+        if (folderState?.previewFontSize && typeof folderState.previewFontSize === 'number') {
+          setFontSize(folderState.previewFontSize);
+        }
+      } catch (err) {
+        console.error('FilePreviewOverlay: failed to load font size', err);
+      } finally {
+        if (!cancelled) fontSizeLoadedRef.current = true;
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [rootFolder]);
+
+  // Debounce-persist font size changes to the folder-specific store.
+  useEffect(() => {
+    if (!rootFolder || !fontSizeLoadedRef.current) return;
+    const t = setTimeout(async () => {
+      try {
+        const currentState = (await window.electronAPI.getFolderState(rootFolder)) || {};
+        await window.electronAPI.saveFolderState(rootFolder, {
+          ...currentState,
+          previewFontSize: fontSize,
+        });
+      } catch (err) {
+        console.error('FilePreviewOverlay: failed to persist font size', err);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [fontSize, rootFolder]);
 
   // Reset state whenever the overlay is (re)opened with new content/file
   useEffect(() => {
@@ -207,6 +251,23 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
             >
               Word {wordWrap ? 'Wrap: On' : 'Wrap: Off'}
             </button>
+            <button
+              type="button"
+              className="file-preview-overlay__toolbar-btn file-preview-overlay__toolbar-btn--secondary"
+              onClick={() => setFontSize(DEFAULT_FONT_SIZE)}
+              title={`Revert font size to the default (${DEFAULT_FONT_SIZE}px)`}
+              disabled={fontSize === DEFAULT_FONT_SIZE}
+            >
+              Font: Reset
+            </button>
+            <button
+              type="button"
+              className="file-preview-overlay__toolbar-btn file-preview-overlay__toolbar-btn--secondary"
+              onClick={() => setFontSize((s) => s + 2)}
+              title="Increase font size by 2 pixels"
+            >
+              Font: +2 ({fontSize}px)
+            </button>
             {!isEditable && (
               <button
                 type="button"
@@ -263,6 +324,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
               whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
               wordBreak: wordWrap ? 'break-word' : 'normal',
               overflowWrap: wordWrap ? 'break-word' : 'normal',
+              fontSize: `${fontSize}px`,
             }}
           />
         </div>

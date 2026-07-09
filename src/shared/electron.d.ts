@@ -20,6 +20,7 @@ interface FolderSpecificState {
   inferenceResultSavedAt?: number;
   lastSystemPrompt?: string;
   lastUserPrompt?: string;
+  previewFontSize?: number;
 }
 
 declare global {

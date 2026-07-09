@@ -28,6 +28,7 @@ interface FolderSpecificState {
   inferenceResultSavedAt?: number;
   lastSystemPrompt?: string;
   lastUserPrompt?: string;
+  previewFontSize?: number;
 }
 
 // Define the store schema

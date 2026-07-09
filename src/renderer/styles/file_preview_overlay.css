@@ -1,9 +1,19 @@
 /* file_preview_overlay.css — styles for the FilePreviewOverlay component */
 
+/*
+ * The overlay is constrained to the main content region so it never covers
+ * the FileTree sidebar. --sidebar-width is set as an inline CSS custom
+ * property on .app-container by renderer.tsx and reflects the user's current
+ * sidebar width (default 300px, resizable 180-600px). The extra 4px accounts
+ * for the .resizer bar between the sidebar and the main content pane.
+ *
+ * We use var() with a sane fallback so the overlay still renders correctly
+ * even if the custom property is not yet inherited at paint time.
+ */
 .file-preview-overlay {
     position: fixed;
     top: 0;
-    left: 0;
+    left: calc(var(--sidebar-width, 300px) + 4px);
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.6);
@@ -11,7 +21,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 30px;
+    padding: 10px;
 }
 
 .file-preview-overlay__content {
