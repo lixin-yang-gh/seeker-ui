@@ -1,10 +1,10 @@
 # Seeker UI – The Visual AI Assistant
 
-#### Future Roadmap
+**Future Roadmap**
 
 - Add **Venice API** support alongside the existing **OpenRouter API** integration.
 - Replace the current inference orchestration with an **agentic orchestration** system, enabling multi-node workflows.
-- Integrate a remote web search and scraping MCP server to provide richer contextual information for coding and writing tasks.
+- Integrate a remote **web search and scraping MCP server** to provide richer contextual information for coding and writing tasks.
 
 ## Introduction
 
