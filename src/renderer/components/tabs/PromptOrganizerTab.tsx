@@ -891,7 +891,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
             </div>
             <textarea
               id="system-prompt"
-              className="prompt-textarea"
+              className="prompt-textarea system-prompt"
               style={{ minHeight: '20px' }}
               placeholder="Define the AI assistant's role, behavior, and constraints..."
               value={systemPrompt}

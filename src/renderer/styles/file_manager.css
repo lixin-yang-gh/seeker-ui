@@ -212,10 +212,15 @@
     transition: border-color 0.2s;
 }
 
+.system-prompt {
+    color: #555;
+}
+
 .prompt-textarea:focus {
     outline: none;
     border-color: #0e639c;
     box-shadow: 0 0 0 1px rgba(14, 99, 156, 0.3);
+    color: #d4d4d4;
 }
 
 .prompt-textarea:hover:not(:focus) {
