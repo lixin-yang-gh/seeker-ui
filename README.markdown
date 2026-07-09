@@ -1,5 +1,11 @@
 # Seeker UI – The Visual AI Assistant
 
+#### Future Roadmap
+
+- Add **Venice API** support alongside the existing **OpenRouter API** integration.
+- Replace the current inference orchestration with an **agentic orchestration** system, enabling multi-node workflows.
+- Integrate a remote web search and scraping MCP server to provide richer contextual information for coding and writing tasks.
+
 ## Introduction
 
 Seeker UI is a visual, AI‑assisted workspace for coding and writing projects. It brings together file browsing, structured prompt engineering, and inference results into a single desktop application designed for developers, technical writers, and content creators. Unlike command‑line tools that require memorising flags and juggling separate scripts, Seeker UI offers:
@@ -35,14 +41,6 @@ There are currently no plans to release a pre-compiled Linux binary. However, th
 1. Clone the repository.
 2. Run `npm install` to install dependencies.
 3. Run `npm run package:linux` to generate an AppImage or distribution-specific package.
-
-#### Future Roadmap
-
-The app is currently integrated with the **OpenRouter API**. 
-
-I'm planning to expand its capabilities by adding support for the **Venice API** and exploring other powerful AI providers. 
-
-If you're interested in shaping the future of this project, I'd love to hear your ideas and suggestions! Contributions, feature requests, and creative input are always welcome.
 
 ---
 
