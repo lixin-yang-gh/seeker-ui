@@ -390,6 +390,30 @@
     color: #666;
 }
 
+/* Dark green background for "New Task" and "Clear" buttons */
+.toolbar-button.green-action {
+    background: #1b5e20;
+    border-color: #2e7d32;
+    color: #a5d6a7;
+}
+
+.toolbar-button.green-action:hover:not(:disabled) {
+    background: #2e7d32;
+    border-color: #388e3c;
+    color: #e8f5e9;
+}
+
+.toolbar-button.green-action:active:not(:disabled) {
+    background: #1b5e20;
+}
+
+.toolbar-button.green-action:disabled {
+    background: #1b5e20;
+    border-color: #2e7d32;
+    color: #666;
+    opacity: 0.5;
+}
+
 .toolbar-button.special {
     /* For buttons with special colors like Save as Default when enabled */
     background: #0e639c;
@@ -1442,18 +1466,19 @@ pre::-webkit-scrollbar-thumb:hover,
 
 /* Inference action buttons (Clear, Copy, Update File(s)) */
 .inference-action-button {
-    padding: 10px;
+    padding: 0 5px;
     background: #0e639c;
     color: white;
     border: none;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
-    white-space: nowrap;
+    height: 50px;
+    width: auto;
 }
 
 .inference-action-button:hover:not(:disabled) {

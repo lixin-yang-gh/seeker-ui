@@ -316,7 +316,11 @@ const FileTree: React.FC<FileTreeProps> = ({
         return highlight(clear(prev), item.path);
       });
       setHighlightedFile(item.path);
-      onFileSelect(item.path);
+      // Reset parent currentFile first, then set the new path on the next tick.
+      // This guarantees the FileManager's useEffect on filePath re-fires even when
+      // the user re-selects the same file that was previously previewed and then closed.
+      onFileSelect(null);
+      setTimeout(() => onFileSelect(item.path), 0);
     }
   };
 

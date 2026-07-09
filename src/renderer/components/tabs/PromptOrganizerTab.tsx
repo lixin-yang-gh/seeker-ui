@@ -920,7 +920,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                 Task <span className="required-marker">*</span>
               </label>
               <button
-                className="toolbar-button"
+                className="toolbar-button green-action"
                 onClick={handleNewTask}
                 title="Clear task and start fresh"
                 disabled={!rootFolder}
@@ -931,14 +931,6 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
             {/* Prepended text buttons - First row */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <button
-                className="toolbar-button block-scan-replace-button"
-                onClick={() => handlePrepend(BLOCK_SCAN_REPLACE_PROMPT)}
-                title="Inject the combined Block Scan & Replace instructions into the task. While active, all other prefix/suffix buttons are locked until you press 'New Task'."
-                disabled={hasBlockScanReplace || !rootFolder}
-              >
-                ⬇️ Block Scan &amp; Replace
-              </button>
               {PREPEND_BUTTONS.map((button) => (
                 <button
                   key={button.key}
@@ -950,6 +942,14 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                   ⬇️ {button.key}
                 </button>
               ))}
+              <button
+                className="toolbar-button block-scan-replace-button"
+                onClick={() => handlePrepend(BLOCK_SCAN_REPLACE_PROMPT)}
+                title="Inject the combined Block Scan & Replace instructions into the task. While active, all other prefix/suffix buttons are locked until you press 'New Task'."
+                disabled={hasBlockScanReplace || !rootFolder}
+              >
+                ⬇️ Block Scan &amp; Replace
+              </button>
             </div>
 
             <textarea
@@ -995,7 +995,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                 {HEADER_OPTIONS.find(h => h.value === selectedHeader)?.display || 'Issues'} (Optional)
               </label>
               <button
-                className="toolbar-button"
+                className="toolbar-button green-action"
                 onClick={handleClearIssues}
                 title="Clear issues textarea"
                 disabled={!rootFolder}

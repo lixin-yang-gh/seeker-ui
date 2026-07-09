@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
 import { OverviewTab, PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab } from './tabs';
+import FilePreviewOverlay from './FilePreviewOverlay';
 
 interface FileManagerProps {
   filePath: string | null;
@@ -79,6 +80,7 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   const closePreview = useCallback(() => {
     setShowPreview(false);
+    setContent(null);
     onPreviewChange?.(null);
   }, [onPreviewChange]);
 
@@ -235,9 +237,9 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 2 ? 'active' : ''}`}
             onClick={() => handleTabChange(2)}
-            title="View inference results"
+            title="Monitor inference process"
           >
-            Inference Result
+            Inference
           </button>
 
           <button
@@ -314,28 +316,12 @@ const FileManager: React.FC<FileManagerProps> = ({
         </div>
       </div>
       {showPreview && content && (
-        <div className="file-preview-overlay" onClick={closePreview}>
-          <div className="file-preview-popup" onClick={(e) => e.stopPropagation()}>
-            <div className="file-preview-header">
-              <span className="file-preview-title">
-                {getRelativePath(filePath, rootFolder)}
-              </span>
-              <button
-                className="file-preview-close"
-                onClick={closePreview}
-                title="Close preview"
-              >
-                ✕
-              </button>
-            </div>
-            <textarea
-              className="file-preview-textarea"
-              value={content.content}
-              readOnly
-              spellCheck={false}
-            />
-          </div>
-        </div>
+        <FilePreviewOverlay
+          filePath={filePath}
+          rootFolder={rootFolder}
+          content={content}
+          onClose={closePreview}
+        />
       )}
     </div>
   );
