@@ -489,11 +489,16 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     return () => clearTimeout(timer);
   }, [selectedHeader, saveHeader, rootFolder]);
 
-  // Load / reload referenced files content
-  const loadFileContents = useCallback(async () => {
+  // Load / reload referenced files content.
+  // Returns the freshly loaded combined content so that callers (Copy Prompt /
+  // Start Inference) can use the latest file contents directly, without
+  // depending on the asynchronously-updated React state variable
+  // (referencedFilesContent), which still holds the previous render's value
+  // inside the same closure.
+  const loadFileContents = useCallback(async (): Promise<string> => {
     if (selectedFilePaths.length === 0) {
       setReferencedFilesContent('');
-      return;
+      return '';
     }
 
     setIsLoadingFiles(true);
@@ -520,9 +525,12 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       const combinedContent = fileContents.join('\n\n');
 
       setReferencedFilesContent(combinedContent);
+      return combinedContent;
     } catch (error) {
       console.error('Error loading files:', error);
-      setReferencedFilesContent(`Error loading files: ${getErrorMessage(error)}`);
+      const errorContent = `Error loading files: ${getErrorMessage(error)}`;
+      setReferencedFilesContent(errorContent);
+      return errorContent;
     } finally {
       setIsLoadingFiles(false);
     }
@@ -593,17 +601,19 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
     setGenerationStatus('generating');
     try {
-      // Reload files
-      await loadFileContents();
-      // Generate prompt with or without redaction based on checkbox
-      await handleGeneratePrompt(redactionApplied);
+      // Always reload the full contents of all referenced files first so the
+      // copied prompt is guaranteed to contain the latest on-disk content.
+      const freshFilesContent = await loadFileContents();
+      // Generate prompt with or without redaction based on checkbox, using the
+      // freshly loaded content directly (not the async state variable).
+      await handleGeneratePrompt(redactionApplied, freshFilesContent);
     } catch (error) {
       console.error('Failed to copy prompt:', error);
       setGenerationStatus('error');
     }
   };
 
-  const handleGeneratePrompt = async (applyRedaction: boolean = true) => {
+  const handleGeneratePrompt = async (applyRedaction: boolean = true, freshFilesContent?: string) => {
     if (!systemPrompt.trim() || !task.trim()) return;
 
     setGenerationStatus('generating');
@@ -613,8 +623,11 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       const sanitizedSystemPrompt = sanitizeText(systemPrompt.trim());
       const sanitizedTask = sanitizeText(task.trim());
       const sanitizedIssues = issues.trim() ? sanitizeText(issues.trim()) : '';
-      // referencedFilesContent is already built from files; we treat it as is (no extra sanitization needed here)
-      const filesContent = referencedFilesContent;
+      // Prefer the freshly loaded file contents (passed in by the caller after a
+      // guaranteed reload); fall back to the state variable only when not
+      // provided. referencedFilesContent is already built from files; we treat
+      // it as is (no extra sanitization needed here).
+      const filesContent = freshFilesContent ?? referencedFilesContent;
 
       const customSubstrings = parseMaskedSubstrings(maskedSubstrings);
 
@@ -678,12 +691,16 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     onSwitchToInference?.();
 
     try {
-      await loadFileContents();
+      // Always reload the full contents of all referenced files first so the
+      // prompt sent to the remote API is guaranteed to contain the latest
+      // on-disk content. Use the returned value directly rather than the
+      // asynchronously-updated state variable.
+      const freshFilesContent = await loadFileContents();
 
       const sanitizedSystemPrompt = sanitizeText(systemPrompt.trim());
       const sanitizedTask = sanitizeText(task.trim());
       const sanitizedIssues = issues.trim() ? sanitizeText(issues.trim()) : '';
-      const filesContent = referencedFilesContent;
+      const filesContent = freshFilesContent;
       const customSubstrings = parseMaskedSubstrings(maskedSubstrings);
 
       const processedSystemPrompt = applyCustomMasking(sanitizedSystemPrompt, customSubstrings);

@@ -327,7 +327,7 @@
 
 .file-preview-overlay__editor[readonly],
 .file-preview-overlay__editor:read-only {
-    background: #0f1720;
+    background: #222;
     color: #bfc9d1;
     cursor: default;
 }
