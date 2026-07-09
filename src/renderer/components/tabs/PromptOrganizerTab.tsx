@@ -36,6 +36,39 @@ const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Report', value: 'Please create a report.' },
 ];
 
+const BLOCK_UPDATE_PREFIX = `Scan all the referenced files and identify every XML tag in the exact format:
+<block_to_update tasks="{modification tasks for the text contained within this tag}">{original text block}</block_to_update>
+
+For each such tag you find:
+1. Read the "tasks" attribute — it contains the authoritative modification instructions for the text enclosed between the opening <block_to_update ...> tag and its closing </block_to_update> tag.
+2. Apply those instructions to the enclosed original text block to produce the new, updated content.
+3. Emit the result as a STRUCTURED block update item inside the JSON array format specified below, so it can be parsed and applied programmatically. Do NOT return free-form prose, "Replace ... with ..." examples, or partial snippets outside the required JSON fenced code block.
+
+Rules:
+- Process every matched tag; do not skip any.
+- Each <block_to_update> tag produces exactly ONE object in the JSON output array.
+- The "op" field must be "replace" and "is_full_file" must be false for every block update item.
+- The "original" field of each block update item must be the ENTIRE tag block, verbatim and character-for-character, including the opening tag <block_to_update tasks="..."> and the closing tag </block_to_update>.
+- The "replacement" field of each block update item must be ONLY the updated text block (the fully rewritten content), WITHOUT any surrounding <block_to_update> tags.
+- Preserve surrounding indentation and whitespace so the replacement drops cleanly into the file.
+
+Example mapping:
+Given a referenced file at <project_root>/docs/readme.md containing:
+<block_to_update tasks="Fix the typo and add a period">This is an example sentance</block_to_update>
+
+The output JSON array must contain:
+[
+  {
+    "path": "<project_root>/docs/readme.md",
+    "op": "replace",
+    "reason": "Fixed typo and added period",
+    "is_full_file": false,
+    "original": "<block_to_update tasks=\\"Fix the typo and add a period\\">This is an example sentance</block_to_update>",
+    "replacement": "This is an example sentence."
+  }
+]
+`;
+
 const block_replacement_prompt = `
 ---
 For each file that requires changes, return a JSON array of change objects wrapped in a fenced code block with language tag "json". Do not include any explanatory text or markdown outside the fence.
@@ -111,6 +144,14 @@ const block_replacement_prompt_conditional = block_replacement_prompt.replace(
   '\nFor each file that requires changes',
   '\nIf changes are required, for each file that requires changes'
 );
+
+const BLOCK_UPDATE_SUFFIX = `---
+For each <block_to_update> tag found in the referenced files, emit exactly one object in the JSON array described below.
+- The "original" field must contain the entire tag block verbatim, from the opening <block_to_update tasks="..."> tag through the closing </block_to_update> tag.
+- The "replacement" field must contain only the updated text content with the <block_to_update> tag wrapper removed.
+- The "op" field must be "replace" and "is_full_file" must be false.
+
+` + block_replacement_prompt.replace(/^\n---\n/, '\n');
 
 const full_file_prompt = `
 ---
@@ -886,6 +927,13 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
             {/* Prepended text buttons - First row */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+              <button
+                className="toolbar-button"
+                onClick={() => handlePrepend(BLOCK_UPDATE_PREFIX)}
+                title={`Prepend: ${BLOCK_UPDATE_PREFIX}`}
+              >
+                ⬇️ Block Update Scan
+              </button>
               {PREPEND_BUTTONS.map((button) => (
                 <button
                   key={button.key}
@@ -909,6 +957,13 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
             />
             {/* Appended text buttons - Second row */}
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap' }}>
+              <button
+                className="toolbar-button"
+                onClick={() => handleAppend(BLOCK_UPDATE_SUFFIX)}
+                title={`Append: ${BLOCK_UPDATE_SUFFIX}`}
+              >
+                ⬆️ Block Update Replace
+              </button>
               {APPEND_BUTTONS.map((button) => (
                 <button
                   key={button.key}
