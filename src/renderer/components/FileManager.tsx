@@ -31,9 +31,9 @@ const FileManager: React.FC<FileManagerProps> = ({
     ? getRelativePath(editorFilePath, rootFolder).replace(/\\/g, '/')
     : '';
   const editorTabTitle = editorRelativePath
-    ? editorRelativePath
+    ? "Editing: " + editorRelativePath
     : (editorFilePath
-      ? (editorFilePath.split(/[\\/]/).pop() || 'Editor')
+      ? "Editing: " + (editorFilePath.split(/[\\/]/).pop() || 'Editor')
       : 'Editor');
 
   // Removed automatic tab switching on single-click file. The editor content still updates, but the user must manually switch to the Editor tab.
@@ -120,6 +120,7 @@ const FileManager: React.FC<FileManagerProps> = ({
           {/* Tab 0: Editor */}
           <button
             className={`tab ${activeTab === 0 ? 'active' : ''}`}
+            style={{ color:'#cfa520' }}
             onClick={() => handleTabChange(0)}
             title={editorFilePath
               ? `Editing: ${editorRelativePath || editorFilePath}`
