@@ -14,8 +14,6 @@ if (window.electronAPI?.onMainLog) {
 }
 
 const App: React.FC = () => {
-  const [currentFile, setCurrentFile] = useState<string | null>(null);
-  const [previewedFile, setPreviewedFile] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState(300);
@@ -82,15 +80,9 @@ const App: React.FC = () => {
     e.preventDefault();
   };
 
-  const handleFileSelect = (filePath: string) => {
-    setCurrentFile(filePath);
-  };
   const handleSelectedPathsChange = (paths: string[]) => {
     setSelectedFilePaths(paths);
   };
-  const handlePreviewChange = useCallback((filePath: string | null) => {
-    setPreviewedFile(filePath);
-  }, []);
   const handleSingleClickFile = useCallback((filePath: string) => {
     setEditorFilePath(filePath);
   }, []);
@@ -104,11 +96,9 @@ const App: React.FC = () => {
           style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
         >
           <Sidebar
-            onFileSelect={handleFileSelect}
             currentPath={currentPath}
             onFolderOpen={setCurrentPath}
             onSelectedPathsChange={handleSelectedPathsChange}
-            previewedFile={previewedFile}
             onSingleClickFile={handleSingleClickFile}
           />
           <div
@@ -117,10 +107,8 @@ const App: React.FC = () => {
           />
           <div className="main-content">
             <FileManager
-              filePath={currentFile}
               rootFolder={currentPath}
               selectedFilePaths={selectedFilePaths}
-              onPreviewChange={handlePreviewChange}
               editorFilePath={editorFilePath}
             />
           </div>

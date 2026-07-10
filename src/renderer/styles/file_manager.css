@@ -1136,7 +1136,7 @@ pre::-webkit-scrollbar-thumb:hover,
    File Preview Popup
 ───────────────────────────────────────── */
 
-.file-preview-overlay {
+.file-editor {
     position: absolute;
     top: 0;
     left: 0;

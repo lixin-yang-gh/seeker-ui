@@ -197,8 +197,8 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
     matchRanges.forEach((r, i) => {
       html += escapeHtml(editedContent.slice(cursor, r.start));
       const cls = i === activeMatchIndex
-        ? 'file-preview-overlay__mark file-preview-overlay__mark--active'
-        : 'file-preview-overlay__mark';
+        ? 'file-editor__mark file-editor__mark--active'
+        : 'file-editor__mark';
       html += '<mark class="' + cls + '">' + escapeHtml(editedContent.slice(r.start, r.end)) + '</mark>';
       cursor = r.end;
     });
@@ -444,16 +444,16 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
   return (
     <div className="tab-panel" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
       {/* Toolbar */}
-      <div className="file-preview-overlay__toolbar" style={{ position: 'relative' }}>
-        <div className="file-preview-overlay__toolbar-status">
-          {saveError && <span className="file-preview-overlay__toolbar-error" title={saveError}>{saveError}</span>}
-          {!saveError && isDirty && <span className="file-preview-overlay__toolbar-hint">Unsaved changes</span>}
-          {!saveError && !isDirty && <span className="file-preview-overlay__toolbar-hint" style={{ color: '#4ec9b0', fontStyle: 'normal' }}>Editing</span>}
+      <div className="file-editor__toolbar" style={{ position: 'relative' }}>
+        <div className="file-editor__toolbar-status">
+          {saveError && <span className="file-editor__toolbar-error" title={saveError}>{saveError}</span>}
+          {!saveError && isDirty && <span className="file-editor__toolbar-hint">Unsaved changes</span>}
+          {!saveError && !isDirty && <span className="file-editor__toolbar-hint" style={{ color: '#4ec9b0', fontStyle: 'normal' }}>Editing</span>}
         </div>
-        <div className="file-preview-overlay__toolbar-group">
+        <div className="file-editor__toolbar-group">
           <button
             type="button"
-            className={'file-preview-overlay__toolbar-btn' + (wordWrap ? ' file-preview-overlay__toolbar-btn--primary' : ' file-preview-overlay__toolbar-btn--secondary')}
+            className={'file-editor__toolbar-btn' + (wordWrap ? ' file-editor__toolbar-btn--primary' : ' file-editor__toolbar-btn--secondary')}
             onClick={() => setWordWrap((w) => !w)}
             title={wordWrap ? 'Disable word wrap' : 'Enable word wrap'}
           >
@@ -461,7 +461,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           </button>
           <button
             type="button"
-            className="file-preview-overlay__toolbar-btn file-preview-overlay__toolbar-btn--secondary"
+            className="file-editor__toolbar-btn file-editor__toolbar-btn--secondary"
             onClick={() => setFontSize(DEFAULT_FONT_SIZE)}
             disabled={fontSize === DEFAULT_FONT_SIZE}
             title={`Reset font size to ${DEFAULT_FONT_SIZE}px`}
@@ -470,7 +470,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           </button>
           <button
             type="button"
-            className="file-preview-overlay__toolbar-btn file-preview-overlay__toolbar-btn--secondary"
+            className="file-editor__toolbar-btn file-editor__toolbar-btn--secondary"
             onClick={() => setFontSize((s) => s + 2)}
             title="Increase font size by 2px"
           >
@@ -478,7 +478,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           </button>
           <button
             type="button"
-            className={'file-preview-overlay__toolbar-btn' + (showSearch ? ' file-preview-overlay__toolbar-btn--primary' : ' file-preview-overlay__toolbar-btn--secondary')}
+            className={'file-editor__toolbar-btn' + (showSearch ? ' file-editor__toolbar-btn--primary' : ' file-editor__toolbar-btn--secondary')}
             onClick={() => setShowSearch((s) => !s)}
             title="Search (Ctrl/Cmd+F)"
           >
@@ -486,7 +486,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           </button>
           <button
             type="button"
-            className={'file-preview-overlay__toolbar-btn' + (showMarkdownView ? ' file-preview-overlay__toolbar-btn--primary' : ' file-preview-overlay__toolbar-btn--secondary')}
+            className={'file-editor__toolbar-btn' + (showMarkdownView ? ' file-editor__toolbar-btn--primary' : ' file-editor__toolbar-btn--secondary')}
             onClick={() => setShowMarkdownView((s) => !s)}
             title="View as rendered Markdown"
           >
@@ -494,7 +494,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           </button>
           <button
             type="button"
-            className="file-preview-overlay__toolbar-btn file-preview-overlay__toolbar-btn--secondary"
+            className="file-editor__toolbar-btn file-editor__toolbar-btn--secondary"
             onClick={() => navigator.clipboard.writeText(editedContent).then(() => { setCopiedAll(true); setTimeout(() => setCopiedAll(false), 1500); })}
             title="Copy all content"
           >
@@ -502,9 +502,9 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           </button>
           <button
             type="button"
-            className={'file-preview-overlay__toolbar-btn file-preview-overlay__toolbar-btn--primary' +
-              (saveStatus === 'success' ? ' file-preview-overlay__toolbar-btn--success' : '') +
-              (saveStatus === 'error' ? ' file-preview-overlay__toolbar-btn--error' : '')}
+            className={'file-editor__toolbar-btn file-editor__toolbar-btn--primary' +
+              (saveStatus === 'success' ? ' file-editor__toolbar-btn--success' : '') +
+              (saveStatus === 'error' ? ' file-editor__toolbar-btn--error' : '')}
             onClick={handleSave}
             disabled={!isDirty || saveStatus === 'saving'}
             title="Save (Ctrl/Cmd+S)"
@@ -513,7 +513,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           </button>
           <button
             type="button"
-            className="file-preview-overlay__toolbar-btn file-preview-overlay__toolbar-btn--secondary"
+            className="file-editor__toolbar-btn file-editor__toolbar-btn--secondary"
             onClick={handleRevert}
             disabled={saveStatus === 'saving'}
             title="Reload file from disk"
@@ -525,12 +525,12 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
 
       {/* Search bar */}
       {showSearch && (
-        <div className="file-preview-overlay__search">
-          <span className="file-preview-overlay__search-icon" aria-hidden="true">🔍</span>
+        <div className="file-editor__search">
+          <span className="file-editor__search-icon" aria-hidden="true">🔍</span>
           <input
             ref={searchInputRef}
             type="text"
-            className="file-preview-overlay__search-input"
+            className="file-editor__search-input"
             placeholder="Search substring…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -540,25 +540,25 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
             }}
             spellCheck={false}
           />
-          <span className="file-preview-overlay__search-count">
+          <span className="file-editor__search-count">
             {searchQuery ? (matchRanges.length > 0 ? `${activeMatchIndex + 1}/${matchRanges.length}` : '0/0') : ''}
           </span>
-          <button type="button" className="file-preview-overlay__search-btn" onClick={gotoPrevMatch} disabled={matchRanges.length === 0} title="Previous (Shift+Enter)">↑</button>
-          <button type="button" className="file-preview-overlay__search-btn" onClick={gotoNextMatch} disabled={matchRanges.length === 0} title="Next (Enter)">↓</button>
-          <label className="file-preview-overlay__search-toggle" title="Match case">
+          <button type="button" className="file-editor__search-btn" onClick={gotoPrevMatch} disabled={matchRanges.length === 0} title="Previous (Shift+Enter)">↑</button>
+          <button type="button" className="file-editor__search-btn" onClick={gotoNextMatch} disabled={matchRanges.length === 0} title="Next (Enter)">↓</button>
+          <label className="file-editor__search-toggle" title="Match case">
             <input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} />
             Aa
           </label>
-          <button type="button" className="file-preview-overlay__search-close" onClick={() => setShowSearch(false)} title="Close (Esc)">×</button>
+          <button type="button" className="file-editor__search-close" onClick={() => setShowSearch(false)} title="Close (Esc)">×</button>
         </div>
       )}
 
       {/* Editor body */}
-      <div className="file-preview-overlay__body" style={{ flex: 1, position: 'relative' }}>
+      <div className="file-editor__body" style={{ flex: 1, position: 'relative' }}>
         {showSearch && matchRanges.length > 0 && (
           <div
             ref={highlightLayerRef}
-            className="file-preview-overlay__highlight-layer"
+            className="file-editor__highlight-layer"
             aria-hidden="true"
             style={{
               whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
@@ -571,7 +571,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
         )}
         <textarea
           ref={editorRef}
-          className="file-preview-overlay__editor"
+          className="file-editor__editor"
           value={editedContent}
           onChange={handleContentChange}
           onKeyDown={handleEditorKeyDown}
@@ -590,24 +590,24 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
       {/* Markdown preview modal */}
       {showMarkdownView && (
         <div
-          className="file-preview-overlay__markdown-modal"
+          className="file-editor__markdown-modal"
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5000 }}
           onClick={() => setShowMarkdownView(false)}
         >
           <div
-            className={'file-preview-overlay__markdown-modal-content' + (markdownTheme === 'light' ? ' file-preview-overlay__markdown-modal-content--light' : '')}
+            className={'file-editor__markdown-modal-content' + (markdownTheme === 'light' ? ' file-editor__markdown-modal-content--light' : '')}
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="file-preview-overlay__markdown-modal-header">
-              <span className="file-preview-overlay__markdown-modal-title" title={filePath ?? ''}>
+            <div className="file-editor__markdown-modal-header">
+              <span className="file-editor__markdown-modal-title" title={filePath ?? ''}>
                 {filePath ?? '(untitled)'} — Markdown Preview
               </span>
-              <div className="file-preview-overlay__markdown-modal-header-actions">
+              <div className="file-editor__markdown-modal-header-actions">
                 <button
                   type="button"
-                  className="file-preview-overlay__markdown-modal-theme-btn"
+                  className="file-editor__markdown-modal-theme-btn"
                   onClick={() => setMarkdownTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
                   title={markdownTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
@@ -615,7 +615,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
                 </button>
                 <button
                   type="button"
-                  className="file-preview-overlay__markdown-modal-close"
+                  className="file-editor__markdown-modal-close"
                   onClick={() => setShowMarkdownView(false)}
                   title="Close (Esc)"
                 >
@@ -623,8 +623,8 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
                 </button>
               </div>
             </div>
-            <div className="file-preview-overlay__markdown-modal-body">
-              <div className="file-preview-overlay__markdown-content">
+            <div className="file-editor__markdown-modal-body">
+              <div className="file-editor__markdown-content">
                 {markdownModules ? (
                   <markdownModules.ReactMarkdown remarkPlugins={[markdownModules.remarkGfm]}>
                     {editedContent}

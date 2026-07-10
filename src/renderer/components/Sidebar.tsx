@@ -2,30 +2,24 @@ import React from 'react';
 import FileTree from './FileTree';
 
 interface SidebarProps {
-  onFileSelect: (filePath: string) => void;
   currentPath: string;
   onFolderOpen: (path: string) => void;
   onSelectedPathsChange?: (paths: string[]) => void;
-  previewedFile?: string | null;
   onSingleClickFile?: (filePath: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  onFileSelect,
   currentPath,
   onFolderOpen,
   onSelectedPathsChange,
-  previewedFile,
   onSingleClickFile,
 }) => {
   return (
     <div className="sidebar">
       <FileTree
         rootPath={currentPath}
-        onFileSelect={onFileSelect}
         onFolderOpen={onFolderOpen}
         onSelectedPathsChange={onSelectedPathsChange}
-        previewedFilePath={previewedFile}
         onSingleClickFile={onSingleClickFile}
       />
       <div className="sidebar-footer">

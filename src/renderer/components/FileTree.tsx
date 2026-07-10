@@ -4,10 +4,8 @@ import { checkFileExists } from '../../shared/utils';
 
 interface FileTreeProps {
   rootPath: string;
-  onFileSelect: (filePath: string) => void;
   onFolderOpen?: (path: string) => void;
   onSelectedPathsChange?: (paths: string[]) => void;
-  previewedFilePath?: string | null;
   onSingleClickFile?: (filePath: string) => void;
 }
 
@@ -30,16 +28,13 @@ const getFileNameFromPath = (filePath: string): string =>
 
 const FileTree: React.FC<FileTreeProps> = ({
   rootPath,
-  onFileSelect,
   onFolderOpen,
   onSelectedPathsChange,
-  previewedFilePath,
   onSingleClickFile,
 }) => {
   const [tree, setTree] = useState<FileItem[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
-  const [highlightedFile, setHighlightedFile] = useState<string | null>(null);
   // Tracks the last single-clicked file so its label can use the outstanding
   // opened-file highlight color across both the main tree and the Favorite
   // Files list.
@@ -103,8 +98,7 @@ const FileTree: React.FC<FileTreeProps> = ({
     isDirectory: false,
     isFile: true,
     isChecked: selectedFilePaths.has(filePath),
-    isHighlighted: filePath === previewedFilePath || filePath === highlightedFile,
-  }), [selectedFilePaths, previewedFilePath, highlightedFile]);
+  }), [selectedFilePaths]);
 
   useEffect(() => {
     const loadLastOpenedFolder = async () => {
@@ -200,7 +194,6 @@ const FileTree: React.FC<FileTreeProps> = ({
       const itemsWithState = items.map(item => ({
         ...item,
         isChecked: selectedFilePathsRef.current.has(item.path),
-        isHighlighted: false
       }));
       setTree(sortFileItems(itemsWithState));
     } catch (error) {
@@ -215,7 +208,7 @@ const FileTree: React.FC<FileTreeProps> = ({
   // Recursively load all children for a folder path, returning populated FileItem[]
   const loadAllChildren = async (folderPath: string): Promise<FileItem[]> => {
     const raw = await window.electronAPI.readDirectory(folderPath);
-    const sorted = sortFileItems(raw.map(item => ({ ...item, isChecked: false, isHighlighted: false })));
+    const sorted = sortFileItems(raw.map(item => ({ ...item, isChecked: false })));
     const result: FileItem[] = [];
     for (const item of sorted) {
       if (item.isDirectory) {
@@ -402,7 +395,6 @@ const FileTree: React.FC<FileTreeProps> = ({
     }
     await loadDirectory(path);
     setSelectedFilePaths(new Set());
-    setHighlightedFile(null);
     setOpenedFilePath(null);
     setExpandedFolders(new Set());
   }, []);
@@ -455,44 +447,6 @@ const FileTree: React.FC<FileTreeProps> = ({
     setTimeout(() => setRecentlyCopied(null), 1200);
   }, [getProjectRootRelativePath]);
 
-  const togglePreview = async (item: FileItem) => {
-    // Opening (not closing) a binary file preview must stop prematurely.
-    if (item.path !== previewedFilePath) {
-      const binary = await isBinaryFilePath(item.path);
-      if (binary) {
-        showBinaryNotice(item.path);
-        return;
-      }
-    }
-    if (item.path === previewedFilePath) {
-      setTree(prev => {
-        const clear = (items: FileItem[]): FileItem[] =>
-          items.map(i => ({ ...i, isHighlighted: false, children: i.children ? clear(i.children) : undefined }));
-        return clear(prev);
-      });
-      setHighlightedFile(null);
-      onFileSelect(null as unknown as string);
-    } else {
-      setTree(prev => {
-        const clear = (items: FileItem[]): FileItem[] =>
-          items.map(i => ({ ...i, isHighlighted: false, children: i.children ? clear(i.children) : undefined }));
-        const highlight = (items: FileItem[], tp: string): FileItem[] =>
-          items.map(i => {
-            if (i.path === tp) return { ...i, isHighlighted: true };
-            if (i.children) return { ...i, children: highlight(i.children, tp) };
-            return i;
-          });
-        return highlight(clear(prev), item.path);
-      });
-      setHighlightedFile(item.path);
-      // Reset parent currentFile first, then set the new path on the next tick.
-      // This guarantees the FileManager's useEffect on filePath re-fires even when
-      // the user re-selects the same file that was previously previewed and then closed.
-      onFileSelect(null as unknown as string);
-      setTimeout(() => onFileSelect(item.path), 0);
-    }
-  };
-
   const toggleFolder = async (item: FileItem, expandOnly: boolean = false) => {
     await copyToClipboard(getProjectRootRelativePath(item.path));
     setRecentlyCopied(item.path);
@@ -508,7 +462,7 @@ const FileTree: React.FC<FileTreeProps> = ({
           try {
             const children = await window.electronAPI.readDirectory(item.path);
             const childrenWithState = sortFileItems(children.map(c => ({
-              ...c, isChecked: selectedFilePaths.has(c.path), isHighlighted: false
+              ...c, isChecked: selectedFilePaths.has(c.path)
             })));
             setTree(prev => updateTreeItem(prev, item.path, { children: childrenWithState }));
           } catch (error) {
@@ -518,7 +472,7 @@ const FileTree: React.FC<FileTreeProps> = ({
       }
       setExpandedFolders(newExpanded);
     }
-    // File clicks: copy path only (preview is handled by the eye icon).
+    // File clicks: copy path only; open in Editor tab via single-click.
     // Stop prematurely and warn if the file content is binary so it is never
     // opened in the Editor tab. Instantly highlight the file name with the
     // outstanding opened-file color and switch to the Editor tab.
@@ -548,13 +502,6 @@ const FileTree: React.FC<FileTreeProps> = ({
         >
           {isFavorite ? '★' : '☆'}
         </span>
-        <span
-          className={`file-icon eye-icon ${item.path === previewedFilePath ? 'previewed' : ''}`}
-          onClick={(e) => { e.stopPropagation(); togglePreview(item); }}
-          title={item.path === previewedFilePath ? "Close preview" : "Preview file"}
-        >
-          {item.path === previewedFilePath ? '✕' : '👁'}
-        </span>
       </>
     );
   };
@@ -579,7 +526,7 @@ const FileTree: React.FC<FileTreeProps> = ({
             onClick={(e) => e.stopPropagation()}
           />
           <div
-            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${isOpened ? 'opened-file' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
+            className={`tree-item-content ${isOpened ? 'opened-file' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
             onClick={() => toggleFolder(item)}
             style={{ padding: '2px 4px' }}
           >
@@ -601,7 +548,7 @@ const FileTree: React.FC<FileTreeProps> = ({
     );
   };
 
-  // Favorite list rows mirror tree file-name behavior (copy path, star, eye, context menu)
+  // Favorite list rows mirror tree file-name behavior (copy path, star, context menu)
   // Selection checkboxes are intentionally omitted from favorites; select files in the main tree.
   const renderFavoriteItem = (filePath: string) => {
     const item = toFileItem(filePath);
@@ -615,7 +562,7 @@ const FileTree: React.FC<FileTreeProps> = ({
           onContextMenu={(e) => handleContextMenu(e, item)}
         >
           <div
-            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
+            className={`tree-item-content ${recentlyCopied === item.path ? 'copied' : ''}`}
             onClick={() => toggleFolder(item)}
             style={{ padding: '2px 4px' }}
           >
@@ -636,10 +583,9 @@ const FileTree: React.FC<FileTreeProps> = ({
           <button className="button" onClick={handleOpenFolderClick} title="Open a folder to browse files">Open Folder</button>
           <button className="button" onClick={() => {
             setSelectedFilePaths(new Set());
-            setHighlightedFile(null);
             setTree(prev => {
               const clear = (items: FileItem[]): FileItem[] =>
-                items.map(i => ({ ...i, isChecked: false, isHighlighted: false, children: i.children ? clear(i.children) : undefined }));
+                items.map(i => ({ ...i, isChecked: false, children: i.children ? clear(i.children) : undefined }));
               return clear(prev);
             });
           }} title="Clear all file selections">Clear</button>
@@ -655,8 +601,7 @@ const FileTree: React.FC<FileTreeProps> = ({
       </div>
       <div className="tree-stats">
         <small>
-          Selected: <strong>{selectedFilePaths.size}</strong> files |
-          Highlighted: <strong>{highlightedFile ? '1' : '0'}</strong> file
+          Selected: <strong>{selectedFilePaths.size}</strong> files
           {isRefreshing && <span className="loading-indicator"> Refreshing...</span>}
         </small>
         {!isInitialized && <span className="loading-indicator">Loading last folder...</span>}
@@ -862,18 +807,6 @@ const FileTree: React.FC<FileTreeProps> = ({
             >
               📋 {contextMenu.item.isDirectory ? 'Copy Folder Path' : 'Copy File Path'}
             </button>
-            {contextMenu.item.isFile && (
-              <button
-                className="context-menu-item"
-                onClick={() => {
-                  setContextMenu(null);
-                  togglePreview(contextMenu.item);
-                }}
-                title={contextMenu.item.path === previewedFilePath ? 'Close preview' : 'Preview file'}
-              >
-                {contextMenu.item.path === previewedFilePath ? '✕ Close Preview' : '👁 Preview File'}
-              </button>
-            )}
             {contextMenu.item.isFile && (
               <button
                 className="context-menu-item"

@@ -1,4 +1,4 @@
-/* file_preview_overlay.css — styles for the FilePreviewOverlay component */
+/* file_editor.css — styles for the FilePreviewOverlay component */
 
 /*
  * The overlay is constrained to the main content region so it never covers
@@ -10,7 +10,7 @@
  * We use var() with a sane fallback so the overlay still renders correctly
  * even if the custom property is not yet inherited at paint time.
  */
-.file-preview-overlay {
+.file-editor {
     position: fixed;
     top: 0;
     left: calc(var(--sidebar-width, 300px) + 4px);
@@ -24,7 +24,7 @@
     padding: 10px;
 }
 
-.file-preview-overlay__content {
+.file-editor__content {
     background: #1e1e1e;
     border: 1px solid #444;
     border-radius: 8px;
@@ -38,7 +38,7 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
 }
 
-.file-preview-overlay__header {
+.file-editor__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -48,7 +48,7 @@
     flex-shrink: 0;
 }
 
-.file-preview-overlay__path {
+.file-editor__path {
     font-size: 14px;
     color: #ffffff;
     font-family: 'Consolas', 'Monaco', monospace;
@@ -59,13 +59,13 @@
     margin-right: 12px;
 }
 
-.file-preview-overlay__dirty {
+.file-editor__dirty {
     color: #ffd54f;
     font-weight: 600;
     margin-left: 6px;
 }
 
-.file-preview-overlay__close {
+.file-editor__close {
     background: none;
     border: none;
     color: #ffffff;
@@ -77,11 +77,11 @@
     transition: background 0.15s ease;
 }
 
-.file-preview-overlay__close:hover {
+.file-editor__close:hover {
     background: #c44545;
 }
 
-.file-preview-overlay__toolbar {
+.file-editor__toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -92,14 +92,14 @@
     gap: 12px;
 }
 
-.file-preview-overlay__toolbar-group {
+.file-editor__toolbar-group {
     display: flex;
     gap: 8px;
     align-items: center;
     margin-left: auto;
 }
 
-.file-preview-overlay__toolbar-btn {
+.file-editor__toolbar-btn {
     padding: 6px 14px;
     border-radius: 4px;
     border: 1px solid #444;
@@ -112,44 +112,44 @@
     min-width: 70px;
 }
 
-.file-preview-overlay__toolbar-btn:hover:not(:disabled) {
+.file-editor__toolbar-btn:hover:not(:disabled) {
     background: #36393f;
     border-color: #555;
 }
 
-.file-preview-overlay__toolbar-btn:disabled {
+.file-editor__toolbar-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
 
-.file-preview-overlay__toolbar-btn--primary:not(:disabled) {
+.file-editor__toolbar-btn--primary:not(:disabled) {
     background: #0e639c;
     border-color: #007acc;
     color: white;
 }
 
-.file-preview-overlay__toolbar-btn--primary:hover:not(:disabled) {
+.file-editor__toolbar-btn--primary:hover:not(:disabled) {
     background: #1177bb;
 }
 
-.file-preview-overlay__toolbar-btn--secondary {
+.file-editor__toolbar-btn--secondary {
     background: #2a2d2e;
     color: #ccc;
 }
 
-.file-preview-overlay__toolbar-btn--success {
+.file-editor__toolbar-btn--success {
     background: #2e7d32 !important;
     border-color: #2e7d32 !important;
     color: white !important;
 }
 
-.file-preview-overlay__toolbar-btn--error {
+.file-editor__toolbar-btn--error {
     background: #c62828 !important;
     border-color: #c62828 !important;
     color: white !important;
 }
 
-.file-preview-overlay__toolbar-status {
+.file-editor__toolbar-status {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -158,12 +158,12 @@
     overflow: hidden;
 }
 
-.file-preview-overlay__toolbar-hint {
+.file-editor__toolbar-hint {
     color: #ffd54f;
     font-style: italic;
 }
 
-.file-preview-overlay__toolbar-error {
+.file-editor__toolbar-error {
     color: #ff8a80;
     max-width: 400px;
     white-space: nowrap;
@@ -171,13 +171,13 @@
     text-overflow: ellipsis;
 }
 
-.file-preview-overlay__body {
+.file-editor__body {
     flex: 1;
     display: flex;
     overflow: hidden;
     background: #001a30;
 }
-.file-preview-overlay__body {
+.file-editor__body {
     flex: 1;
     display: flex;
     overflow: hidden;
@@ -186,7 +186,7 @@
 }
 
 /* ── Substring search bar ── */
-.file-preview-overlay__search {
+.file-editor__search {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -196,11 +196,11 @@
     flex-shrink: 0;
 }
 
-.file-preview-overlay__search-icon {
+.file-editor__search-icon {
     font-size: 14px;
 }
 
-.file-preview-overlay__search-input {
+.file-editor__search-input {
     flex: 1;
     max-width: 360px;
     padding: 5px 10px;
@@ -212,12 +212,12 @@
     outline: none;
 }
 
-.file-preview-overlay__search-input:focus {
+.file-editor__search-input:focus {
     border-color: #0e639c;
     box-shadow: 0 0 0 1px rgba(14, 99, 156, 0.4);
 }
 
-.file-preview-overlay__search-count {
+.file-editor__search-count {
     font-size: 12px;
     color: #9cdcfe;
     min-width: 44px;
@@ -225,7 +225,7 @@
     font-family: 'Consolas', 'Monaco', monospace;
 }
 
-.file-preview-overlay__search-btn {
+.file-editor__search-btn {
     padding: 4px 10px;
     background: #2a2d2e;
     border: 1px solid #444;
@@ -236,17 +236,17 @@
     transition: all 0.15s ease;
 }
 
-.file-preview-overlay__search-btn:hover:not(:disabled) {
+.file-editor__search-btn:hover:not(:disabled) {
     background: #36393f;
     border-color: #555;
 }
 
-.file-preview-overlay__search-btn:disabled {
+.file-editor__search-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
 }
 
-.file-preview-overlay__search-toggle {
+.file-editor__search-toggle {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -256,7 +256,7 @@
     user-select: none;
 }
 
-.file-preview-overlay__search-close {
+.file-editor__search-close {
     background: none;
     border: none;
     color: #ccc;
@@ -267,13 +267,13 @@
     border-radius: 4px;
 }
 
-.file-preview-overlay__search-close:hover {
+.file-editor__search-close:hover {
     background: #c44545;
     color: white;
 }
 
 /* ── Highlight overlay layer (mirrors editor content behind the textarea) ── */
-.file-preview-overlay__highlight-layer {
+.file-editor__highlight-layer {
     position: absolute;
     top: 0;
     left: 0;
@@ -291,28 +291,28 @@
     z-index: 1;
 }
 
-.file-preview-overlay__mark {
+.file-editor__mark {
     background: rgba(255, 213, 79, 0.35);
     color: transparent;
     border-radius: 2px;
 }
 
-.file-preview-overlay__mark--active {
+.file-editor__mark--active {
     background: rgba(255, 140, 0, 0.6);
     outline: 1px solid #ffb300;
 }
 
-.file-preview-overlay__editor {
+.file-editor__editor {
     position: relative;
     z-index: 2;
 }
 
-.file-preview-overlay__editor {
+.file-editor__editor {
     flex: 1;
     width: 100%;
     height: 100%;
     padding: 16px;
-    background: #101010;
+    background: #101d30;
     color: #dddddd;
     border: none;
     resize: none;
@@ -325,15 +325,15 @@
     tab-size: 2;
 }
 
-.file-preview-overlay__editor[readonly],
-.file-preview-overlay__editor:read-only {
+.file-editor__editor[readonly],
+.file-editor__editor:read-only {
     background: #222;
     color: #bfc9d1;
     cursor: default;
 }
 
 /* Unsaved changes modal */
-.file-preview-overlay__modal-backdrop {
+.file-editor__modal-backdrop {
     position: absolute;
     top: 0;
     left: 0;
@@ -346,7 +346,7 @@
     justify-content: center;
 }
 
-.file-preview-overlay__modal {
+.file-editor__modal {
     background: #1e1e1e;
     border: 1px solid #555;
     border-radius: 8px;
@@ -356,28 +356,28 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
 }
 
-.file-preview-overlay__modal-title {
+.file-editor__modal-title {
     margin: 0 0 12px 0;
     color: #e0e0e0;
     font-size: 16px;
     font-weight: 500;
 }
 
-.file-preview-overlay__modal-message {
+.file-editor__modal-message {
     margin: 0 0 20px 0;
     color: #cccccc;
     font-size: 13px;
     line-height: 1.5;
 }
 
-.file-preview-overlay__modal-actions {
+.file-editor__modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-.file-preview-overlay__modal-btn {
+.file-editor__modal-btn {
     padding: 8px 16px;
     border-radius: 4px;
     border: 1px solid #444;
@@ -387,41 +387,41 @@
     transition: all 0.15s ease;
 }
 
-.file-preview-overlay__modal-btn--primary {
+.file-editor__modal-btn--primary {
     background: #0e639c;
     border-color: #007acc;
     color: white;
 }
 
-.file-preview-overlay__modal-btn--primary:hover {
+.file-editor__modal-btn--primary:hover {
     background: #1177bb;
 }
 
-.file-preview-overlay__modal-btn--secondary {
+.file-editor__modal-btn--secondary {
     background: #2a2d2e;
     color: #ccc;
 }
 
-.file-preview-overlay__modal-btn--secondary:hover {
+.file-editor__modal-btn--secondary:hover {
     background: #36393f;
     border-color: #555;
 }
 
-.file-preview-overlay__modal-btn--danger {
+.file-editor__modal-btn--danger {
     background: #5a1e1e;
     color: #ff8a80;
     border-color: #8b3a3a;
 }
 
-.file-preview-overlay__modal-btn--danger:hover {
+.file-editor__modal-btn--danger:hover {
     background: #7a2828;
 }
-.file-preview-overlay__modal-btn--danger:hover {
+.file-editor__modal-btn--danger:hover {
     background: #7a2828;
 }
 
 /* ── Full-viewport Markdown preview modal ── */
-.file-preview-overlay__markdown-modal {
+.file-editor__markdown-modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -435,7 +435,7 @@
     padding: 20px;
 }
 
-.file-preview-overlay__markdown-modal-content {
+.file-editor__markdown-modal-content {
     background: #1e1e1e;
     border: 1px solid #444;
     border-radius: 8px;
@@ -448,7 +448,7 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
 }
 
-.file-preview-overlay__markdown-modal-header {
+.file-editor__markdown-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -458,7 +458,7 @@
     flex-shrink: 0;
 }
 
-.file-preview-overlay__markdown-modal-title {
+.file-editor__markdown-modal-title {
     font-size: 14px;
     color: #ffffff;
     font-family: 'Consolas', 'Monaco', monospace;
@@ -469,7 +469,7 @@
     margin-right: 12px;
 }
 
-.file-preview-overlay__markdown-modal-close {
+.file-editor__markdown-modal-close {
     background: none;
     border: none;
     color: #ffffff;
@@ -481,18 +481,18 @@
     transition: background 0.15s ease;
 }
 
-.file-preview-overlay__markdown-modal-close:hover {
+.file-editor__markdown-modal-close:hover {
     background: #c44545;
 }
 
-.file-preview-overlay__markdown-modal-header-actions {
+.file-editor__markdown-modal-header-actions {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
 }
 
-.file-preview-overlay__markdown-modal-theme-btn {
+.file-editor__markdown-modal-theme-btn {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.35);
     color: #ffffff;
@@ -504,12 +504,12 @@
     transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.file-preview-overlay__markdown-modal-theme-btn:hover {
+.file-editor__markdown-modal-theme-btn:hover {
     background: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.6);
 }
 
-.file-preview-overlay__markdown-modal-body {
+.file-editor__markdown-modal-body {
     flex: 1;
     overflow-y: auto;
     padding: 24px 32px;
@@ -517,79 +517,79 @@
 }
 
 /* ── Light mode variant for the markdown preview modal ── */
-.file-preview-overlay__markdown-modal-content--light {
+.file-editor__markdown-modal-content--light {
     background: #ffffff;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-modal-body {
+.file-editor__markdown-modal-content--light .file-editor__markdown-modal-body {
     background: #ffffff;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content {
     color: #24292e;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content h1,
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content h2,
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content h3,
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content h4,
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content h5,
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content h6 {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content h1,
+.file-editor__markdown-modal-content--light .file-editor__markdown-content h2,
+.file-editor__markdown-modal-content--light .file-editor__markdown-content h3,
+.file-editor__markdown-modal-content--light .file-editor__markdown-content h4,
+.file-editor__markdown-modal-content--light .file-editor__markdown-content h5,
+.file-editor__markdown-modal-content--light .file-editor__markdown-content h6 {
     color: #1a1a1a;
     border-bottom-color: #e1e4e8;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content a {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content a {
     color: #0366d6;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content code {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content code {
     background: #f6f8fa;
     color: #d73a49;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content pre {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content pre {
     background: #f6f8fa;
     border-color: #e1e4e8;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content pre code {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content pre code {
     color: #24292e;
     background: transparent;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content blockquote {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content blockquote {
     border-left-color: #0366d6;
     color: #6a737d;
     background: rgba(3, 102, 214, 0.08);
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content th {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content th {
     background: #f6f8fa;
     color: #1a1a1a;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content th,
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content td {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content th,
+.file-editor__markdown-modal-content--light .file-editor__markdown-content td {
     border-color: #e1e4e8;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-content hr {
+.file-editor__markdown-modal-content--light .file-editor__markdown-content hr {
     border-top-color: #e1e4e8;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-modal-theme-btn {
+.file-editor__markdown-modal-content--light .file-editor__markdown-modal-theme-btn {
     background: rgba(0, 0, 0, 0.06);
     border-color: rgba(0, 0, 0, 0.25);
     color: #1a1a1a;
 }
 
-.file-preview-overlay__markdown-modal-content--light .file-preview-overlay__markdown-modal-theme-btn:hover {
+.file-editor__markdown-modal-content--light .file-editor__markdown-modal-theme-btn:hover {
     background: rgba(0, 0, 0, 0.12);
     border-color: rgba(0, 0, 0, 0.4);
 }
 
-.file-preview-overlay__markdown-content {
+.file-editor__markdown-content {
     max-width: 900px;
     margin: 0 auto;
     color: #d4d4d4;
@@ -598,12 +598,12 @@
     line-height: 1.7;
 }
 
-.file-preview-overlay__markdown-content h1,
-.file-preview-overlay__markdown-content h2,
-.file-preview-overlay__markdown-content h3,
-.file-preview-overlay__markdown-content h4,
-.file-preview-overlay__markdown-content h5,
-.file-preview-overlay__markdown-content h6 {
+.file-editor__markdown-content h1,
+.file-editor__markdown-content h2,
+.file-editor__markdown-content h3,
+.file-editor__markdown-content h4,
+.file-editor__markdown-content h5,
+.file-editor__markdown-content h6 {
     color: #e0e0e0;
     margin: 24px 0 12px 0;
     font-weight: 600;
@@ -611,25 +611,25 @@
     padding-bottom: 6px;
 }
 
-.file-preview-overlay__markdown-content h1 { font-size: 28px; }
-.file-preview-overlay__markdown-content h2 { font-size: 23px; }
-.file-preview-overlay__markdown-content h3 { font-size: 19px; }
-.file-preview-overlay__markdown-content h4 { font-size: 16px; }
+.file-editor__markdown-content h1 { font-size: 28px; }
+.file-editor__markdown-content h2 { font-size: 23px; }
+.file-editor__markdown-content h3 { font-size: 19px; }
+.file-editor__markdown-content h4 { font-size: 16px; }
 
-.file-preview-overlay__markdown-content p {
+.file-editor__markdown-content p {
     margin: 12px 0;
 }
 
-.file-preview-overlay__markdown-content a {
+.file-editor__markdown-content a {
     color: #9cdcfe;
     text-decoration: none;
 }
 
-.file-preview-overlay__markdown-content a:hover {
+.file-editor__markdown-content a:hover {
     text-decoration: underline;
 }
 
-.file-preview-overlay__markdown-content code {
+.file-editor__markdown-content code {
     background: #2d333b;
     color: #f09210;
     padding: 2px 6px;
@@ -638,7 +638,7 @@
     font-size: 13px;
 }
 
-.file-preview-overlay__markdown-content pre {
+.file-editor__markdown-content pre {
     background: #161b22;
     border: 1px solid #333;
     border-radius: 6px;
@@ -647,14 +647,14 @@
     margin: 14px 0;
 }
 
-.file-preview-overlay__markdown-content pre code {
+.file-editor__markdown-content pre code {
     background: transparent;
     color: #e6edf3;
     padding: 0;
     font-size: 13px;
 }
 
-.file-preview-overlay__markdown-content blockquote {
+.file-editor__markdown-content blockquote {
     border-left: 3px solid #0e639c;
     margin: 14px 0;
     padding: 4px 16px;
@@ -662,40 +662,40 @@
     background: rgba(14, 99, 156, 0.08);
 }
 
-.file-preview-overlay__markdown-content ul,
-.file-preview-overlay__markdown-content ol {
+.file-editor__markdown-content ul,
+.file-editor__markdown-content ol {
     margin: 12px 0;
     padding-left: 28px;
 }
 
-.file-preview-overlay__markdown-content li {
+.file-editor__markdown-content li {
     margin: 4px 0;
 }
 
-.file-preview-overlay__markdown-content table {
+.file-editor__markdown-content table {
     border-collapse: collapse;
     width: 100%;
     margin: 16px 0;
 }
 
-.file-preview-overlay__markdown-content th,
-.file-preview-overlay__markdown-content td {
+.file-editor__markdown-content th,
+.file-editor__markdown-content td {
     border: 1px solid #333;
     padding: 8px 12px;
     text-align: left;
 }
 
-.file-preview-overlay__markdown-content th {
+.file-editor__markdown-content th {
     background: #252526;
     color: #e0e0e0;
 }
 
-.file-preview-overlay__markdown-content img {
+.file-editor__markdown-content img {
     max-width: 100%;
     border-radius: 4px;
 }
 
-.file-preview-overlay__markdown-content hr {
+.file-editor__markdown-content hr {
     border: none;
     border-top: 1px solid #333;
     margin: 20px 0;
