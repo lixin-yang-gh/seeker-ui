@@ -24,6 +24,9 @@ const sortFileItems = (items: FileItem[]): FileItem[] => {
   return [...folders, ...files];
 };
 
+const getFileNameFromPath = (filePath: string): string =>
+  filePath.split(/[\\/]/).pop() || filePath;
+
 const FileTree: React.FC<FileTreeProps> = ({
   rootPath,
   onFileSelect,
@@ -41,10 +44,30 @@ const FileTree: React.FC<FileTreeProps> = ({
   const [showOpenFolderModal, setShowOpenFolderModal] = useState(false);
   const [recentFolders, setRecentFolders] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileItem } | null>(null);
+  // Absolute paths of favorited files for the current root folder (insertion order preserved)
+  const [favoriteFiles, setFavoriteFiles] = useState<string[]>([]);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
 
   const prevSelectedPathsRef = useRef<string[]>([]);
   const selectedFilePathsRef = useRef<Set<string>>(selectedFilePaths);
   selectedFilePathsRef.current = selectedFilePaths;
+  const favoriteFilesRef = useRef<string[]>(favoriteFiles);
+  favoriteFilesRef.current = favoriteFiles;
+
+  const getProjectRootRelativePath = useCallback((filePath: string): string => {
+    if (!rootPath) return filePath;
+    const relativePath = filePath.replace(rootPath, '').replace(/^[\\/]/, '').replace(/\\/g, '/');
+    return `<project_root>/${relativePath}`;
+  }, [rootPath]);
+
+  const toFileItem = useCallback((filePath: string): FileItem => ({
+    name: getFileNameFromPath(filePath),
+    path: filePath,
+    isDirectory: false,
+    isFile: true,
+    isChecked: selectedFilePaths.has(filePath),
+    isHighlighted: filePath === previewedFilePath || filePath === highlightedFile,
+  }), [selectedFilePaths, previewedFilePath, highlightedFile]);
 
   useEffect(() => {
     const loadLastOpenedFolder = async () => {
@@ -83,6 +106,55 @@ const FileTree: React.FC<FileTreeProps> = ({
   useEffect(() => {
     if (rootPath && isInitialized) loadDirectory(rootPath);
   }, [rootPath, isInitialized]);
+
+  // Load per-folder favorite files whenever the root folder changes
+  useEffect(() => {
+    let cancelled = false;
+    setFavoritesLoaded(false);
+    const loadFavorites = async () => {
+      if (!rootPath) {
+        if (!cancelled) {
+          setFavoriteFiles([]);
+          setFavoritesLoaded(true);
+        }
+        return;
+      }
+      try {
+        const folderState = await window.electronAPI.getFolderState(rootPath);
+        if (cancelled) return;
+        const saved = Array.isArray(folderState?.favoriteFiles)
+          ? folderState!.favoriteFiles!.filter((p): p is string => typeof p === 'string')
+          : [];
+        setFavoriteFiles(saved);
+      } catch (err) {
+        console.error('Failed to load favorite files:', err);
+        if (!cancelled) setFavoriteFiles([]);
+      } finally {
+        if (!cancelled) setFavoritesLoaded(true);
+      }
+    };
+    loadFavorites();
+    return () => {
+      cancelled = true;
+    };
+  }, [rootPath]);
+
+  // Persist favorite files for the current folder (debounced)
+  useEffect(() => {
+    if (!rootPath || !favoritesLoaded) return;
+    const timer = setTimeout(async () => {
+      try {
+        const currentState = (await window.electronAPI.getFolderState(rootPath)) || {};
+        await window.electronAPI.saveFolderState(rootPath, {
+          ...currentState,
+          favoriteFiles,
+        });
+      } catch (err) {
+        console.error('Failed to save favorite files:', err);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [favoriteFiles, rootPath, favoritesLoaded]);
 
   const loadDirectory = async (dirPath: string) => {
     try {
@@ -167,6 +239,15 @@ const FileTree: React.FC<FileTreeProps> = ({
       return item;
     });
 
+  const toggleFavorite = useCallback((filePath: string) => {
+    setFavoriteFiles(prev => {
+      if (prev.includes(filePath)) {
+        return prev.filter(p => p !== filePath);
+      }
+      return [...prev, filePath];
+    });
+  }, []);
+
   // Handle folder checkbox: recursively select all subfolders+files, expand entire subtree
   const handleFolderCheckboxChange = useCallback(async (item: FileItem, checked: boolean) => {
     try {
@@ -238,6 +319,12 @@ const FileTree: React.FC<FileTreeProps> = ({
       for (const fp of selectedBefore) {
         if (await checkFileExists(fp)) valid.push(fp);
       }
+      // Drop favorites that no longer exist on disk
+      const validFavorites: string[] = [];
+      for (const fp of favoriteFilesRef.current) {
+        if (await checkFileExists(fp)) validFavorites.push(fp);
+      }
+      setFavoriteFiles(validFavorites);
       // Rebuild the entire tree recursively to reflect file system changes
       const newTree = await loadAllChildren(rootPath);
       // Apply isChecked based on valid set
@@ -314,11 +401,10 @@ const FileTree: React.FC<FileTreeProps> = ({
   // right-click context menu (Copy File/Folder Path).
   const handleCopyPath = useCallback(async (item: FileItem) => {
     setContextMenu(null);
-    const relativePath = item.path.replace(rootPath, '').replace(/^[\/\\]/, '').replace(/\\/g, '/');
-    await copyToClipboard(`<project_root>/${relativePath}`);
+    await copyToClipboard(getProjectRootRelativePath(item.path));
     setRecentlyCopied(item.path);
     setTimeout(() => setRecentlyCopied(null), 1200);
-  }, [rootPath]);
+  }, [getProjectRootRelativePath]);
 
   const togglePreview = (item: FileItem) => {
     if (item.path === previewedFilePath) {
@@ -351,8 +437,7 @@ const FileTree: React.FC<FileTreeProps> = ({
   };
 
   const toggleFolder = async (item: FileItem, expandOnly: boolean = false) => {
-    const relativePath = item.path.replace(rootPath, '').replace(/^[\/\\]/, '').replace(/\\/g, '/');
-    await copyToClipboard(`<project_root>/${relativePath}`);
+    await copyToClipboard(getProjectRootRelativePath(item.path));
     setRecentlyCopied(item.path);
     setTimeout(() => setRecentlyCopied(null), 1200);
 
@@ -379,6 +464,32 @@ const FileTree: React.FC<FileTreeProps> = ({
     // File clicks: copy path only (preview is handled by the eye icon)
   };
 
+  const renderFileActionIcons = (item: FileItem) => {
+    if (!item.isFile) return null;
+    const isFavorite = favoriteFiles.includes(item.path);
+    return (
+      <>
+        <span
+          className={`file-icon star-icon ${isFavorite ? 'favorited' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite(item.path);
+          }}
+          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          {isFavorite ? '★' : '☆'}
+        </span>
+        <span
+          className={`file-icon eye-icon ${item.path === previewedFilePath ? 'previewed' : ''}`}
+          onClick={(e) => { e.stopPropagation(); togglePreview(item); }}
+          title={item.path === previewedFilePath ? "Close preview" : "Preview file"}
+        >
+          {item.path === previewedFilePath ? '✕' : '👁'}
+        </span>
+      </>
+    );
+  };
+
   const renderTreeItem = (item: FileItem, depth: number = 0) => {
     const isExpanded = expandedFolders.has(item.path);
     const isChecked = item.isFile ? selectedFilePaths.has(item.path) : isFolderChecked(item);
@@ -403,16 +514,8 @@ const FileTree: React.FC<FileTreeProps> = ({
             style={{ padding: '2px 4px' }}
           >
             {item.isDirectory && <span className="folder-icon">{isExpanded ? '📂' : '📁'}</span>}
-            <span className="item-name">{item.name}</span>
-            {item.isFile && (
-              <span
-                className={`file-icon eye-icon ${item.path === previewedFilePath ? 'previewed' : ''}`}
-                onClick={(e) => { e.stopPropagation(); togglePreview(item); }}
-                title={item.path === previewedFilePath ? "Close preview" : "Preview file"}
-              >
-                {item.path === previewedFilePath ? '✕' : '👁'}
-              </span>
-            )}
+            <span className="item-name" title={item.isFile ? getProjectRootRelativePath(item.path) : undefined}>{item.name}</span>
+            {renderFileActionIcons(item)}
             {recentlyCopied === item.path && <span className="copied-indicator">✓ path copied</span>}
             {item.isDirectory && item.children && (
               <span className="selection-badge">{item.children.filter(c => c.isFile).length}</span>
@@ -424,6 +527,33 @@ const FileTree: React.FC<FileTreeProps> = ({
             {item.children.map(child => renderTreeItem(child, depth + 1))}
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Favorite list rows mirror tree file-name behavior (copy path, star, eye, context menu)
+  // Selection checkboxes are intentionally omitted from favorites; select files in the main tree.
+  const renderFavoriteItem = (filePath: string) => {
+    const item = toFileItem(filePath);
+    const relTitle = getProjectRootRelativePath(filePath);
+
+    return (
+      <div key={`fav-${filePath}`}>
+        <div
+          className="tree-item favorite-files-item"
+          style={{ paddingLeft: '10px' }}
+          onContextMenu={(e) => handleContextMenu(e, item)}
+        >
+          <div
+            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
+            onClick={() => toggleFolder(item)}
+            style={{ padding: '2px 4px' }}
+          >
+            <span className="item-name" title={relTitle}>{item.name}</span>
+            {renderFileActionIcons(item)}
+            {recentlyCopied === item.path && <span className="copied-indicator">✓ path copied</span>}
+          </div>
+        </div>
       </div>
     );
   };
@@ -461,6 +591,29 @@ const FileTree: React.FC<FileTreeProps> = ({
         </small>
         {!isInitialized && <span className="loading-indicator">Loading last folder...</span>}
       </div>
+
+      {/* Favorite Files — invisible when empty; grows until max-height 200px then scrolls */}
+      {favoriteFiles.length > 0 && (
+        <div className="favorite-files">
+          <div className="favorite-files-header">
+            Favorite Files
+            <span className="favorite-files-count">{favoriteFiles.length}</span>
+            <button
+              className="favorite-files-clear-btn"
+              onClick={() => {
+                setFavoriteFiles([]);
+              }}
+              title="Remove all files from favorites"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="favorite-files-list">
+            {favoriteFiles.map(renderFavoriteItem)}
+          </div>
+        </div>
+      )}
+
       <div className="tree-content">
         {tree.length === 0 ? (
           <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontStyle: 'italic' }}>
@@ -625,6 +778,18 @@ const FileTree: React.FC<FileTreeProps> = ({
                 title={contextMenu.item.path === previewedFilePath ? 'Close preview' : 'Preview file'}
               >
                 {contextMenu.item.path === previewedFilePath ? '✕ Close Preview' : '👁 Preview File'}
+              </button>
+            )}
+            {contextMenu.item.isFile && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setContextMenu(null);
+                  toggleFavorite(contextMenu.item.path);
+                }}
+                title={favoriteFiles.includes(contextMenu.item.path) ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                {favoriteFiles.includes(contextMenu.item.path) ? '★ Remove Favorite' : '☆ Add Favorite'}
               </button>
             )}
             <button

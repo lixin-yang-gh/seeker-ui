@@ -16,6 +16,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectedPathsChange,
   previewedFile
 }) => {
+  // Favorite Files UI + star toggles are implemented inside FileTree so they
+  // share selection/preview/context-menu handlers with tree file names.
+  // The favorites box renders above the tree content and is hidden when empty.
   return (
     <div className="sidebar">
       <FileTree

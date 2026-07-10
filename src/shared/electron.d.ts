@@ -24,6 +24,7 @@ interface FolderSpecificState {
   previewFontSize?: number;
   previewWordWrap?: boolean;
   previewMarkdownTheme?: 'dark' | 'light';
+  favoriteFiles?: string[];
 }
 
 declare global {

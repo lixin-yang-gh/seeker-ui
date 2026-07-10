@@ -32,6 +32,7 @@ interface FolderSpecificState {
   previewFontSize?: number;
   previewWordWrap?: boolean;
   previewMarkdownTheme?: 'dark' | 'light';
+  favoriteFiles?: string[];
 }
 
 // Define the store schema
