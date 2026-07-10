@@ -381,7 +381,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     return systemPrompt !== defaultSystemPrompt;
   }, [systemPrompt, defaultSystemPrompt]);
 
-  // Check if the task contains the merged Block Scan & Replace prompt.
+  // Check if the task contains the merged Tagged Block Update prompt.
   // While this is true, all other prefix/suffix buttons are locked; the lock is
   // cleared only when the user presses "New Task" (which empties the task).
   const hasBlockScanReplace = useMemo(() => task.includes(BLOCK_SCAN_REPLACE_PROMPT), [task]);
@@ -977,10 +977,10 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
               <button
                 className="toolbar-button block-scan-replace-button"
                 onClick={() => handlePrepend(BLOCK_SCAN_REPLACE_PROMPT, true)}
-                title="Inject the combined Block Scan & Replace instructions into the task. While active, all other prefix/suffix buttons are locked until you press 'New Task'."
+                title="Inject the combined Tagged Block Update instructions into the task. While active, all other prefix/suffix buttons are locked until you press 'New Task'."
                 disabled={hasBlockScanReplace || !rootFolder}
               >
-                ⬇️ Block Scan &amp; Replace
+                ⬇️ Tagged Block Update
               </button>
             </div>
 
