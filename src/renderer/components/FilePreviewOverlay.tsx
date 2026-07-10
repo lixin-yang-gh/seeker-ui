@@ -31,6 +31,8 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   // ── Markdown rendering overlay state ──
   const [showMarkdownView, setShowMarkdownView] = useState<boolean>(false);
+  // ── Markdown preview color theme (independent of the app's own dark theme) ──
+  const [markdownTheme, setMarkdownTheme] = useState<'dark' | 'light'>('dark');
   // ── Substring search (telescope) state ──
   const [showSearch, setShowSearch] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -45,6 +47,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   // the first render.
   const fontSizeLoadedRef = useRef<boolean>(false);
   const wordWrapLoadedRef = useRef<boolean>(false);
+  const markdownThemeLoadedRef = useRef<boolean>(false);
 
   // Load persisted font size AND word wrap for this root folder on mount
   // (or when rootFolder changes).
@@ -61,12 +64,16 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
         if (typeof folderState?.previewWordWrap === 'boolean') {
           setWordWrap(folderState.previewWordWrap);
         }
+        if (folderState?.previewMarkdownTheme === 'light' || folderState?.previewMarkdownTheme === 'dark') {
+          setMarkdownTheme(folderState.previewMarkdownTheme);
+        }
       } catch (err) {
         console.error('FilePreviewOverlay: failed to load preview settings', err);
       } finally {
         if (!cancelled) {
           fontSizeLoadedRef.current = true;
           wordWrapLoadedRef.current = true;
+          markdownThemeLoadedRef.current = true;
         }
       }
     };
@@ -107,6 +114,41 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     }, 400);
     return () => clearTimeout(t);
   }, [wordWrap, rootFolder]);
+  // Debounce-persist word wrap changes to the folder-specific store.
+  useEffect(() => {
+    if (!rootFolder || !wordWrapLoadedRef.current) return;
+    const t = setTimeout(async () => {
+      try {
+        const currentState = (await window.electronAPI.getFolderState(rootFolder)) || {};
+        await window.electronAPI.saveFolderState(rootFolder, {
+          ...currentState,
+          previewWordWrap: wordWrap,
+        });
+      } catch (err) {
+        console.error('FilePreviewOverlay: failed to persist word wrap', err);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [wordWrap, rootFolder]);
+
+  // Debounce-persist the markdown preview theme (light/dark) toggle to the
+  // folder-specific store, so the user's choice is remembered at rest for
+  // this root folder the next time the markdown preview is opened.
+  useEffect(() => {
+    if (!rootFolder || !markdownThemeLoadedRef.current) return;
+    const t = setTimeout(async () => {
+      try {
+        const currentState = (await window.electronAPI.getFolderState(rootFolder)) || {};
+        await window.electronAPI.saveFolderState(rootFolder, {
+          ...currentState,
+          previewMarkdownTheme: markdownTheme,
+        });
+      } catch (err) {
+        console.error('FilePreviewOverlay: failed to persist markdown theme', err);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [markdownTheme, rootFolder]);
 
   // Reset state whenever the overlay is (re)opened with new content/file
   useEffect(() => {
@@ -222,6 +264,10 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
 
   const toggleMarkdownView = useCallback(() => {
     setShowMarkdownView((s) => !s);
+  }, []);
+
+  const toggleMarkdownTheme = useCallback(() => {
+    setMarkdownTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   }, []);
 
   const performSave = useCallback(
@@ -760,25 +806,48 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
             onClick={() => setShowMarkdownView(false)}
           >
             <div
-              className="file-preview-overlay__markdown-modal-content"
+              className={
+                'file-preview-overlay__markdown-modal-content' +
+                (markdownTheme === 'light' ? ' file-preview-overlay__markdown-modal-content--light' : '')
+              }
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="markdown-preview-title"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="file-preview-overlay__markdown-modal-header">
                 <span
+                  id="markdown-preview-title"
                   className="file-preview-overlay__markdown-modal-title"
                   title={filePath ?? ''}
                 >
                   {filePath ?? '(untitled)'} — Markdown Preview
                 </span>
-                <button
-                  type="button"
-                  className="file-preview-overlay__markdown-modal-close"
-                  onClick={() => setShowMarkdownView(false)}
-                  aria-label="Close markdown preview"
-                  title="Close markdown preview (Esc)"
-                >
-                  ×
-                </button>
+                <div className="file-preview-overlay__markdown-modal-header-actions">
+                  <button
+                    type="button"
+                    className="file-preview-overlay__markdown-modal-theme-btn"
+                    onClick={toggleMarkdownTheme}
+                    aria-pressed={markdownTheme === 'light'}
+                    aria-label={
+                      markdownTheme === 'dark'
+                        ? 'Switch markdown preview to light mode'
+                        : 'Switch markdown preview to dark mode'
+                    }
+                    title={markdownTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  >
+                    {markdownTheme === 'dark' ? '☀️' : '🌙'}
+                  </button>
+                  <button
+                    type="button"
+                    className="file-preview-overlay__markdown-modal-close"
+                    onClick={() => setShowMarkdownView(false)}
+                    aria-label="Close markdown preview"
+                    title="Close markdown preview (Esc)"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <div className="file-preview-overlay__markdown-modal-body">
                 <div className="file-preview-overlay__markdown-content">

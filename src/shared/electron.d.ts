@@ -22,6 +22,7 @@ interface FolderSpecificState {
   lastUserPrompt?: string;
   previewFontSize?: number;
   previewWordWrap?: boolean;
+  previewMarkdownTheme?: 'dark' | 'light';
 }
 
 declare global {

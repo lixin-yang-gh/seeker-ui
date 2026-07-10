@@ -30,6 +30,7 @@ interface FolderSpecificState {
   lastUserPrompt?: string;
   previewFontSize?: number;
   previewWordWrap?: boolean;
+  previewMarkdownTheme?: 'dark' | 'light';
 }
 
 // Define the store schema
