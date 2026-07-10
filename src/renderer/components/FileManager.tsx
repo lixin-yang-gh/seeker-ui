@@ -80,7 +80,6 @@ const FileManager: React.FC<FileManagerProps> = ({
           inferenceError,
           inferenceStatus,
           inferenceResultSavedAt: now,
-          lastInferenceWasSingleBlockReplacement: isSingleBlockReplacementMode,
         });
         setInferenceLastSaveTime(now);
       } catch (e) {
@@ -114,53 +113,9 @@ const FileManager: React.FC<FileManagerProps> = ({
     setInferenceError('');
   }, []);
 
-  const handleRunInferenceAgain = useCallback(async (
-    modelOverride?: string,
-    temperatureOverride?: number,
-    apiTargetOverride?: 'OpenRouter' | 'Venice',
-    maxTokensOverride?: number,
-  ) => {
-    if (!rootFolder) return;
-    try {
-      const folderState = await window.electronAPI.getFolderState(rootFolder);
-      if (!folderState?.lastSystemPrompt || !folderState?.lastUserPrompt) {
-        setInferenceError('No previous inference found. Run inference from the Prompt tab first.');
-        setInferenceStatus('error');
-        return;
-      }
-      const model = modelOverride || folderState.inferenceModel || '';
-      const temperature = temperatureOverride ?? folderState.temperature ?? 0.7;
-      if (!model) {
-        setInferenceError('No inference model configured.');
-        setInferenceStatus('error');
-        return;
-      }
-
-      setInferenceStatus('running');
-      setInferenceResult('');
-      setInferenceReasoning('');
-      setInferenceError('');
-
-      const result = await window.electronAPI.callOpenRouter(
-        folderState.lastSystemPrompt,
-        folderState.lastUserPrompt,
-        model,
-        {
-          temperature,
-          ...(maxTokensOverride ? { maxTokens: maxTokensOverride } : {}),
-          ...(apiTargetOverride ? { apiTarget: apiTargetOverride } : {}),
-        } as any
-      );
-
-      setInferenceResult(result.content || '');
-      if (result.reasoning) setInferenceReasoning(result.reasoning);
-      setInferenceStatus('success');
-    } catch (error) {
-      const errMsg = getErrorMessage(error);
-      setInferenceError(errMsg);
-      setInferenceStatus('error');
-    }
-  }, [rootFolder]);
+  const handleSwitchToPrompt = useCallback(() => {
+    setActiveTab(1);
+  }, []);
 
   useEffect(() => {
     if (filePath) {
@@ -315,10 +270,7 @@ const FileManager: React.FC<FileManagerProps> = ({
                   inferenceStatus={inferenceStatus}
                   onClearResult={handleClearInferenceResult}
                   onCancelInference={handleCancelInference}
-                  onRunInferenceAgain={() => handleRunInferenceAgain()}
-                  onRunInferenceWithConfig={(model, temperature, apiTarget, maxTokens) =>
-                    handleRunInferenceAgain(model, temperature, apiTarget, maxTokens)
-                  }
+                  onSwitchToPrompt={handleSwitchToPrompt}
                   inferenceLastSavedTimestamp={inferenceLastSaveTime}
                   isSingleBlockReplacementMode={isSingleBlockReplacementMode}
                 />

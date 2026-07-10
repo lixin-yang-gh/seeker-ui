@@ -13,19 +13,8 @@ interface InferenceTabProps {
   onCancelInference?: () => void;
   onRunInference?: () => void;
   inferenceLastSavedTimestamp?: number | null;
-  /** Callback to re-run inference with the existing configuration */
-  onRunInferenceAgain?: () => void;
-  /**
-   * Callback to re-run inference with the cached prompt using the values
-   * chosen inside the embedded InferenceControls component (API target,
-   * model, temperature, max tokens).
-   */
-  onRunInferenceWithConfig?: (
-    model: string,
-    temperature: number,
-    apiTarget: 'OpenRouter' | 'Venice',
-    maxTokens: number
-  ) => void;
+  /** Callback to switch to the Prompt tab so user can re-run inference */
+  onSwitchToPrompt?: () => void;
   /**
    * True when the cached/last-run inference was generated using the
    * "Single Block Replacement" task prompt. While true, the "Update File(s)"
@@ -520,8 +509,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   inferenceStatus = 'idle',
   onClearResult,
   onCancelInference,
-  onRunInferenceAgain,
-  onRunInferenceWithConfig,
+  onSwitchToPrompt,
   inferenceLastSavedTimestamp,
   isSingleBlockReplacementMode = false,
 }) => {
@@ -678,12 +666,8 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
             )}
             <InferenceControls
               rootFolder={rootFolder ?? null}
-              onStartInference={(model, temperature, apiTarget, maxTokens) => {
-                if (onRunInferenceWithConfig) {
-                  onRunInferenceWithConfig(model, temperature, apiTarget, maxTokens);
-                } else {
-                  onRunInferenceAgain?.();
-                }
+              onStartInference={() => {
+                onSwitchToPrompt?.();
               }}
               disabled={inferenceStatus === 'running'}
               showStartButton={true}
