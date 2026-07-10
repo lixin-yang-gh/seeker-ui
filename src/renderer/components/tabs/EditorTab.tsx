@@ -29,6 +29,18 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
   const [activeMatchIndex, setActiveMatchIndex] = useState<number>(0);
+
+  // ── Unsaved-changes guard state ──
+  // When the incoming filePath prop differs from the file currently loaded in
+  // the editor AND there are unsaved edits, we stash the incoming path here and
+  // surface a confirmation modal instead of immediately loading the new file.
+  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null);
+  const [showUnsavedModal, setShowUnsavedModal] = useState<boolean>(false);
+  // Path currently loaded/displayed in the editor (may lag behind the prop while
+  // the unsaved-changes modal is open).
+  const loadedFilePathRef = useRef<string | null>(null);
+  const isDirtyRef = useRef<boolean>(false);
+
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const highlightLayerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
@@ -45,6 +57,10 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
   useEffect(() => {
     editedContentRef.current = editedContent;
   }, [editedContent]);
+
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
 
   // Load per-folder settings
   useEffect(() => {
@@ -110,30 +126,34 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
     return () => clearTimeout(t);
   }, [markdownTheme, rootFolder]);
 
-  // Load file when filePath changes
-  useEffect(() => {
-    if (!filePath) {
+  // Core loader — actually reads a file from disk and populates the editor.
+  // Extracted so it can be invoked both by the filePath effect and by the
+  // unsaved-changes modal after the user resolves the prompt.
+  const loadFileFromDisk = useCallback((targetPath: string | null) => {
+    if (!targetPath) {
       setContent('');
       setEditedContent('');
       originalContentRef.current = '';
       editedContentRef.current = '';
       setIsDirty(false);
       setLoadError(null);
+      loadedFilePathRef.current = null;
       undoStackRef.current = [];
       redoStackRef.current = [];
       pendingUndoSnapshotRef.current = null;
       if (historyTimerRef.current) { clearTimeout(historyTimerRef.current); historyTimerRef.current = null; }
-      return;
+      return () => { /* nothing to cancel */ };
     }
+
     let cancelled = false;
     const loadFile = async () => {
       setLoading(true);
       setLoadError(null);
       try {
-        const stats = await window.electronAPI.getFileStats(filePath);
+        const stats = await window.electronAPI.getFileStats(targetPath);
         if (stats.isDirectory) { setLoadError('Selected item is a directory'); setLoading(false); return; }
         if (stats.size > 10 * 1024 * 1024) { setLoadError('File is too large (max 10MB)'); setLoading(false); return; }
-        const fileData = await window.electronAPI.readFile(filePath);
+        const fileData = await window.electronAPI.readFile(targetPath);
         if (cancelled) return;
         const c = fileData.content;
         setContent(c);
@@ -143,11 +163,12 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
         setIsDirty(false);
         setSaveStatus('idle');
         setSaveError(null);
+        loadedFilePathRef.current = targetPath;
         undoStackRef.current = [];
         redoStackRef.current = [];
         pendingUndoSnapshotRef.current = null;
         if (historyTimerRef.current) { clearTimeout(historyTimerRef.current); historyTimerRef.current = null; }
-        const savedScrollTop = scrollPositionMap.get(filePath) ?? 0;
+        const savedScrollTop = scrollPositionMap.get(targetPath) ?? 0;
         requestAnimationFrame(() => {
           if (editorRef.current) editorRef.current.scrollTop = savedScrollTop;
           if (highlightLayerRef.current) highlightLayerRef.current.scrollTop = savedScrollTop;
@@ -160,7 +181,28 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
     };
     loadFile();
     return () => { cancelled = true; };
-  }, [filePath]);
+  }, []);
+
+  // React to filePath prop changes. If the editor currently holds unsaved
+  // changes and the requested path differs from the loaded one, defer loading
+  // and pop up the save/abandon confirmation modal. Otherwise load immediately.
+  useEffect(() => {
+    // Same file already loaded — nothing to do.
+    if (filePath === loadedFilePathRef.current) return;
+
+    // Unsaved changes present and switching to a genuinely different file:
+    // intercept and prompt instead of discarding silently.
+    if (isDirtyRef.current && loadedFilePathRef.current !== null) {
+      setPendingFilePath(filePath);
+      setShowUnsavedModal(true);
+      return;
+    }
+
+    // Clean state (or first load) — load the file right away.
+    const cleanup = loadFileFromDisk(filePath);
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filePath, loadFileFromDisk]);
 
   // Markdown modules
   useEffect(() => {
@@ -172,7 +214,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
 
   // Search
   const escapeHtml = useCallback((s: string): string =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'), []);
+    s.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>'), []);
 
   const matchRanges = React.useMemo<Array<{ start: number; end: number }>>(() => {
     if (!showSearch || !searchQuery) return [];
@@ -211,10 +253,10 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
       highlightLayerRef.current.scrollTop = editorRef.current.scrollTop;
       highlightLayerRef.current.scrollLeft = editorRef.current.scrollLeft;
     }
-    if (filePath && editorRef.current) {
-      scrollPositionMap.set(filePath, editorRef.current.scrollTop);
+    if (loadedFilePathRef.current && editorRef.current) {
+      scrollPositionMap.set(loadedFilePathRef.current, editorRef.current.scrollTop);
     }
-  }, [filePath]);
+  }, []);
 
   useEffect(() => { setActiveMatchIndex(0); }, [searchQuery, caseSensitive]);
 
@@ -351,11 +393,12 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
   }, [editedContent, commitPendingUndoBatch, pushUndoSnapshot]);
 
   const handleSave = useCallback(async () => {
-    if (!filePath || !isDirty) return;
+    const targetPath = loadedFilePathRef.current;
+    if (!targetPath || !isDirty) return;
     setSaveStatus('saving');
     setSaveError(null);
     try {
-      await window.electronAPI.writeFile(filePath, editedContent);
+      await window.electronAPI.writeFile(targetPath, editedContent);
       originalContentRef.current = editedContent;
       setIsDirty(false);
       setSaveStatus('success');
@@ -365,13 +408,14 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 3000);
     }
-  }, [filePath, isDirty, editedContent]);
+  }, [isDirty, editedContent]);
 
   const handleRevert = useCallback(async () => {
+    const targetPath = loadedFilePathRef.current;
     let original = originalContentRef.current;
-    if (filePath) {
+    if (targetPath) {
       try {
-        const fileData = await window.electronAPI.readFile(filePath);
+        const fileData = await window.electronAPI.readFile(targetPath);
         original = fileData?.content ?? original;
         originalContentRef.current = original;
       } catch (err) { console.error('EditorTab: revert failed', err); }
@@ -384,11 +428,64 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
     redoStackRef.current = [];
     pendingUndoSnapshotRef.current = null;
     if (historyTimerRef.current) { clearTimeout(historyTimerRef.current); historyTimerRef.current = null; }
-  }, [filePath]);
+  }, []);
+
+  // ── Unsaved-changes modal handlers ──
+
+  // Proceed to load the pending file (used after Save or Discard).
+  const proceedToPendingFile = useCallback(() => {
+    const next = pendingFilePath;
+    setShowUnsavedModal(false);
+    setPendingFilePath(null);
+    // Clear dirty flag so the load effect does not re-trigger the guard.
+    setIsDirty(false);
+    isDirtyRef.current = false;
+    loadFileFromDisk(next ?? null);
+  }, [pendingFilePath, loadFileFromDisk]);
+
+  // Save current edits, then load the pending file.
+  const handleModalSaveAndSwitch = useCallback(async () => {
+    const targetPath = loadedFilePathRef.current;
+    if (targetPath) {
+      setSaveStatus('saving');
+      setSaveError(null);
+      try {
+        await window.electronAPI.writeFile(targetPath, editedContentRef.current);
+        originalContentRef.current = editedContentRef.current;
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (err: any) {
+        // On save failure, keep the modal open so the user can decide.
+        setSaveError(err?.message ?? String(err));
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+        return;
+      }
+    }
+    proceedToPendingFile();
+  }, [proceedToPendingFile]);
+
+  // Abandon current edits and load the pending file.
+  const handleModalDiscardAndSwitch = useCallback(() => {
+    proceedToPendingFile();
+  }, [proceedToPendingFile]);
+
+  // Cancel the switch — stay on the current (dirty) file. Note the filePath
+  // prop already points at the new file, so subsequent changes back to the
+  // original path will be detected correctly by the loaded-path comparison.
+  const handleModalCancel = useCallback(() => {
+    setShowUnsavedModal(false);
+    setPendingFilePath(null);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // When the unsaved-changes modal is open, only allow Escape to cancel.
+      if (showUnsavedModal) {
+        if (e.key === 'Escape') { e.preventDefault(); handleModalCancel(); }
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
         setShowSearch((s) => !s);
@@ -413,13 +510,73 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDirty, saveStatus, handleSave, handleUndo, handleRedo, showSearch]);
+  }, [isDirty, saveStatus, handleSave, handleUndo, handleRedo, showSearch, showUnsavedModal, handleModalCancel]);
 
-  if (!filePath) {
+  // Derive the display name of the pending file for the modal message.
+  const pendingFileName = pendingFilePath
+    ? (pendingFilePath.split(/[\\/]/).pop() || pendingFilePath)
+    : '';
+  const currentFileName = loadedFilePathRef.current
+    ? (loadedFilePathRef.current.split(/[\\/]/).pop() || loadedFilePathRef.current)
+    : '';
+
+  // The unsaved-changes modal is rendered regardless of the early-return
+  // states below so it can appear even when a load error / empty state would
+  // otherwise short-circuit the render tree.
+  const unsavedModal = showUnsavedModal ? (
+    <div className="file-editor__modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 6000 }}>
+      <div className="file-editor__modal" role="dialog" aria-modal="true">
+        <h3 className="file-editor__modal-title">Unsaved Changes</h3>
+        <p className="file-editor__modal-message">
+          {currentFileName ? `"${currentFileName}" has unsaved changes.` : 'The current file has unsaved changes.'}
+          {pendingFileName
+            ? ` Do you want to save them before opening "${pendingFileName}"?`
+            : ' Do you want to save them before switching?'}
+        </p>
+        {saveError && (
+          <p className="file-editor__modal-message" style={{ color: '#ff8a80' }}>
+            Save failed: {saveError}
+          </p>
+        )}
+        <div className="file-editor__modal-actions">
+          <button
+            type="button"
+            className="file-editor__modal-btn file-editor__modal-btn--primary"
+            onClick={handleModalSaveAndSwitch}
+            disabled={saveStatus === 'saving'}
+            title="Save the current changes, then open the other file"
+          >
+            {saveStatus === 'saving' ? 'Saving…' : 'Save & Continue'}
+          </button>
+          <button
+            type="button"
+            className="file-editor__modal-btn file-editor__modal-btn--danger"
+            onClick={handleModalDiscardAndSwitch}
+            disabled={saveStatus === 'saving'}
+            title="Discard the current changes and open the other file"
+          >
+            Discard Changes
+          </button>
+          <button
+            type="button"
+            className="file-editor__modal-btn file-editor__modal-btn--secondary"
+            onClick={handleModalCancel}
+            disabled={saveStatus === 'saving'}
+            title="Stay on the current file"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  if (!filePath && !loadedFilePathRef.current) {
     return (
       <div className="tab-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontStyle: 'italic', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 32 }}>📝</div>
         <div>Single-click a file in the Explorer to open it here for editing.</div>
+        {unsavedModal}
       </div>
     );
   }
@@ -429,6 +586,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
       <div className="tab-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>
         <div className="spinner" style={{ width: 24, height: 24, borderWidth: 3, marginRight: 10 }} />
         Loading…
+        {unsavedModal}
       </div>
     );
   }
@@ -437,6 +595,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
     return (
       <div className="tab-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f48771' }}>
         {loadError}
+        {unsavedModal}
       </div>
     );
   }
@@ -601,8 +760,8 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="file-editor__markdown-modal-header">
-              <span className="file-editor__markdown-modal-title" title={filePath ?? ''}>
-                {filePath ?? '(untitled)'} — Markdown Preview
+              <span className="file-editor__markdown-modal-title" title={loadedFilePathRef.current ?? ''}>
+                {loadedFilePathRef.current ?? '(untitled)'} — Markdown Preview
               </span>
               <div className="file-editor__markdown-modal-header-actions">
                 <button
@@ -637,6 +796,9 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           </div>
         </div>
       )}
+
+      {/* Unsaved-changes confirmation modal */}
+      {unsavedModal}
     </div>
   );
 };
