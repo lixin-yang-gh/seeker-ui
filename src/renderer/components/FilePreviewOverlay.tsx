@@ -415,11 +415,11 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
         }
         if (!clip) return;
         const newValue =
-          editedContent.slice(0, selStart) + clip + editedContent.slice(selEnd);
+          editedContent.slice(0, selStart) + ' ' + clip + ' ' + editedContent.slice(selEnd);
         setEditedContent(newValue);
         setIsDirty(newValue !== originalContentRef.current);
         // Place caret at the end of the inserted text.
-        const caret = selStart + clip.length;
+        const caret = selStart + clip.length + 2;
         requestAnimationFrame(() => {
           const node = editorRef.current;
           if (node) {
