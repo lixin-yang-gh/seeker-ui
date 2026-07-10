@@ -3,6 +3,14 @@ import '../styles/file_preview_overlay.css';
 import { FileContent } from '../../shared/types';
 import { getMarkdownModulesPromise, MarkdownModules } from '../../shared/markdown-loader';
 
+// Module-level, in-memory-only map of file path → last scroll position (in
+// pixels) within the preview/editor textarea. This persists across mounts of
+// FilePreviewOverlay for the lifetime of the current app session (it is NOT
+// persisted to disk/store and is intentionally reset on app restart). Since
+// the same textarea element is used for both read-only and editing modes,
+// a single map entry per file path covers both display modes.
+const scrollPositionMap = new Map<string, number>();
+
 interface FilePreviewOverlayProps {
   filePath: string | null;
   rootFolder?: string | null;
@@ -162,6 +170,24 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     setShowUnsavedModal(false);
     setSaveStatus('idle');
     setSaveError(null);
+
+    // Restore the memorized scroll position for this file path (if any),
+    // applying it to the editor (and its highlight overlay, if present)
+    // after the new content has been committed to the DOM. This works for
+    // both read-only and editing modes since they share the same underlying
+    // textarea element, and the position is looked up per file path so each
+    // file's scroll offset is remembered independently within this session.
+    const targetPath = filePath;
+    const savedScrollTop = targetPath ? scrollPositionMap.get(targetPath) ?? 0 : 0;
+    const raf = requestAnimationFrame(() => {
+      if (editorRef.current) {
+        editorRef.current.scrollTop = savedScrollTop;
+      }
+      if (highlightLayerRef.current) {
+        highlightLayerRef.current.scrollTop = savedScrollTop;
+      }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [initialContent, filePath]);
 
 
@@ -209,13 +235,19 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     return html;
   }, [matchRanges, editedContent, activeMatchIndex, escapeHtml]);
 
-  // Keep the highlight overlay scrolled in sync with the editor textarea.
+  // Keep the highlight overlay scrolled in sync with the editor textarea, and
+  // memorize the current scroll position for this file path (in-memory only,
+  // for the duration of the current app session) so it can be restored the
+  // next time this file is previewed or edited.
   const syncHighlightScroll = useCallback(() => {
     if (highlightLayerRef.current && editorRef.current) {
       highlightLayerRef.current.scrollTop = editorRef.current.scrollTop;
       highlightLayerRef.current.scrollLeft = editorRef.current.scrollLeft;
     }
-  }, []);
+    if (filePath && editorRef.current) {
+      scrollPositionMap.set(filePath, editorRef.current.scrollTop);
+    }
+  }, [filePath]);
 
   // Reset the active match when the query or results change.
   useEffect(() => {
