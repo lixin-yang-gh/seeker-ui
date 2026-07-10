@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import '../styles/file_preview_overlay.css';
 import { FileContent } from '../../shared/types';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface FilePreviewOverlayProps {
   filePath: string | null;
@@ -27,6 +29,8 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const [wordWrap, setWordWrap] = useState<boolean>(false);
   const DEFAULT_FONT_SIZE = 13;
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
+  // ── Markdown rendering overlay state ──
+  const [showMarkdownView, setShowMarkdownView] = useState<boolean>(false);
   // ── Substring search (telescope) state ──
   const [showSearch, setShowSearch] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -214,6 +218,10 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
 
   const toggleSearch = useCallback(() => {
     setShowSearch((s) => !s);
+  }, []);
+
+  const toggleMarkdownView = useCallback(() => {
+    setShowMarkdownView((s) => !s);
   }, []);
 
   const performSave = useCallback(
@@ -424,6 +432,8 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
       if (e.key === 'Escape') {
         if (showUnsavedModal) {
           handleCancelClose();
+        } else if (showMarkdownView) {
+          setShowMarkdownView(false);
         } else if (showSearch) {
           setShowSearch(false);
         } else {
@@ -438,7 +448,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showUnsavedModal, attemptClose, handleCancelClose, isEditable, isDirty, saveStatus, handleSave, showSearch]);
+  }, [showUnsavedModal, attemptClose, handleCancelClose, isEditable, isDirty, saveStatus, handleSave, showSearch, showMarkdownView]);
 
   return (
     <div className="file-preview-overlay" onClick={attemptClose}>
@@ -518,6 +528,30 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
               aria-pressed={showSearch}
             >
               🔍 Search
+            </button>
+            <button
+              type="button"
+              className={
+                'file-preview-overlay__toolbar-btn' +
+                (showSearch ? ' file-preview-overlay__toolbar-btn--primary' : ' file-preview-overlay__toolbar-btn--secondary')
+              }
+              onClick={toggleSearch}
+              title="Search substrings and highlight matches (Ctrl/Cmd+F)"
+              aria-pressed={showSearch}
+            >
+              🔍 Search
+            </button>
+            <button
+              type="button"
+              className={
+                'file-preview-overlay__toolbar-btn' +
+                (showMarkdownView ? ' file-preview-overlay__toolbar-btn--primary' : ' file-preview-overlay__toolbar-btn--secondary')
+              }
+              onClick={toggleMarkdownView}
+              title="View this file as a rendered Markdown document in a full-screen overlay"
+              aria-pressed={showMarkdownView}
+            >
+              📄 View MD
             </button>
             {!isEditable && (
               <button
@@ -715,6 +749,43 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
                 >
                   Save Changes
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showMarkdownView && (
+          <div
+            className="file-preview-overlay__markdown-modal"
+            onClick={() => setShowMarkdownView(false)}
+          >
+            <div
+              className="file-preview-overlay__markdown-modal-content"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="file-preview-overlay__markdown-modal-header">
+                <span
+                  className="file-preview-overlay__markdown-modal-title"
+                  title={filePath ?? ''}
+                >
+                  {filePath ?? '(untitled)'} — Markdown Preview
+                </span>
+                <button
+                  type="button"
+                  className="file-preview-overlay__markdown-modal-close"
+                  onClick={() => setShowMarkdownView(false)}
+                  aria-label="Close markdown preview"
+                  title="Close markdown preview (Esc)"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="file-preview-overlay__markdown-modal-body">
+                <div className="file-preview-overlay__markdown-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {editedContent}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           </div>
