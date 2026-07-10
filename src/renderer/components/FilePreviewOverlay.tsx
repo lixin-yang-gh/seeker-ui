@@ -42,6 +42,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   // ── Markdown rendering overlay state ──
   const [showMarkdownView, setShowMarkdownView] = useState<boolean>(false);
+  const [copiedAll, setCopiedAll] = useState<boolean>(false);
   // Lazily-loaded react-markdown + remark-gfm modules (loaded on first use of
   // the Markdown preview, but typically already preloaded shortly after the
   // main window becomes visible — see renderer.tsx).
@@ -773,6 +774,19 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
               aria-pressed={showMarkdownView}
             >
               📄 View MD
+            </button>
+            <button
+              type="button"
+              className="file-preview-overlay__toolbar-btn file-preview-overlay__toolbar-btn--secondary"
+              onClick={() => {
+                navigator.clipboard.writeText(editedContent).then(() => {
+                  setCopiedAll(true);
+                  setTimeout(() => setCopiedAll(false), 1500);
+                });
+              }}
+              title="Copy all content to clipboard"
+            >
+              {copiedAll ? '✓ Copied' : 'Copy All'}
             </button>
             {!isEditable && (
               <button

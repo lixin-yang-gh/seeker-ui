@@ -262,7 +262,7 @@ const InferenceControls: React.FC<InferenceControlsProps> = ({
           <div className="inference-control-group">
             {showStartButton && (
               <button
-                className="inference-start-button"
+                className={`inference-start-button${startButtonLabel === 'Run Inference Again' ? ' inference-start-button--rerun' : ''}`}
                 onClick={handleStart}
                 disabled={controlsDisabled || !model}
                 title={

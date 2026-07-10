@@ -637,7 +637,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         // with the parsed replacement value, preserving the tag wrapper.
         const replacement = item.replacement ?? '';
         const newContent = content.replace(tagPattern, (_match, openTag, _inner, closeTag) => {
-          return openTag + replacement + closeTag;
+          return openTag + '\n' + replacement + '\n' + closeTag;
         });
 
         await window.electronAPI.writeFile(absPath, newContent);

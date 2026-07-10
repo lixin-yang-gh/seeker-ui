@@ -1432,6 +1432,21 @@ pre::-webkit-scrollbar-thumb:hover,
     opacity: 0.5;
     cursor: not-allowed;
 }
+.inference-start-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Variant applied only when the button label is "Run Inference Again" */
+.inference-start-button--rerun {
+    font-size: 11px;
+    height: 65px;
+    width: 70px;
+    padding: auto;
+}
+
+.inference-start-button--rerun:hover:not(:disabled) {
+}
 
 .inference-controls-button-column {
     display: flex;
