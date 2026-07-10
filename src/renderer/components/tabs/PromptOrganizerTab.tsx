@@ -110,53 +110,61 @@ Example:
 \`\`\`
 `;
 
-const BLOCK_SCAN_REPLACE_PROMPT = `Scan all the referenced files and identify XML tags in the exact format:
-<block_to_update tasks="{modification tasks for the text contained within this tag}">{original text block}</block_to_update>
+const BLOCK_SCAN_REPLACE_PROMPT = `
+**SCAN INSTRUCTIONS:**
+- Scan all referenced files in the order they are provided.
+- Identify XML tags **exactly** in this format:
+  <block_to_update tasks="{modification instructions}">{content to modify}</block_to_update>
+- **CRITICAL: Single block only.** Process **only the very first** '<block_to_update>' tag encountered across all files (in document order). 
+  Ignore every subsequent matching tag entirely — do not read them, process them, reference them, or include them in any way in your output.
 
-IMPORTANT — Single block only: during the scan, only pick up the FIRST <block_to_update> tag encountered across all referenced files, in document order. If additional matching tags exist elsewhere, ignore all of them entirely — do not process, emit, or reference them in any way.
+**For the first matched tag:**
+1. Extract the 'tasks' attribute value. This contains the **authoritative and complete** modification instructions.
+2. Apply those instructions **exclusively** to the text content enclosed between the opening '<block_to_update ...>' and closing '</block_to_update>' tags.
+3. Do **not** modify, affect, or spill any changes into any text outside the tag boundaries.
 
-For the first matched tag found:
-1. Read the "tasks" attribute — it contains the authoritative modification instructions for the text enclosed between the opening <block_to_update ...> tag and its closing </block_to_update> tag.
-2. Apply those instructions to the enclosed original text block to produce the new, updated content.
-3. Emit the result as a STRUCTURED block update item inside the JSON array format specified below, so it can be parsed and applied programmatically. Do NOT return free-form prose, "Replace ... with ..." examples, or partial snippets outside the required JSON fenced code block.
+**Strict Scoping & Boundary Rules**
+Strictly perform **precisely scoped** modification as below.
+- **Strict Tag Scoping**: The scope of modification is strictly limited to the inner text inside the '<block_to_update>...</block_to_update>' tags. Nothing else may be altered.
+- **Zero Boundary Spill**: Do not let any changes spill outside the tag. For example, if the file contains PrefixText<block_to_update tasks="...">TargetText</block_to_update>SuffixText, **only** TargetText may be modified. The "replacement" field must contain **only** the rewritten version of the inner content. It must never include any prefix text, suffix text, or surrounding content.
+- **AAA/BBB/CCC Rule**: 
+Given 
+AAA<block_to_update tasks="Improve wording">BBB</block_to_update>CCC, 
+only the string "BBB" is eligible for modification. The surrounding "AAA" and "CCC" must remain completely untouched.
+**OUTPUT FORMAT:**
+Respond **exclusively** with a single valid JSON array (fenced in a code block) containing **exactly one** update object. Do not include any prose, explanations, reasoning, tags, or additional text outside the JSON.
 
-Rules:
-- Only process the single, first-encountered <block_to_update> tag; do not scan for or process any subsequent matches, even if the referenced files contain more than one.
-- The matched <block_to_update> tag produces exactly ONE object in the JSON output array.
-- The "op" field must be "replace" and "is_full_file" must be false for this block update item.
-- The "original" field of the block update item must be the ENTIRE tag block, verbatim and character-for-character, including the opening tag <block_to_update tasks="..."> and the closing tag </block_to_update>. This field exists solely so the exact location of the block can be found in the file — it is not part of the model's generated output content. Reproduce every line of the tag block in full — include all characters of each line with no truncation, ellipses, placeholders, or omissions — or the block cannot be located.
-- The "replacement" field must contain ONLY the updated replacement text block (the fully rewritten content) and NOTHING else. Do not include, restate, or echo the original text block/content anywhere in the "replacement" field or elsewhere in the response — the output must contain the replacement text block only, with no original-content text block present.
-- Preserve surrounding indentation and whitespace so the replacement drops cleanly into the file.
-
-Example mapping:
-Given a referenced file at <project_root>/docs/readme.md containing:
-<block_to_update tasks="Fix the typo and add a period">This is an example sentance</block_to_update>
-
-The output JSON array must contain:
+\`\`\`json
 [
   {
-    "path": "<project_root>/docs/readme.md",
+    "path": "<exact file path of the matched block>",
     "op": "replace",
-    "reason": "Fixed typo and added period",
+    "reason": "<very brief 1-line summary of what was done, based on the tasks>",
     "is_full_file": false,
-    "original": "<block_to_update tasks=\\"Fix the typo and add a period\\">This is an example sentance</block_to_update>",
-    "replacement": "This is an example sentence."
+    "replacement": "<the fully updated inner text block ONLY>"
   }
 ]
+\`\`\`
 
----
-For the single first-matched <block_to_update> tag found in the referenced files, emit exactly one object in the JSON array described below.
-- The "original" field must contain the entire tag block verbatim, from the opening <block_to_update tasks="..."> tag through the closing </block_to_update> tag.
-- The "replacement" field must contain only the updated replacement text content with the <block_to_update> tag wrapper removed — never include or repeat the original text block/content.
-- The "op" field must be "replace" and "is_full_file" must be false.
+**JSON STRING ESCAPING RULES**:
+- Use \\n for newlines, \\t for tabs inside all string values.
+- Do not embed unescaped literal newlines inside JSON string values.
+- CRITICAL — Escape ALL backtick characters (the \` character) that appear inside any JSON string value (especially "replacement") as the unicode escape \\u0060. This includes single backticks and fenced code block sequences (three consecutive backticks must be written as \\u0060\\u0060\\u0060). NEVER emit a literal \` inside a JSON string value under any circumstance, even when the source file itself contains fenced code blocks, template literals, or markdown. This prevents any embedded fenced code block from prematurely closing the outer JSON code fence. A standard JSON parser decodes \\u0060 back into a literal backtick, so the file content is restored exactly and applied correctly — no extra unescaping is needed.
+- For example, a string containing a fenced code block should have its backticks escaped: a literal \`\`\` must appear as \\u0060\\u0060\\u0060 in the JSON string.
+- Output must be immediately parseable by a standard JSON parser.
 
-` + block_replacement_prompt.replace(/^\n---\n/, '\n') + `
-
----
-FINAL OVERRIDE — Single Block Replacement (this instruction has the HIGHEST priority and supersedes any conflicting guidance or example above):
-- The "replacement" field MUST contain ONLY the fully rewritten new text for the block. It MUST NOT reproduce, echo, copy, quote, or otherwise include ANY portion of the original text block.
-- The original text block content is permitted to appear ONLY inside the "original" field, which is used solely to locate the block in the file. It MUST NOT appear anywhere else in your output — not in "replacement", not in "reason", and not in any prose outside the JSON fence.
-- Disregard any earlier example whose "replacement" preserved or restated parts of the original block: those examples describe general partial edits, NOT this Single Block Replacement task. Here the "replacement" is the standalone new content only.
+Example:
+\`\`\`json
+[
+  {
+    "path": "<project_root>/src/code.md",
+    "op": "replace",
+    "reason": "Demonstrate backtick escaping in a full file replacement",
+    "is_full_file": false,
+    "replacement": "# Example\\n\\nHere is a code block: \\u0060\\u0060\\u0060js\\nconsole.log('escaped');\\n\\u0060\\u0060\\u0060"
+  }
+]
+\`\`\`
 `;
 
 const block_replacement_prompt_conditional = block_replacement_prompt.replace(
@@ -585,10 +593,10 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   };
 
   // Handle prepend button click
-  const handlePrepend = (textToPrepend: string) => {
+  const handlePrepend = (textToPrepend: string, replaceFull: boolean = false) => {
     setTask(prevTask => {
-      // If task is empty, just set the prepended text
-      if (!prevTask.trim()) {
+      // If trying to replace in full or no existing task content found
+      if (replaceFull || !prevTask.trim()) {
         return textToPrepend;
       }
       // Otherwise, add the prepended text as a new line at the beginning
@@ -654,7 +662,10 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       const missingFilesNomination = '---\n**Please nominate missing or unselected but still anticipated files if there are any**\n';
 
       promptParts.push(`<system_prompt content="System Prompt">\n${processedSystemPrompt}\n</system_prompt>`);
-      promptParts.push(`<task content="Task">\n${processedTask}\n${missingFilesNomination}</task>`);
+      const taskInnerContent = hasBlockScanReplace
+        ? processedTask
+        : `${processedTask}\n${missingFilesNomination}`;
+      promptParts.push(`<task content="Task">\n${taskInnerContent}</task>`);
 
       if (processedIssues) {
         const displayHeader = HEADER_OPTIONS.find(h => h.value === selectedHeader)?.display || 'Issues';
@@ -974,7 +985,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
               ))}
               <button
                 className="toolbar-button block-scan-replace-button"
-                onClick={() => handlePrepend(BLOCK_SCAN_REPLACE_PROMPT)}
+                onClick={() => handlePrepend(BLOCK_SCAN_REPLACE_PROMPT, true)}
                 title="Inject the combined Block Scan & Replace instructions into the task. While active, all other prefix/suffix buttons are locked until you press 'New Task'."
                 disabled={hasBlockScanReplace || !rootFolder}
               >
