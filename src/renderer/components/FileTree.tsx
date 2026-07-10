@@ -50,11 +50,42 @@ const FileTree: React.FC<FileTreeProps> = ({
   const [favoriteFiles, setFavoriteFiles] = useState<string[]>([]);
   const [favoritesLoaded, setFavoritesLoaded] = useState(false);
 
+  // Transient notice shown when a binary file is blocked from selection/opening.
+  const [binaryNotice, setBinaryNotice] = useState<{ path: string; message: string } | null>(null);
+  const binaryNoticeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const prevSelectedPathsRef = useRef<string[]>([]);
   const selectedFilePathsRef = useRef<Set<string>>(selectedFilePaths);
   selectedFilePathsRef.current = selectedFilePaths;
   const favoriteFilesRef = useRef<string[]>(favoriteFiles);
   favoriteFilesRef.current = favoriteFiles;
+
+  // Show a short-lived notice (auto-dismisses) when a binary file is blocked.
+  const showBinaryNotice = useCallback((filePath: string) => {
+    const name = getFileNameFromPath(filePath);
+    setBinaryNotice({ path: filePath, message: `"${name}" is a binary file and cannot be referenced or opened.` });
+    if (binaryNoticeTimerRef.current) clearTimeout(binaryNoticeTimerRef.current);
+    binaryNoticeTimerRef.current = setTimeout(() => setBinaryNotice(null), 3000);
+  }, []);
+
+  // Clean up the notice timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (binaryNoticeTimerRef.current) clearTimeout(binaryNoticeTimerRef.current);
+    };
+  }, []);
+
+  // Returns true when the file's content is binary. On any lookup error we
+  // fail open (return false) so normal text handling proceeds unimpeded.
+  const isBinaryFilePath = useCallback(async (filePath: string): Promise<boolean> => {
+    try {
+      const result = await window.electronAPI.isBinaryFile(filePath);
+      return Boolean(result?.isBinary);
+    } catch (err) {
+      console.error('Failed to check binary status:', err);
+      return false;
+    }
+  }, []);
 
   const getProjectRootRelativePath = useCallback((filePath: string): string => {
     if (!rootPath) return filePath;
@@ -294,14 +325,25 @@ const FileTree: React.FC<FileTreeProps> = ({
     }
   }, []);
 
-  const handleFileCheckboxChange = useCallback((item: FileItem, checked: boolean) => {
+  const handleFileCheckboxChange = useCallback(async (item: FileItem, checked: boolean) => {
+    // When checking a file, stop prematurely if its content is binary so it is
+    // never added to the Referenced Files list.
+    if (checked) {
+      const binary = await isBinaryFilePath(item.path);
+      if (binary) {
+        showBinaryNotice(item.path);
+        // Ensure the checkbox reflects the unchecked (blocked) state.
+        setTree(prev => updateTreeItem(prev, item.path, { isChecked: false }));
+        return;
+      }
+    }
     setSelectedFilePaths(prev => {
       const next = new Set(prev);
       checked ? next.add(item.path) : next.delete(item.path);
       return next;
     });
     setTree(prev => updateTreeItem(prev, item.path, { isChecked: checked }));
-  }, []);
+  }, [isBinaryFilePath, showBinaryNotice]);
 
   // isFolderChecked: true only if all recursive files are selected
   const isFolderChecked = useCallback((folder: FileItem): boolean => {
@@ -408,7 +450,15 @@ const FileTree: React.FC<FileTreeProps> = ({
     setTimeout(() => setRecentlyCopied(null), 1200);
   }, [getProjectRootRelativePath]);
 
-  const togglePreview = (item: FileItem) => {
+  const togglePreview = async (item: FileItem) => {
+    // Opening (not closing) a binary file preview must stop prematurely.
+    if (item.path !== previewedFilePath) {
+      const binary = await isBinaryFilePath(item.path);
+      if (binary) {
+        showBinaryNotice(item.path);
+        return;
+      }
+    }
     if (item.path === previewedFilePath) {
       setTree(prev => {
         const clear = (items: FileItem[]): FileItem[] =>
@@ -463,8 +513,15 @@ const FileTree: React.FC<FileTreeProps> = ({
       }
       setExpandedFolders(newExpanded);
     }
-    // File clicks: copy path only (preview is handled by the eye icon)
+    // File clicks: copy path only (preview is handled by the eye icon).
+    // Stop prematurely and warn if the file content is binary so it is never
+    // opened in the Editor tab.
     if (item.isFile) {
+      const binary = await isBinaryFilePath(item.path);
+      if (binary) {
+        showBinaryNotice(item.path);
+        return;
+      }
       onSingleClickFile?.(item.path);
     }
   };
@@ -616,6 +673,30 @@ const FileTree: React.FC<FileTreeProps> = ({
           <div className="favorite-files-list">
             {favoriteFiles.map(renderFavoriteItem)}
           </div>
+        </div>
+      )}
+
+      {binaryNotice && (
+        <div
+          role="alert"
+          style={{
+            margin: '6px 10px',
+            padding: '8px 10px',
+            background: 'rgba(180, 60, 60, 0.15)',
+            border: '1px solid rgba(219, 112, 112, 0.4)',
+            borderLeft: '3px solid #db7070',
+            borderRadius: '4px',
+            color: '#ff9c9c',
+            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '6px',
+            flexShrink: 0,
+          }}
+          title={binaryNotice.path}
+        >
+          <span aria-hidden="true">⚠️</span>
+          <span>{binaryNotice.message}</span>
         </div>
       )}
 

@@ -59,6 +59,8 @@ declare global {
         birthtime: number;
       }>;
 
+      isBinaryFile: (path: string) => Promise<{ isBinary: boolean; isDirectory: boolean }>;
+
       writeFile: (path: string, content: string) => Promise<{ success: boolean }>;
 
       // Store operations

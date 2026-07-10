@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getFileStats: (path) => ipcRenderer.invoke('get-file-stats', path),
 
+  isBinaryFile: (path) => ipcRenderer.invoke('fs:isBinaryFile', path),
+
   readFile: (path) => ipcRenderer.invoke('read-file', path),
   writeFile: (path, content) => ipcRenderer.invoke('write-file', { path, content }),
 

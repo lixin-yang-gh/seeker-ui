@@ -190,6 +190,47 @@ ipcMain.handle('get-file-stats', async (_, filePath: string) => {
   }
 });
 
+// Detect whether a file's content is binary by inspecting the first 512 bytes.
+// A null byte (0x00) is a strong binary signal; likewise low control chars
+// other than tab (9), LF (10), CR (13) indicate non-text content. Directories
+// are never considered binary. On read errors we conservatively report false
+// so the caller can fall back to its normal (text) handling path.
+ipcMain.handle('fs:isBinaryFile', async (_, filePath: string) => {
+  let fileHandle: fs.FileHandle | null = null;
+  try {
+    const stats = await fs.stat(filePath);
+    if (stats.isDirectory()) {
+      return { isBinary: false, isDirectory: true };
+    }
+
+    const SAMPLE_SIZE = 512;
+    const buffer = Buffer.alloc(SAMPLE_SIZE);
+    fileHandle = await fs.open(filePath, 'r');
+    const { bytesRead } = await fileHandle.read(buffer, 0, SAMPLE_SIZE, 0);
+
+    for (let i = 0; i < bytesRead; i++) {
+      const byte = buffer[i];
+      // 0x00 => definite binary. Other control chars (except \t, \n, \r) => binary.
+      if (byte === 0x00 || (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13)) {
+        return { isBinary: true, isDirectory: false };
+      }
+    }
+    return { isBinary: false, isDirectory: false };
+  } catch (err: any) {
+    console.error(`Failed to inspect binary status for ${filePath}:`, err);
+    // Fail open (treat as text) so normal handling proceeds; surface no error.
+    return { isBinary: false, isDirectory: false };
+  } finally {
+    if (fileHandle) {
+      try {
+        await fileHandle.close();
+      } catch (closeErr) {
+        console.error(`Failed to close file handle for ${filePath}:`, closeErr);
+      }
+    }
+  }
+});
+
 ipcMain.handle('write-file', async (_, { path: filePath, content }) => {
   try {
     await fs.writeFile(filePath, content, 'utf-8');
