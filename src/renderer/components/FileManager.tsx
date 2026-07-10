@@ -29,6 +29,7 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [inferenceError, setInferenceError] = useState('');
   const [inferenceStatus, setInferenceStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [inferenceLastSaveTime, setInferenceLastSaveTime] = useState<number | null>(null);
+  const [isSingleBlockReplacementMode, setIsSingleBlockReplacementMode] = useState(false);
 
   // Close the file preview overlay whenever the root folder changes.
   useEffect(() => {
@@ -49,12 +50,14 @@ const FileManager: React.FC<FileManagerProps> = ({
           setInferenceReasoning(folderState.inferenceReasoning || '');
           setInferenceError(folderState.inferenceError || '');
           setInferenceStatus(folderState.inferenceStatus || 'idle');
+          setIsSingleBlockReplacementMode(Boolean(folderState.lastInferenceWasSingleBlockReplacement));
         } else {
           // No saved state; reset
           setInferenceResult('');
           setInferenceReasoning('');
           setInferenceError('');
           setInferenceStatus('idle');
+          setIsSingleBlockReplacementMode(false);
         }
       } catch (e) {
         console.error('Failed to load inference state:', e);
@@ -77,6 +80,7 @@ const FileManager: React.FC<FileManagerProps> = ({
           inferenceError,
           inferenceStatus,
           inferenceResultSavedAt: now,
+          lastInferenceWasSingleBlockReplacement: isSingleBlockReplacementMode,
         });
         setInferenceLastSaveTime(now);
       } catch (e) {
@@ -84,7 +88,7 @@ const FileManager: React.FC<FileManagerProps> = ({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [rootFolder, inferenceResult, inferenceReasoning, inferenceError, inferenceStatus]);
+  }, [rootFolder, inferenceResult, inferenceReasoning, inferenceError, inferenceStatus, isSingleBlockReplacementMode]);
 
   const closePreview = useCallback(() => {
     setShowPreview(false);
@@ -289,11 +293,14 @@ const FileManager: React.FC<FileManagerProps> = ({
                   rootFolder={rootFolder}
                   onBackToOverview={() => handleTabChange(0)}
                   onSwitchToInference={handleSwitchToInference}
-                  onInferenceStatusChange={(status, result, reasoning, error) => {
+                  onInferenceStatusChange={(status, result, reasoning, error, isSingleBlockReplacement) => {
                     setInferenceStatus(status);
                     setInferenceResult(result ?? '');
                     setInferenceReasoning(reasoning ?? '');
                     setInferenceError(error ?? '');
+                    if (isSingleBlockReplacement !== undefined) {
+                      setIsSingleBlockReplacementMode(isSingleBlockReplacement);
+                    }
                   }}
                 />
               )}
@@ -313,6 +320,7 @@ const FileManager: React.FC<FileManagerProps> = ({
                     handleRunInferenceAgain(model, temperature, apiTarget, maxTokens)
                   }
                   inferenceLastSavedTimestamp={inferenceLastSaveTime}
+                  isSingleBlockReplacementMode={isSingleBlockReplacementMode}
                 />
               )}
 

@@ -28,6 +28,7 @@ interface FolderSpecificState {
   inferenceResultSavedAt?: number;
   lastSystemPrompt?: string;
   lastUserPrompt?: string;
+  lastInferenceWasSingleBlockReplacement?: boolean;
   previewFontSize?: number;
   previewWordWrap?: boolean;
   previewMarkdownTheme?: 'dark' | 'light';

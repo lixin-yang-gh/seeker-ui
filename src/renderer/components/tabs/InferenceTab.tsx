@@ -26,6 +26,13 @@ interface InferenceTabProps {
     apiTarget: 'OpenRouter' | 'Venice',
     maxTokens: number
   ) => void;
+  /**
+   * True when the cached/last-run inference was generated using the
+   * "Single Block Replacement" task prompt. While true, the "Update File(s)"
+   * button is disabled because that mode only ever targets a single block
+   * and its output is not intended to be auto-applied via this flow.
+   */
+  isSingleBlockReplacementMode?: boolean;
 }
 
 // ─── Block Replacement Parser ─────────────────────────────────────
@@ -516,6 +523,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   onRunInferenceAgain,
   onRunInferenceWithConfig,
   inferenceLastSavedTimestamp,
+  isSingleBlockReplacementMode = false,
 }) => {
   const [model, setModel] = useState<string>('');
   const [temperature, setTemperature] = useState<number | undefined>(undefined);
@@ -724,9 +732,13 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
             {!updateConfirming ? (
               <button
                 className="inference-action-button"
-                disabled={!effectiveResult || !rootFolder || blockItems.length === 0}
+                disabled={!effectiveResult || !rootFolder || blockItems.length === 0 || isSingleBlockReplacementMode}
                 onClick={() => setUpdateConfirming(true)}
-                title="Apply the block replacements from the inference result to the files"
+                title={
+                  isSingleBlockReplacementMode
+                    ? 'Disabled: this result was generated using Single Block Replacement mode'
+                    : 'Apply the block replacements from the inference result to the files'
+                }
               >
                 Update File(s)
               </button>

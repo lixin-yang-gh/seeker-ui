@@ -19,6 +19,7 @@ interface PromptOrganizerTabProps {
     result?: string,
     reasoning?: string,
     error?: string,
+    isSingleBlockReplacement?: boolean,
   ) => void;
 }
 
@@ -58,6 +59,7 @@ Each object must contain exactly these fields:
   * "delete" + false: remove the exact block in "original"
 - "original": string or null — the verbatim, exact text from the target file
   * For partial "replace" or "delete": copy the complete contiguous block character-for-character from the file, including all whitespace and indentation. Include enough surrounding lines so the block is globally unique within the file.
+  * Line completeness — every line inside "original" must reproduce ALL characters of the corresponding source line in full: no truncation, abbreviation, elision, ellipses ("..."), placeholders, or comment stand-ins (e.g. "// unchanged"). Reproduce even very long lines in their entirety; a partial line will fail to match and the update will be rejected.
   * For partial "add": the exact anchor block after which new content will be inserted.
   * When is_full_file is true: set to null.
 - "replacement": string or null — the new content to insert or replace. Set to null for "delete".
@@ -72,7 +74,8 @@ JSON STRING ESCAPING RULES:
 
 Guidelines:
 - Keep replacements minimal — change only what is necessary; avoid rewriting surrounding unchanged lines.
-- For partial operations, "original" must match the file content character-for-character.
+- For partial operations, "original" must match the file content character-for-character — including every character of every line; never shorten, elide, ellipsize, or omit any part of a line.
+- The "original" field is used ONLY to locate the block in the file. Do not repeat or restate the original block outside the "original" field (for example, do not paste the original block into "reason" or as prose); the "replacement" field must contain exactly the block's intended final content and nothing more.
 - Prefer fewer, larger contiguous blocks over many small fragmented ones.
 - All content must be directly copy-pasteable.
 
@@ -107,20 +110,22 @@ Example:
 \`\`\`
 `;
 
-const BLOCK_SCAN_REPLACE_PROMPT = `Scan all the referenced files and identify every XML tag in the exact format:
+const BLOCK_SCAN_REPLACE_PROMPT = `Scan all the referenced files and identify XML tags in the exact format:
 <block_to_update tasks="{modification tasks for the text contained within this tag}">{original text block}</block_to_update>
 
-For each such tag you find:
+IMPORTANT — Single block only: during the scan, only pick up the FIRST <block_to_update> tag encountered across all referenced files, in document order. If additional matching tags exist elsewhere, ignore all of them entirely — do not process, emit, or reference them in any way.
+
+For the first matched tag found:
 1. Read the "tasks" attribute — it contains the authoritative modification instructions for the text enclosed between the opening <block_to_update ...> tag and its closing </block_to_update> tag.
 2. Apply those instructions to the enclosed original text block to produce the new, updated content.
 3. Emit the result as a STRUCTURED block update item inside the JSON array format specified below, so it can be parsed and applied programmatically. Do NOT return free-form prose, "Replace ... with ..." examples, or partial snippets outside the required JSON fenced code block.
 
 Rules:
-- Process every matched tag; do not skip any.
-- Each <block_to_update> tag produces exactly ONE object in the JSON output array.
-- The "op" field must be "replace" and "is_full_file" must be false for every block update item.
-- The "original" field of each block update item must be the ENTIRE tag block, verbatim and character-for-character, including the opening tag <block_to_update tasks="..."> and the closing tag </block_to_update>.
-- The "replacement" field of each block update item must be ONLY the updated text block (the fully rewritten content), WITHOUT any surrounding <block_to_update> tags.
+- Only process the single, first-encountered <block_to_update> tag; do not scan for or process any subsequent matches, even if the referenced files contain more than one.
+- The matched <block_to_update> tag produces exactly ONE object in the JSON output array.
+- The "op" field must be "replace" and "is_full_file" must be false for this block update item.
+- The "original" field of the block update item must be the ENTIRE tag block, verbatim and character-for-character, including the opening tag <block_to_update tasks="..."> and the closing tag </block_to_update>. This field exists solely so the exact location of the block can be found in the file — it is not part of the model's generated output content. Reproduce every line of the tag block in full — include all characters of each line with no truncation, ellipses, placeholders, or omissions — or the block cannot be located.
+- The "replacement" field must contain ONLY the updated replacement text block (the fully rewritten content) and NOTHING else. Do not include, restate, or echo the original text block/content anywhere in the "replacement" field or elsewhere in the response — the output must contain the replacement text block only, with no original-content text block present.
 - Preserve surrounding indentation and whitespace so the replacement drops cleanly into the file.
 
 Example mapping:
@@ -140,12 +145,19 @@ The output JSON array must contain:
 ]
 
 ---
-For each <block_to_update> tag found in the referenced files, emit exactly one object in the JSON array described below.
+For the single first-matched <block_to_update> tag found in the referenced files, emit exactly one object in the JSON array described below.
 - The "original" field must contain the entire tag block verbatim, from the opening <block_to_update tasks="..."> tag through the closing </block_to_update> tag.
-- The "replacement" field must contain only the updated text content with the <block_to_update> tag wrapper removed.
+- The "replacement" field must contain only the updated replacement text content with the <block_to_update> tag wrapper removed — never include or repeat the original text block/content.
 - The "op" field must be "replace" and "is_full_file" must be false.
 
-` + block_replacement_prompt.replace(/^\n---\n/, '\n');
+` + block_replacement_prompt.replace(/^\n---\n/, '\n') + `
+
+---
+FINAL OVERRIDE — Single Block Replacement (this instruction has the HIGHEST priority and supersedes any conflicting guidance or example above):
+- The "replacement" field MUST contain ONLY the fully rewritten new text for the block. It MUST NOT reproduce, echo, copy, quote, or otherwise include ANY portion of the original text block.
+- The original text block content is permitted to appear ONLY inside the "original" field, which is used solely to locate the block in the file. It MUST NOT appear anywhere else in your output — not in "replacement", not in "reason", and not in any prose outside the JSON fence.
+- Disregard any earlier example whose "replacement" preserved or restated parts of the original block: those examples describe general partial edits, NOT this Single Block Replacement task. Here the "replacement" is the standalone new content only.
+`;
 
 const block_replacement_prompt_conditional = block_replacement_prompt.replace(
   '\nFor each file that requires changes',
@@ -687,7 +699,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     setInferenceResult('');
     setInferenceReasoning('');
     setInferenceError('');
-    onInferenceStatusChange?.('running');
+    onInferenceStatusChange?.('running', undefined, undefined, undefined, hasBlockScanReplace);
     onSwitchToInference?.();
 
     try {
@@ -737,6 +749,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           ...currentState,
           lastSystemPrompt: sysPrompt,
           lastUserPrompt: userPrompt,
+          lastInferenceWasSingleBlockReplacement: hasBlockScanReplace,
         });
       }
 
@@ -750,14 +763,14 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       setInferenceResult(result.content || result.text || '');
       if (result.reasoning) setInferenceReasoning(result.reasoning);
       setInferenceStatus2('success');
-      onInferenceStatusChange?.('success', result.content || result.text || '', result.reasoning, undefined);
+      onInferenceStatusChange?.('success', result.content || result.text || '', result.reasoning, undefined, hasBlockScanReplace);
     } catch (error) {
       const errMsg = getErrorMessage(error);
       setInferenceError(errMsg);
       setInferenceStatus2('error');
-      onInferenceStatusChange?.('error', undefined, undefined, errMsg);
+      onInferenceStatusChange?.('error', undefined, undefined, errMsg, hasBlockScanReplace);
     }
-  }, [canGeneratePrompt, systemPrompt, task, issues, selectedHeader, maskedSubstrings, referencedFilesContent, redactionApplied, loadFileContents]);
+  }, [canGeneratePrompt, systemPrompt, task, issues, selectedHeader, maskedSubstrings, referencedFilesContent, redactionApplied, loadFileContents, hasBlockScanReplace]);
 
   return (
     <div className="tab-panel prompt-organizer">
@@ -953,7 +966,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                   key={button.key}
                   className="toolbar-button"
                   onClick={() => handlePrepend(button.value)}
-                  title={hasBlockScanReplace ? 'Locked while Block Scan & Replace is active. Press "New Task" to unlock.' : `Prepend: ${button.value}`}
+                  title={hasBlockScanReplace ? 'Locked while Single Block Replacement is active. Press "New Task" to unlock.' : `Prepend: ${button.value}`}
                   disabled={hasBlockScanReplace}
                 >
                   ⬇️ {button.key}
@@ -985,7 +998,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
                   key={button.key}
                   className="toolbar-button"
                   onClick={() => handleAppend(button.value)}
-                  title={hasBlockScanReplace ? 'Locked while Block Scan & Replace is active. Press "New Task" to unlock.' : `Append: ${button.value}`}
+                  title={hasBlockScanReplace ? 'Locked while Single Block Replacement is active. Press "New Task" to unlock.' : `Append: ${button.value}`}
                   disabled={hasBlockScanReplace}
                 >
                   ⬆️ {button.key}
