@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import ReactDOM from 'react-dom';
 import { FileContent } from '../../../shared/types';
 import { getMarkdownModulesPromise, MarkdownModules } from '../../../shared/markdown-loader';
 
@@ -10,7 +11,12 @@ interface EditorTabProps {
   rootFolder?: string | null;
 }
 
-const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
+export interface EditorTabRef {
+  getIsDirty: () => boolean;
+  requestTabSwitch: (callback: () => void) => void;
+}
+
+const EditorTab = forwardRef<EditorTabRef, EditorTabProps>(({ filePath, rootFolder }, ref) => {
   const [content, setContent] = useState<string>('');
   const [editedContent, setEditedContent] = useState<string>('');
   const [isDirty, setIsDirty] = useState<boolean>(false);
@@ -31,13 +37,9 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
   const [activeMatchIndex, setActiveMatchIndex] = useState<number>(0);
 
   // ── Unsaved-changes guard state ──
-  // When the incoming filePath prop differs from the file currently loaded in
-  // the editor AND there are unsaved edits, we stash the incoming path here and
-  // surface a confirmation modal instead of immediately loading the new file.
-  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null);
-  const [showUnsavedModal, setShowUnsavedModal] = useState<boolean>(false);
-  // Path currently loaded/displayed in the editor (may lag behind the prop while
-  // the unsaved-changes modal is open).
+  // One pending action at a time: either a file switch or a tab switch.
+  const [pendingAction, setPendingAction] = useState<{ type: 'file'; filePath: string } | { type: 'tab'; callback: () => void } | null>(null);
+  // Path currently loaded/displayed in the editor
   const loadedFilePathRef = useRef<string | null>(null);
   const isDirtyRef = useRef<boolean>(false);
 
@@ -193,8 +195,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
     // Unsaved changes present and switching to a genuinely different file:
     // intercept and prompt instead of discarding silently.
     if (isDirtyRef.current && loadedFilePathRef.current !== null) {
-      setPendingFilePath(filePath);
-      setShowUnsavedModal(true);
+      setPendingAction({ type: 'file', filePath: filePath });
       return;
     }
 
@@ -407,6 +408,7 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
       setSaveError(err?.message ?? String(err));
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 3000);
+      throw err;
     }
   }, [isDirty, editedContent]);
 
@@ -433,56 +435,83 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
   // ── Unsaved-changes modal handlers ──
 
   // Proceed to load the pending file (used after Save or Discard).
-  const proceedToPendingFile = useCallback(() => {
-    const next = pendingFilePath;
-    setShowUnsavedModal(false);
-    setPendingFilePath(null);
+  const proceedToPendingFile = useCallback((targetPath: string) => {
+    setPendingAction(null);
     // Clear dirty flag so the load effect does not re-trigger the guard.
     setIsDirty(false);
     isDirtyRef.current = false;
-    loadFileFromDisk(next ?? null);
-  }, [pendingFilePath, loadFileFromDisk]);
+    loadFileFromDisk(targetPath);
+  }, [loadFileFromDisk]);
 
-  // Save current edits, then load the pending file.
-  const handleModalSaveAndSwitch = useCallback(async () => {
-    const targetPath = loadedFilePathRef.current;
-    if (targetPath) {
-      setSaveStatus('saving');
-      setSaveError(null);
-      try {
-        await window.electronAPI.writeFile(targetPath, editedContentRef.current);
-        originalContentRef.current = editedContentRef.current;
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      } catch (err: any) {
-        // On save failure, keep the modal open so the user can decide.
-        setSaveError(err?.message ?? String(err));
-        setSaveStatus('error');
-        setTimeout(() => setSaveStatus('idle'), 3000);
-        return;
-      }
+  // Save current edits, then execute the pending action.
+  const handleSaveAndProceed = useCallback(async () => {
+    const action = pendingAction;
+    if (!action) return;
+
+    // Save current file
+    try {
+      await handleSave();
+    } catch (err) {
+      // Save failed: keep modal open and show error
+      return;
     }
-    proceedToPendingFile();
-  }, [proceedToPendingFile]);
 
-  // Abandon current edits and load the pending file.
-  const handleModalDiscardAndSwitch = useCallback(() => {
-    proceedToPendingFile();
-  }, [proceedToPendingFile]);
+    // Save succeeded: execute pending action
+    if (action.type === 'file') {
+      proceedToPendingFile(action.filePath);
+    } else {
+      // tab switch
+      setPendingAction(null);
+      action.callback();
+    }
+  }, [pendingAction, handleSave, proceedToPendingFile]);
 
-  // Cancel the switch — stay on the current (dirty) file. Note the filePath
-  // prop already points at the new file, so subsequent changes back to the
-  // original path will be detected correctly by the loaded-path comparison.
+  // Abandon current edits and execute pending action.
+  const handleAbandonAndProceed = useCallback(() => {
+    const action = pendingAction;
+    if (!action) return;
+
+    if (action.type === 'file') {
+      proceedToPendingFile(action.filePath);
+    } else {
+      // Tab switch: discard changes and revert to last saved/original content
+      setEditedContent(originalContentRef.current);
+      setIsDirty(false);
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      pendingUndoSnapshotRef.current = null;
+      if (historyTimerRef.current) {
+        clearTimeout(historyTimerRef.current);
+        historyTimerRef.current = null;
+      }
+      setPendingAction(null);
+      action.callback();
+    }
+  }, [pendingAction, proceedToPendingFile]);
+
+  // Cancel the switch — stay on the current (dirty) file.
   const handleModalCancel = useCallback(() => {
-    setShowUnsavedModal(false);
-    setPendingFilePath(null);
+    setPendingAction(null);
   }, []);
+
+  // ── Expose methods to parent ──
+  useImperativeHandle(ref, () => ({
+    getIsDirty: () => isDirtyRef.current,
+    requestTabSwitch: (callback: () => void) => {
+      if (isDirtyRef.current) {
+        setPendingAction({ type: 'tab', callback });
+      } else {
+        // Not dirty: execute immediately
+        callback();
+      }
+    },
+  }), [isDirtyRef, setPendingAction]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // When the unsaved-changes modal is open, only allow Escape to cancel.
-      if (showUnsavedModal) {
+      if (pendingAction) {
         if (e.key === 'Escape') { e.preventDefault(); handleModalCancel(); }
         return;
       }
@@ -510,28 +539,26 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDirty, saveStatus, handleSave, handleUndo, handleRedo, showSearch, showUnsavedModal, handleModalCancel]);
+  }, [isDirty, saveStatus, handleSave, handleUndo, handleRedo, showSearch, pendingAction, handleModalCancel]);
 
   // Derive the display name of the pending file for the modal message.
-  const pendingFileName = pendingFilePath
-    ? (pendingFilePath.split(/[\\/]/).pop() || pendingFilePath)
+  const pendingFileName = pendingAction && pendingAction.type === 'file'
+    ? (pendingAction.filePath.split(/[\\/]/).pop() || pendingAction.filePath)
     : '';
   const currentFileName = loadedFilePathRef.current
     ? (loadedFilePathRef.current.split(/[\\/]/).pop() || loadedFilePathRef.current)
     : '';
 
-  // The unsaved-changes modal is rendered regardless of the early-return
-  // states below so it can appear even when a load error / empty state would
-  // otherwise short-circuit the render tree.
-  const unsavedModal = showUnsavedModal ? (
+  // ── Unsaved-changes modal (rendered via portal) ──
+  const unsavedModal = pendingAction ? ReactDOM.createPortal(
     <div className="file-editor__modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 6000 }}>
       <div className="file-editor__modal" role="dialog" aria-modal="true">
         <h3 className="file-editor__modal-title">Unsaved Changes</h3>
         <p className="file-editor__modal-message">
           {currentFileName ? `"${currentFileName}" has unsaved changes.` : 'The current file has unsaved changes.'}
-          {pendingFileName
+          {pendingAction && pendingAction.type === 'file'
             ? ` Do you want to save them before opening "${pendingFileName}"?`
-            : ' Do you want to save them before switching?'}
+            : ' Do you want to save them before switching tabs?'}
         </p>
         {saveError && (
           <p className="file-editor__modal-message" style={{ color: '#ff8a80' }}>
@@ -542,35 +569,28 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
           <button
             type="button"
             className="file-editor__modal-btn file-editor__modal-btn--primary"
-            onClick={handleModalSaveAndSwitch}
+            onClick={handleSaveAndProceed}
             disabled={saveStatus === 'saving'}
-            title="Save the current changes, then open the other file"
+            title="Save the current changes, then continue"
           >
-            {saveStatus === 'saving' ? 'Saving…' : 'Save & Continue'}
+            {saveStatus === 'saving' ? 'Saving…' : 'Save Changes'}
           </button>
           <button
             type="button"
             className="file-editor__modal-btn file-editor__modal-btn--danger"
-            onClick={handleModalDiscardAndSwitch}
+            onClick={handleAbandonAndProceed}
             disabled={saveStatus === 'saving'}
-            title="Discard the current changes and open the other file"
+            title="Discard the current changes and continue"
           >
-            Discard Changes
-          </button>
-          <button
-            type="button"
-            className="file-editor__modal-btn file-editor__modal-btn--secondary"
-            onClick={handleModalCancel}
-            disabled={saveStatus === 'saving'}
-            title="Stay on the current file"
-          >
-            Cancel
+            Abandon Changes
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   ) : null;
 
+  // ── Render ──
   if (!filePath && !loadedFilePathRef.current) {
     return (
       <div className="tab-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontStyle: 'italic', flexDirection: 'column', gap: 12 }}>
@@ -797,10 +817,12 @@ const EditorTab: React.FC<EditorTabProps> = ({ filePath, rootFolder }) => {
         </div>
       )}
 
-      {/* Unsaved-changes confirmation modal */}
+      {/* Unsaved-changes confirmation modal (portal) */}
       {unsavedModal}
     </div>
   );
-};
+});
+
+EditorTab.displayName = 'EditorTab';
 
 export default EditorTab;

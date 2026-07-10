@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getRelativePath } from '../../shared/utils';
 import { PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab, EditorTab } from './tabs';
+import { EditorTabRef } from './tabs/EditorTab';
 
 interface FileManagerProps {
   rootFolder?: string | null;
@@ -23,6 +24,9 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [inferenceStatus, setInferenceStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [inferenceLastSaveTime, setInferenceLastSaveTime] = useState<number | null>(null);
   const [isSingleBlockReplacementMode, setIsSingleBlockReplacementMode] = useState(false);
+
+  // Ref to EditorTab for unsaved-changes guard
+  const editorRef = useRef<EditorTabRef>(null);
 
   // Dynamic editor tab title: prefer the project-root-relative path (exclusive
   // of "<project_root>" itself), e.g. "folder1/a.txt". Fall back to the bare
@@ -102,6 +106,18 @@ const FileManager: React.FC<FileManagerProps> = ({
   const handleSwitchToPrompt = useCallback(() => { setActiveTab(1); }, []);
 
   const handleTabChange = (tabIndex: number) => {
+    // If switching away from Editor tab (0) and EditorTab is dirty, request tab switch via ref
+    if (activeTab === 0 && tabIndex !== 0) {
+      const isDirty = editorRef.current?.getIsDirty() ?? false;
+      if (isDirty) {
+        // Defer tab switch until user resolves modal
+        editorRef.current?.requestTabSwitch(() => {
+          setActiveTab(tabIndex);
+          onTabChange?.(tabIndex);
+        });
+        return;
+      }
+    }
     setActiveTab(tabIndex);
     onTabChange?.(tabIndex);
   };
@@ -170,12 +186,14 @@ const FileManager: React.FC<FileManagerProps> = ({
         </div>
 
         <div className="tab-content">
-          {activeTab === 0 && (
+          {/* EditorTab is always mounted but hidden when inactive */}
+          <div style={{ display: activeTab === 0 ? 'flex' : 'none', flex: 1, height: '100%' }}>
             <EditorTab
+              ref={editorRef}
               filePath={editorFilePath ?? null}
               rootFolder={rootFolder}
             />
-          )}
+          </div>
 
           {activeTab === 1 && (
             <PromptOrganizerTab
