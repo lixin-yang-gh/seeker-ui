@@ -36,15 +36,7 @@ const FileManager: React.FC<FileManagerProps> = ({
       ? (editorFilePath.split(/[\\/]/).pop() || 'Editor')
       : 'Editor');
 
-  // Switch to the Editor tab instantly whenever a new file is single-clicked
-  // (editorFilePath is set by the File Tree / Favorite Files handlers).
-  useEffect(() => {
-    if (editorFilePath) {
-      setActiveTab(0);
-      onTabChange?.(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorFilePath]);
+  // Removed automatic tab switching on single-click file. The editor content still updates, but the user must manually switch to the Editor tab.
 
   useEffect(() => {
     if (!rootFolder) return;
