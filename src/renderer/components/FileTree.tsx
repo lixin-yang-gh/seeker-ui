@@ -606,7 +606,6 @@ const FileTree: React.FC<FileTreeProps> = ({
   const renderFavoriteItem = (filePath: string) => {
     const item = toFileItem(filePath);
     const relTitle = getProjectRootRelativePath(filePath);
-    const isOpened = filePath === openedFilePath;
 
     return (
       <div key={`fav-${filePath}`}>
@@ -616,11 +615,11 @@ const FileTree: React.FC<FileTreeProps> = ({
           onContextMenu={(e) => handleContextMenu(e, item)}
         >
           <div
-            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${isOpened ? 'opened-file' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
+            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
             onClick={() => toggleFolder(item)}
             style={{ padding: '2px 4px' }}
           >
-            <span className={`item-name${isOpened ? ' opened-file-name' : ''}`} title={relTitle}>{item.name}</span>
+            <span className="item-name" title={relTitle}>{item.name}</span>
             {renderFileActionIcons(item)}
             {recentlyCopied === item.path && <span className="copied-indicator">✓ path copied</span>}
           </div>
