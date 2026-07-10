@@ -110,7 +110,7 @@ Example:
 \`\`\`
 `;
 
-const BLOCK_SCAN_REPLACE_PROMPT = `
+const tagged_block_update_prompt = `
 **SCAN INSTRUCTIONS:**
 - Scan all referenced files in the order they are provided.
 - Identify XML tags **exactly** in this format:
@@ -384,7 +384,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   // Check if the task contains the merged Tagged Block Update prompt.
   // While this is true, all other prefix/suffix buttons are locked; the lock is
   // cleared only when the user presses "New Task" (which empties the task).
-  const hasBlockScanReplace = useMemo(() => task.includes(BLOCK_SCAN_REPLACE_PROMPT), [task]);
+  const hasBlockScanReplace = useMemo(() => task.includes(tagged_block_update_prompt), [task]);
 
   // Load Default button handler
   const handleLoadDefaultPrompt = useCallback(() => {
@@ -976,7 +976,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
               ))}
               <button
                 className="toolbar-button block-scan-replace-button"
-                onClick={() => handlePrepend(BLOCK_SCAN_REPLACE_PROMPT, true)}
+                onClick={() => handlePrepend(tagged_block_update_prompt, true)}
                 title="Inject the combined Tagged Block Update instructions into the task. While active, all other prefix/suffix buttons are locked until you press 'New Task'."
                 disabled={hasBlockScanReplace || !rootFolder}
               >
