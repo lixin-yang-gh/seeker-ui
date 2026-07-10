@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
-import { OverviewTab, PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab } from './tabs';
+import { PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab } from './tabs';
 import FilePreviewOverlay from './FilePreviewOverlay';
 
 interface FileManagerProps {
@@ -114,7 +114,7 @@ const FileManager: React.FC<FileManagerProps> = ({
   }, []);
 
   const handleSwitchToPrompt = useCallback(() => {
-    setActiveTab(1);
+    setActiveTab(0);
   }, []);
 
   useEffect(() => {
@@ -133,7 +133,7 @@ const FileManager: React.FC<FileManagerProps> = ({
   };
 
   const handleSwitchToInference = () => {
-    handleTabChange(2);
+    handleTabChange(1);
   };
 
   const loadFile = async (path: string) => {
@@ -169,11 +169,7 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   const headerText = `Location${rootFolder ? ` - ${rootFolder}` : ''}`;
 
-  // Tab titles
-  const overviewTabName = selectedFilePaths.length === 0
-    ? 'Overview'
-    : `Overview (${selectedFilePaths.length} selected)`;
-
+  // Tab titles (Prompt is the starting tab; Overview removed)
   const promptOrganizerTabName = 'Prompt';
 
   return (
@@ -185,14 +181,6 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 0 ? 'active' : ''}`}
             onClick={() => handleTabChange(0)}
-            title="Show overview of selected files"
-          >
-            {overviewTabName}
-          </button>
-
-          <button
-            className={`tab ${activeTab === 1 ? 'active' : ''}`}
-            onClick={() => handleTabChange(1)}
             title="Open the prompt organizer tab"
           >
             {promptOrganizerTabName}
@@ -202,24 +190,24 @@ const FileManager: React.FC<FileManagerProps> = ({
           </button>
 
           <button
-            className={`tab ${activeTab === 2 ? 'active' : ''}`}
-            onClick={() => handleTabChange(2)}
+            className={`tab ${activeTab === 1 ? 'active' : ''}`}
+            onClick={() => handleTabChange(1)}
             title="Monitor inference process"
           >
             Inference
           </button>
 
           <button
-            className={`tab ${activeTab === 3 ? 'active' : ''}`}
-            onClick={() => handleTabChange(3)}
+            className={`tab ${activeTab === 2 ? 'active' : ''}`}
+            onClick={() => handleTabChange(2)}
             title="Open settings"
           >
             Settings
           </button>
 
           <button
-            className={`tab ${activeTab === 4 ? 'active' : ''}`}
-            onClick={() => handleTabChange(4)}
+            className={`tab ${activeTab === 3 ? 'active' : ''}`}
+            onClick={() => handleTabChange(3)}
             title="About Seeker UI"
           >
             About
@@ -227,22 +215,15 @@ const FileManager: React.FC<FileManagerProps> = ({
         </div>
 
         <div className="tab-content">
-          {loading && activeTab === 1 ? (
+          {loading && activeTab === 0 ? (
             <div className="loading-overlay">
               <div className="loading-spinner">Loading...</div>
             </div>
-          ) : error && activeTab === 1 ? (
+          ) : error && activeTab === 0 ? (
             <div className="error-message">{error}</div>
           ) : (
             <>
               {activeTab === 0 && (
-                <OverviewTab
-                  selectedFilePaths={selectedFilePaths}
-                  rootFolder={rootFolder}
-                />
-              )}
-
-              {activeTab === 1 && (
                 <PromptOrganizerTab
                   selectedFilePaths={selectedFilePaths}
                   rootFolder={rootFolder}
@@ -260,7 +241,7 @@ const FileManager: React.FC<FileManagerProps> = ({
                 />
               )}
 
-              {activeTab === 2 && (
+              {activeTab === 1 && (
                 <InferenceTab
                   rootFolder={rootFolder}
                   selectedFilePaths={selectedFilePaths}
@@ -276,9 +257,9 @@ const FileManager: React.FC<FileManagerProps> = ({
                 />
               )}
 
-              {activeTab === 3 && <SettingsTab />}
+              {activeTab === 2 && <SettingsTab />}
 
-              {activeTab === 4 && <AboutTab />}
+              {activeTab === 3 && <AboutTab />}
             </>
           )}
         </div>
