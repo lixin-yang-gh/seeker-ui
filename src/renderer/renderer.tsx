@@ -1,8 +1,9 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import Sidebar from './components/Sidebar';
 import FileManager from './components/FileManager';
 import EulaModal from './components/EulaModal';
+import { preloadMarkdownModules } from '../shared/markdown-loader';
 import './styles/main.css';
 import './styles/file_tree.css';
 // Forward main-process logs to the renderer DevTools console
@@ -20,6 +21,45 @@ const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [eulaAgreed, setEulaAgreed] = useState(false);
   const isResizingRef = useRef(false);
+
+  // Preload the markdown rendering dependencies (react-markdown + remark-gfm)
+  // shortly after the main window has painted and become visible, without
+  // blocking initial app startup. This keeps FilePreviewOverlay's Markdown
+  // preview feature snappy on first use while avoiding any impact on
+  // cold-start time, since the chunk is fetched/executed in the background
+  // rather than as part of the initial bundle.
+  useEffect(() => {
+    let cancelled = false;
+    let idleHandle: number | undefined;
+    const win = window as unknown as {
+      requestIdleCallback?: (cb: () => void) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const schedulePreload = () => {
+      if (cancelled) return;
+      if (win.requestIdleCallback) {
+        idleHandle = win.requestIdleCallback(() => {
+          if (!cancelled) preloadMarkdownModules();
+        });
+      } else {
+        setTimeout(() => {
+          if (!cancelled) preloadMarkdownModules();
+        }, 200);
+      }
+    };
+    // Defer by two animation frames to ensure the main window's initial UI has
+    // painted (i.e. is fully visible) before starting the background load.
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(schedulePreload);
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1);
+      if (idleHandle !== undefined && win.cancelIdleCallback) {
+        win.cancelIdleCallback(idleHandle);
+      }
+    };
+  }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizingRef.current) return;

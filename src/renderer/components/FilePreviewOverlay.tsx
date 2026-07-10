@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import '../styles/file_preview_overlay.css';
 import { FileContent } from '../../shared/types';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { getMarkdownModulesPromise, MarkdownModules } from '../../shared/markdown-loader';
 
 interface FilePreviewOverlayProps {
   filePath: string | null;
@@ -31,6 +30,10 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   // ── Markdown rendering overlay state ──
   const [showMarkdownView, setShowMarkdownView] = useState<boolean>(false);
+  // Lazily-loaded react-markdown + remark-gfm modules (loaded on first use of
+  // the Markdown preview, but typically already preloaded shortly after the
+  // main window becomes visible — see renderer.tsx).
+  const [markdownModules, setMarkdownModules] = useState<MarkdownModules | null>(null);
   // ── Markdown preview color theme (independent of the app's own dark theme) ──
   const [markdownTheme, setMarkdownTheme] = useState<'dark' | 'light'>('dark');
   // ── Substring search (telescope) state ──
@@ -265,6 +268,22 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const toggleMarkdownView = useCallback(() => {
     setShowMarkdownView((s) => !s);
   }, []);
+
+  // Ensure the markdown rendering dependencies are available whenever the
+  // Markdown preview is opened. In the common case this resolves immediately
+  // from the already-preloaded module cache (preloaded shortly after the main
+  // window became visible); if the preview is opened before that background
+  // load finishes, this triggers/reuses the same in-flight import.
+  useEffect(() => {
+    if (!showMarkdownView || markdownModules) return;
+    let cancelled = false;
+    getMarkdownModulesPromise().then((mods) => {
+      if (!cancelled) setMarkdownModules(mods);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showMarkdownView, markdownModules]);
 
   const toggleMarkdownTheme = useCallback(() => {
     setMarkdownTheme((t) => (t === 'dark' ? 'light' : 'dark'));
@@ -851,9 +870,15 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
               </div>
               <div className="file-preview-overlay__markdown-modal-body">
                 <div className="file-preview-overlay__markdown-content">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {editedContent}
-                  </ReactMarkdown>
+                  {markdownModules ? (
+                    <markdownModules.ReactMarkdown remarkPlugins={[markdownModules.remarkGfm]}>
+                      {editedContent}
+                    </markdownModules.ReactMarkdown>
+                  ) : (
+                    <div style={{ color: '#888', fontStyle: 'italic', padding: '20px' }}>
+                      Loading markdown renderer…
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
