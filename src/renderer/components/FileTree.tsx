@@ -40,6 +40,7 @@ const FileTree: React.FC<FileTreeProps> = ({
   const [recentlyCopied, setRecentlyCopied] = useState<string | null>(null);
   const [showOpenFolderModal, setShowOpenFolderModal] = useState(false);
   const [recentFolders, setRecentFolders] = useState<string[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileItem } | null>(null);
 
   const prevSelectedPathsRef = useRef<string[]>([]);
   const selectedFilePathsRef = useRef<Set<string>>(selectedFilePaths);
@@ -294,6 +295,31 @@ const FileTree: React.FC<FileTreeProps> = ({
     await openFolderPath(path);
   }, [openFolderPath]);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent, item: FileItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, item });
+  }, []);
+
+  const handleOpenContainingFolder = useCallback(async (item: FileItem) => {
+    setContextMenu(null);
+    try {
+      await window.electronAPI.openContainingFolder(item.path);
+    } catch (err) {
+      console.error('Failed to open containing folder:', err);
+    }
+  }, []);
+
+  // Reuse the single-click path-copy behavior from toggleFolder for the
+  // right-click context menu (Copy File/Folder Path).
+  const handleCopyPath = useCallback(async (item: FileItem) => {
+    setContextMenu(null);
+    const relativePath = item.path.replace(rootPath, '').replace(/^[\/\\]/, '').replace(/\\/g, '/');
+    await copyToClipboard(`<project_root>/${relativePath}`);
+    setRecentlyCopied(item.path);
+    setTimeout(() => setRecentlyCopied(null), 1200);
+  }, [rootPath]);
+
   const togglePreview = (item: FileItem) => {
     if (item.path === previewedFilePath) {
       setTree(prev => {
@@ -359,7 +385,7 @@ const FileTree: React.FC<FileTreeProps> = ({
 
     return (
       <div key={item.path}>
-        <div className="tree-item" style={{ paddingLeft: `${depth * 16 + 10}px`, marginLeft: `${depth * 1}px` }}>
+        <div className="tree-item" style={{ paddingLeft: `${depth * 16 + 10}px`, marginLeft: `${depth * 1}px` }} onContextMenu={(e) => handleContextMenu(e, item)}>
           <input
             type="checkbox"
             className="tree-checkbox"
@@ -566,6 +592,48 @@ const FileTree: React.FC<FileTreeProps> = ({
                 Browse…
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          className="context-menu-backdrop"
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+        >
+          <div
+            className="context-menu"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="context-menu-item"
+              onClick={() => handleCopyPath(contextMenu.item)}
+              title={contextMenu.item.isDirectory ? 'Copy the folder path to the clipboard' : 'Copy the file path to the clipboard'}
+            >
+              📋 {contextMenu.item.isDirectory ? 'Copy Folder Path' : 'Copy File Path'}
+            </button>
+            {contextMenu.item.isFile && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setContextMenu(null);
+                  togglePreview(contextMenu.item);
+                }}
+                title={contextMenu.item.path === previewedFilePath ? 'Close preview' : 'Preview file'}
+              >
+                {contextMenu.item.path === previewedFilePath ? '✕ Close Preview' : '👁 Preview File'}
+              </button>
+            )}
+            <button
+              className="context-menu-item"
+              onClick={() => handleOpenContainingFolder(contextMenu.item)}
+              title="Open the containing folder in the system file manager"
+            >
+              📂 Open Containing Folder
+            </button>
           </div>
         </div>
       )}

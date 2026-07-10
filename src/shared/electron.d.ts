@@ -34,6 +34,9 @@ declare global {
       openFileDialog: (options?: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>;
       saveFileDialog: (options?: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>;
 
+      // Shell operations
+      openContainingFolder: (filePath: string) => Promise<{ success: boolean }>;
+
       // File system operations
       readDirectory: (path: string) => Promise<Array<{
         name: string;

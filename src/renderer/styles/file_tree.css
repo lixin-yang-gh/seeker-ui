@@ -448,3 +448,47 @@
 .resizer:active {
     background: #007acc;
 }
+
+/* ─────────────────────────────────────────────
+   Context Menu (right-click)
+───────────────────────────────────────────── */
+
+.context-menu-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+}
+
+.context-menu {
+    position: fixed;
+    background: #252526;
+    border: 1px solid #454545;
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 220px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    z-index: 10001;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 14px;
+    background: none;
+    border: none;
+    color: #cccccc;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s ease;
+}
+
+.context-menu-item:hover {
+    background: #094771;
+    color: #ffffff;
+}

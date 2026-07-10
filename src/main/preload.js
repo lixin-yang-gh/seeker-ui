@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileDialog: (options) => ipcRenderer.invoke('dialog:openFile', options),
   saveFileDialog: (options) => ipcRenderer.invoke('dialog:saveFile', options),
 
+  openContainingFolder: (filePath) => ipcRenderer.invoke('shell:openContainingFolder', filePath),
+
   redactText: (text) => ipcRenderer.invoke('redact-text', text),
 
   callOpenRouter: (systemPrompt, userPrompt, model, options) =>

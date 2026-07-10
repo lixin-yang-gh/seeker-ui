@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, screen, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -341,6 +341,21 @@ ipcMain.handle('dialog:saveFile', async (_, options?: { filters?: { name: string
     filters: options?.filters || [{ name: 'JSON', extensions: ['json'] }]
   });
   return result.filePath || null;
+});
+
+// Open containing folder in system file manager (Windows Explorer, macOS Finder, Linux file manager)
+ipcMain.handle('shell:openContainingFolder', async (_, filePath: string) => {
+  try {
+    const stats = await fs.stat(filePath);
+    if (stats.isDirectory()) {
+      await shell.openPath(filePath);
+    } else {
+      shell.showItemInFolder(filePath);
+    }
+    return { success: true };
+  } catch (err: any) {
+    throw new Error(`Cannot open containing folder for ${filePath}: ${err.message}`);
+  }
 });
 
 // Active inference abort controller (one at a time)
