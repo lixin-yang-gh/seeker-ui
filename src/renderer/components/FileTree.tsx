@@ -40,6 +40,10 @@ const FileTree: React.FC<FileTreeProps> = ({
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
   const [highlightedFile, setHighlightedFile] = useState<string | null>(null);
+  // Tracks the last single-clicked file so its label can use the outstanding
+  // opened-file highlight color across both the main tree and the Favorite
+  // Files list.
+  const [openedFilePath, setOpenedFilePath] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [recentlyCopied, setRecentlyCopied] = useState<string | null>(null);
@@ -399,6 +403,7 @@ const FileTree: React.FC<FileTreeProps> = ({
     await loadDirectory(path);
     setSelectedFilePaths(new Set());
     setHighlightedFile(null);
+    setOpenedFilePath(null);
     setExpandedFolders(new Set());
   }, []);
 
@@ -466,7 +471,7 @@ const FileTree: React.FC<FileTreeProps> = ({
         return clear(prev);
       });
       setHighlightedFile(null);
-      onFileSelect(null);
+      onFileSelect(null as unknown as string);
     } else {
       setTree(prev => {
         const clear = (items: FileItem[]): FileItem[] =>
@@ -483,7 +488,7 @@ const FileTree: React.FC<FileTreeProps> = ({
       // Reset parent currentFile first, then set the new path on the next tick.
       // This guarantees the FileManager's useEffect on filePath re-fires even when
       // the user re-selects the same file that was previously previewed and then closed.
-      onFileSelect(null);
+      onFileSelect(null as unknown as string);
       setTimeout(() => onFileSelect(item.path), 0);
     }
   };
@@ -515,13 +520,15 @@ const FileTree: React.FC<FileTreeProps> = ({
     }
     // File clicks: copy path only (preview is handled by the eye icon).
     // Stop prematurely and warn if the file content is binary so it is never
-    // opened in the Editor tab.
+    // opened in the Editor tab. Instantly highlight the file name with the
+    // outstanding opened-file color and switch to the Editor tab.
     if (item.isFile) {
       const binary = await isBinaryFilePath(item.path);
       if (binary) {
         showBinaryNotice(item.path);
         return;
       }
+      setOpenedFilePath(item.path);
       onSingleClickFile?.(item.path);
     }
   };
@@ -555,6 +562,7 @@ const FileTree: React.FC<FileTreeProps> = ({
   const renderTreeItem = (item: FileItem, depth: number = 0) => {
     const isExpanded = expandedFolders.has(item.path);
     const isChecked = item.isFile ? selectedFilePaths.has(item.path) : isFolderChecked(item);
+    const isOpened = item.isFile && item.path === openedFilePath;
 
     return (
       <div key={item.path}>
@@ -571,12 +579,12 @@ const FileTree: React.FC<FileTreeProps> = ({
             onClick={(e) => e.stopPropagation()}
           />
           <div
-            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
+            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${isOpened ? 'opened-file' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
             onClick={() => toggleFolder(item)}
             style={{ padding: '2px 4px' }}
           >
             {item.isDirectory && <span className="folder-icon">{isExpanded ? '📂' : '📁'}</span>}
-            <span className="item-name" title={item.isFile ? getProjectRootRelativePath(item.path) : undefined}>{item.name}</span>
+            <span className={`item-name${isOpened ? ' opened-file-name' : ''}`} title={item.isFile ? getProjectRootRelativePath(item.path) : undefined}>{item.name}</span>
             {renderFileActionIcons(item)}
             {recentlyCopied === item.path && <span className="copied-indicator">✓ path copied</span>}
             {item.isDirectory && item.children && (
@@ -598,6 +606,7 @@ const FileTree: React.FC<FileTreeProps> = ({
   const renderFavoriteItem = (filePath: string) => {
     const item = toFileItem(filePath);
     const relTitle = getProjectRootRelativePath(filePath);
+    const isOpened = filePath === openedFilePath;
 
     return (
       <div key={`fav-${filePath}`}>
@@ -607,11 +616,11 @@ const FileTree: React.FC<FileTreeProps> = ({
           onContextMenu={(e) => handleContextMenu(e, item)}
         >
           <div
-            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
+            className={`tree-item-content ${item.isHighlighted ? 'highlighted' : ''} ${isOpened ? 'opened-file' : ''} ${recentlyCopied === item.path ? 'copied' : ''}`}
             onClick={() => toggleFolder(item)}
             style={{ padding: '2px 4px' }}
           >
-            <span className="item-name" title={relTitle}>{item.name}</span>
+            <span className={`item-name${isOpened ? ' opened-file-name' : ''}`} title={relTitle}>{item.name}</span>
             {renderFileActionIcons(item)}
             {recentlyCopied === item.path && <span className="copied-indicator">✓ path copied</span>}
           </div>

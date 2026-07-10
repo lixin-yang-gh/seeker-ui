@@ -34,10 +34,27 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [inferenceLastSaveTime, setInferenceLastSaveTime] = useState<number | null>(null);
   const [isSingleBlockReplacementMode, setIsSingleBlockReplacementMode] = useState(false);
 
-  // Dynamic editor tab title: file name from editorFilePath or 'Editor'
-  const editorTabTitle = editorFilePath
-    ? (editorFilePath.split(/[\\/]/).pop() || 'Editor')
-    : 'Editor';
+  // Dynamic editor tab title: prefer the project-root-relative path (exclusive
+  // of "<project_root>" itself), e.g. "folder1/a.txt". Fall back to the bare
+  // file name, then to "Editor" when nothing is open.
+  const editorRelativePath = editorFilePath
+    ? getRelativePath(editorFilePath, rootFolder).replace(/\\/g, '/')
+    : '';
+  const editorTabTitle = editorRelativePath
+    ? editorRelativePath
+    : (editorFilePath
+      ? (editorFilePath.split(/[\\/]/).pop() || 'Editor')
+      : 'Editor');
+
+  // Switch to the Editor tab instantly whenever a new file is single-clicked
+  // (editorFilePath is set by the File Tree / Favorite Files handlers).
+  useEffect(() => {
+    if (editorFilePath) {
+      setActiveTab(0);
+      onTabChange?.(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorFilePath]);
 
   useEffect(() => {
     if (showPreview) closePreview();
@@ -162,7 +179,9 @@ const FileManager: React.FC<FileManagerProps> = ({
           <button
             className={`tab ${activeTab === 0 ? 'active' : ''}`}
             onClick={() => handleTabChange(0)}
-            title={editorFilePath ? `Editing: ${editorFilePath}` : 'Single-click a file in Explorer to open it for editing'}
+            title={editorFilePath
+              ? `Editing: ${editorRelativePath || editorFilePath}`
+              : 'Single-click a file in Explorer to open it for editing'}
           >
             {editorTabTitle}
           </button>

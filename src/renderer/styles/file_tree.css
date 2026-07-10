@@ -204,6 +204,21 @@
     border-radius: 4px;
 }
 
+/* Outstanding single-click / currently opened file highlight.
+   Applied instantly after a file name is single-clicked in either the File
+   Tree or the Favorite Files list. */
+.tree-item-content.opened-file {
+    background: linear-gradient(90deg, rgba(255, 140, 0, 0.28) 0%, rgba(255, 193, 7, 0.12) 100%);
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.55);
+}
+
+.item-name.opened-file-name {
+    color: #ffd54f;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(255, 193, 7, 0.45);
+}
+
 .folder-icon,
 .file-icon {
     margin-right: 6px;
@@ -626,6 +641,18 @@
     background-color: rgba(255, 255, 255, 0.12);
 }
 
+/* Keep the outstanding opened-file highlight visible inside the favorites box */
+.favorite-files .tree-item-content.opened-file {
+    background: linear-gradient(90deg, rgba(255, 140, 0, 0.32) 0%, rgba(255, 193, 7, 0.14) 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.6);
+}
+
+.favorite-files .item-name.opened-file-name {
+    color: #ffd54f;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+}
+
 /* ─────────────────────────────────────────────
    Star (favorite) icon — left of the eye icon
 ───────────────────────────────────────────── */
@@ -647,7 +674,6 @@
 .star-icon.favorited {
     display: inline-block;
     margin-left: 5px;
-    color: #ffc mon 107;
     color: #ffc06b;
     text-shadow: 0 0 8px rgba(255, 176, 32, 0.85), 0 0 14px rgba(255, 140, 0, 0.45);
 }
