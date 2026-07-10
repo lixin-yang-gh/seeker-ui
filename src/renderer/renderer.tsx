@@ -20,6 +20,8 @@ const App: React.FC = () => {
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [eulaAgreed, setEulaAgreed] = useState(false);
+  const [editorFilePath, setEditorFilePath] = useState<string | null>(null);
+  const fileManagerTabRef = useRef<{ setActiveTab?: (i: number) => void }>(null);
   const isResizingRef = useRef(false);
 
   // Preload the markdown rendering dependencies (react-markdown + remark-gfm)
@@ -89,6 +91,9 @@ const App: React.FC = () => {
   const handlePreviewChange = useCallback((filePath: string | null) => {
     setPreviewedFile(filePath);
   }, []);
+  const handleSingleClickFile = useCallback((filePath: string) => {
+    setEditorFilePath(filePath);
+  }, []);
 
   return (
     <>
@@ -104,6 +109,7 @@ const App: React.FC = () => {
             onFolderOpen={setCurrentPath}
             onSelectedPathsChange={handleSelectedPathsChange}
             previewedFile={previewedFile}
+            onSingleClickFile={handleSingleClickFile}
           />
           <div
             className="resizer"
@@ -115,6 +121,7 @@ const App: React.FC = () => {
               rootFolder={currentPath}
               selectedFilePaths={selectedFilePaths}
               onPreviewChange={handlePreviewChange}
+              editorFilePath={editorFilePath}
             />
           </div>
         </div>

@@ -8,6 +8,7 @@ interface FileTreeProps {
   onFolderOpen?: (path: string) => void;
   onSelectedPathsChange?: (paths: string[]) => void;
   previewedFilePath?: string | null;
+  onSingleClickFile?: (filePath: string) => void;
 }
 
 const copyToClipboard = async (text: string) => {
@@ -32,7 +33,8 @@ const FileTree: React.FC<FileTreeProps> = ({
   onFileSelect,
   onFolderOpen,
   onSelectedPathsChange,
-  previewedFilePath
+  previewedFilePath,
+  onSingleClickFile,
 }) => {
   const [tree, setTree] = useState<FileItem[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -462,6 +464,9 @@ const FileTree: React.FC<FileTreeProps> = ({
       setExpandedFolders(newExpanded);
     }
     // File clicks: copy path only (preview is handled by the eye icon)
+    if (item.isFile) {
+      onSingleClickFile?.(item.path);
+    }
   };
 
   const renderFileActionIcons = (item: FileItem) => {

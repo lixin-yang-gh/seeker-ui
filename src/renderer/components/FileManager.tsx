@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileContent } from '../../shared/types';
 import { getErrorMessage, getRelativePath } from '../../shared/utils';
-import { PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab } from './tabs';
+import { PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab, EditorTab } from './tabs';
 import FilePreviewOverlay from './FilePreviewOverlay';
 
 interface FileManagerProps {
@@ -10,6 +10,7 @@ interface FileManagerProps {
   selectedFilePaths?: string[];
   onTabChange?: (tabIndex: number) => void;
   onPreviewChange?: (filePath: string | null) => void;
+  editorFilePath?: string | null;
 }
 
 const FileManager: React.FC<FileManagerProps> = ({
@@ -18,11 +19,13 @@ const FileManager: React.FC<FileManagerProps> = ({
   selectedFilePaths = [],
   onTabChange,
   onPreviewChange,
+  editorFilePath,
 }) => {
   const [content, setContent] = useState<FileContent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(0);
+  // Tab indices: 0=Editor, 1=Prompt, 2=Inference, 3=Settings, 4=About
+  const [activeTab, setActiveTab] = useState(1);
   const [showPreview, setShowPreview] = useState(false);
   const [inferenceResult, setInferenceResult] = useState('');
   const [inferenceReasoning, setInferenceReasoning] = useState('');
@@ -31,15 +34,16 @@ const FileManager: React.FC<FileManagerProps> = ({
   const [inferenceLastSaveTime, setInferenceLastSaveTime] = useState<number | null>(null);
   const [isSingleBlockReplacementMode, setIsSingleBlockReplacementMode] = useState(false);
 
-  // Close the file preview overlay whenever the root folder changes.
+  // Dynamic editor tab title: file name from editorFilePath or 'Editor'
+  const editorTabTitle = editorFilePath
+    ? (editorFilePath.split(/[\\/]/).pop() || 'Editor')
+    : 'Editor';
+
   useEffect(() => {
-    if (showPreview) {
-      closePreview();
-    }
+    if (showPreview) closePreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootFolder]);
 
-  // Load saved inference result on folder change
   useEffect(() => {
     if (!rootFolder) return;
     const loadInferenceState = async () => {
@@ -52,7 +56,6 @@ const FileManager: React.FC<FileManagerProps> = ({
           setInferenceStatus(folderState.inferenceStatus || 'idle');
           setIsSingleBlockReplacementMode(Boolean(folderState.lastInferenceWasSingleBlockReplacement));
         } else {
-          // No saved state; reset
           setInferenceResult('');
           setInferenceReasoning('');
           setInferenceError('');
@@ -66,7 +69,6 @@ const FileManager: React.FC<FileManagerProps> = ({
     loadInferenceState();
   }, [rootFolder]);
 
-  // Save inference result to store when it changes (debounced)
   useEffect(() => {
     if (!rootFolder) return;
     const timer = setTimeout(async () => {
@@ -103,19 +105,13 @@ const FileManager: React.FC<FileManagerProps> = ({
   };
 
   const handleCancelInference = useCallback(async () => {
-    try {
-      await window.electronAPI.cancelOpenRouter();
-    } catch (e) {
-      console.error('Failed to cancel inference:', e);
-    }
-    // Reset status so user can reconfigure and re-run
+    try { await window.electronAPI.cancelOpenRouter(); } catch (e) { console.error('Failed to cancel inference:', e); }
     setInferenceStatus('idle');
     setInferenceError('');
   }, []);
 
-  const handleSwitchToPrompt = useCallback(() => {
-    setActiveTab(0);
-  }, []);
+  // Switch to Prompt tab (index 1)
+  const handleSwitchToPrompt = useCallback(() => { setActiveTab(1); }, []);
 
   useEffect(() => {
     if (filePath) {
@@ -132,29 +128,16 @@ const FileManager: React.FC<FileManagerProps> = ({
     onTabChange?.(tabIndex);
   };
 
-  const handleSwitchToInference = () => {
-    handleTabChange(1);
-  };
+  // Switch to Inference tab (index 2)
+  const handleSwitchToInference = () => { handleTabChange(2); };
 
   const loadFile = async (path: string) => {
     setLoading(true);
     setError(null);
-
     try {
       const stats = await window.electronAPI.getFileStats(path);
-
-      if (stats.isDirectory) {
-        setError('Selected item is a directory');
-        setContent(null);
-        return;
-      }
-
-      if (stats.size > 10 * 1024 * 1024) {
-        setError('File is too large to display (max 10MB)');
-        setContent(null);
-        return;
-      }
-
+      if (stats.isDirectory) { setError('Selected item is a directory'); setContent(null); return; }
+      if (stats.size > 10 * 1024 * 1024) { setError('File is too large to display (max 10MB)'); setContent(null); return; }
       const fileData = await window.electronAPI.readFile(path);
       setContent(fileData);
       setShowPreview(true);
@@ -169,45 +152,55 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   const headerText = `Location${rootFolder ? ` - ${rootFolder}` : ''}`;
 
-  // Tab titles (Prompt is the starting tab; Overview removed)
-  const promptOrganizerTabName = 'Prompt';
-
   return (
     <div className="file-manager" style={{ position: 'relative' }}>
       <div className="header-bar">{headerText}</div>
 
       <div className="tabs-container">
         <div className="tab-list">
+          {/* Tab 0: Editor */}
           <button
             className={`tab ${activeTab === 0 ? 'active' : ''}`}
             onClick={() => handleTabChange(0)}
+            title={editorFilePath ? `Editing: ${editorFilePath}` : 'Single-click a file in Explorer to open it for editing'}
+          >
+            {editorTabTitle}
+          </button>
+
+          {/* Tab 1: Prompt */}
+          <button
+            className={`tab ${activeTab === 1 ? 'active' : ''}`}
+            onClick={() => handleTabChange(1)}
             title="Open the prompt organizer tab"
           >
-            {promptOrganizerTabName}
+            Prompt
             {selectedFilePaths.length > 0 && (
               <span className="tab-badge">{selectedFilePaths.length}</span>
             )}
           </button>
 
+          {/* Tab 2: Inference */}
           <button
-            className={`tab ${activeTab === 1 ? 'active' : ''}`}
-            onClick={() => handleTabChange(1)}
+            className={`tab ${activeTab === 2 ? 'active' : ''}`}
+            onClick={() => handleTabChange(2)}
             title="Monitor inference process"
           >
             Inference
           </button>
 
+          {/* Tab 3: Settings */}
           <button
-            className={`tab ${activeTab === 2 ? 'active' : ''}`}
-            onClick={() => handleTabChange(2)}
+            className={`tab ${activeTab === 3 ? 'active' : ''}`}
+            onClick={() => handleTabChange(3)}
             title="Open settings"
           >
             Settings
           </button>
 
+          {/* Tab 4: About */}
           <button
-            className={`tab ${activeTab === 3 ? 'active' : ''}`}
-            onClick={() => handleTabChange(3)}
+            className={`tab ${activeTab === 4 ? 'active' : ''}`}
+            onClick={() => handleTabChange(4)}
             title="About Seeker UI"
           >
             About
@@ -215,33 +208,36 @@ const FileManager: React.FC<FileManagerProps> = ({
         </div>
 
         <div className="tab-content">
-          {loading && activeTab === 0 ? (
-            <div className="loading-overlay">
-              <div className="loading-spinner">Loading...</div>
-            </div>
-          ) : error && activeTab === 0 ? (
+          {loading && activeTab === 1 ? (
+            <div className="loading-overlay"><div className="loading-spinner">Loading...</div></div>
+          ) : error && activeTab === 1 ? (
             <div className="error-message">{error}</div>
           ) : (
             <>
               {activeTab === 0 && (
+                <EditorTab
+                  filePath={editorFilePath ?? null}
+                  rootFolder={rootFolder}
+                />
+              )}
+
+              {activeTab === 1 && (
                 <PromptOrganizerTab
                   selectedFilePaths={selectedFilePaths}
                   rootFolder={rootFolder}
-                  onBackToOverview={() => handleTabChange(0)}
+                  onBackToOverview={() => handleTabChange(1)}
                   onSwitchToInference={handleSwitchToInference}
                   onInferenceStatusChange={(status, result, reasoning, error, isSingleBlockReplacement) => {
                     setInferenceStatus(status);
                     setInferenceResult(result ?? '');
                     setInferenceReasoning(reasoning ?? '');
                     setInferenceError(error ?? '');
-                    if (isSingleBlockReplacement !== undefined) {
-                      setIsSingleBlockReplacementMode(isSingleBlockReplacement);
-                    }
+                    if (isSingleBlockReplacement !== undefined) setIsSingleBlockReplacementMode(isSingleBlockReplacement);
                   }}
                 />
               )}
 
-              {activeTab === 1 && (
+              {activeTab === 2 && (
                 <InferenceTab
                   rootFolder={rootFolder}
                   selectedFilePaths={selectedFilePaths}
@@ -257,13 +253,14 @@ const FileManager: React.FC<FileManagerProps> = ({
                 />
               )}
 
-              {activeTab === 2 && <SettingsTab />}
+              {activeTab === 3 && <SettingsTab />}
 
-              {activeTab === 3 && <AboutTab />}
+              {activeTab === 4 && <AboutTab />}
             </>
           )}
         </div>
       </div>
+
       {showPreview && content && (
         <FilePreviewOverlay
           filePath={filePath}

@@ -7,6 +7,7 @@ interface SidebarProps {
   onFolderOpen: (path: string) => void;
   onSelectedPathsChange?: (paths: string[]) => void;
   previewedFile?: string | null;
+  onSingleClickFile?: (filePath: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -14,11 +15,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   currentPath,
   onFolderOpen,
   onSelectedPathsChange,
-  previewedFile
+  previewedFile,
+  onSingleClickFile,
 }) => {
-  // Favorite Files UI + star toggles are implemented inside FileTree so they
-  // share selection/preview/context-menu handlers with tree file names.
-  // The favorites box renders above the tree content and is hidden when empty.
   return (
     <div className="sidebar">
       <FileTree
@@ -27,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         onFolderOpen={onFolderOpen}
         onSelectedPathsChange={onSelectedPathsChange}
         previewedFilePath={previewedFile}
+        onSingleClickFile={onSingleClickFile}
       />
       <div className="sidebar-footer">
         <div className="current-path">
