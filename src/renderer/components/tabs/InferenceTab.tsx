@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { applyBlockReplacements, BlockReplacementItem as UtilBlockReplacementItem, FileUpdateResult } from '../../../shared/file-updater';
+import { resolveProjectPath } from '../../../shared/utils';
 import InferenceControls from '../shared/InferenceControls';
 
 interface InferenceTabProps {
@@ -17,7 +18,7 @@ interface InferenceTabProps {
   onSwitchToPrompt?: () => void;
   /**
    * True when the cached/last-run inference was generated using the
-   * "Single Block Replacement" task prompt. While true, the "Update File(s)"
+   * "Single Block Replacement" task prompt. While true, the "Update Files"
    * button is disabled because that mode only ever targets a single block
    * and its output is not intended to be auto-applied via this flow.
    */
@@ -521,7 +522,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   const [pasteSuccess, setPasteSuccess] = useState(false);
   const [pasteFailure, setPasteFailure] = useState(false);
 
-  // Update File(s) confirm flow
+  // Update Files confirm flow
   const [updateConfirming, setUpdateConfirming] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateResults, setUpdateResults] = useState<FileUpdateResult[]>([]);
@@ -608,12 +609,53 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
     setIsUpdating(true);
     setUpdateResults([]);
     try {
-      // Cast local BlockReplacementItem to the shared utility type (shapes are identical minus `raw`)
-      const results = await applyBlockReplacements(
-        blockItems as UtilBlockReplacementItem[],
-        rootFolder
-      );
-      setUpdateResults(results);
+      if (isSingleBlockReplacementMode) {
+        // ─── Tagged Block Update: isolated processing branch ───
+        // In this mode there is exactly one block item whose "replacement"
+        // field contains the new inner text for the <block_to_update> tag.
+        const item = blockItems[0];
+        const absPath = resolveProjectPath(item.path, rootFolder);
+        const fileData = await window.electronAPI.readFile(absPath);
+        const content = fileData.content;
+
+        // Match the first <block_to_update ...>...</block_to_update> tag.
+        const tagPattern = /(<block_to_update[^>]*>)([\s\S]*?)(<\/block_to_update>)/;
+        const match = content.match(tagPattern);
+
+        if (!match) {
+          setUpdateResults([{
+            path: absPath,
+            success: false,
+            error: 'No <block_to_update> tag found in file.',
+            operation: 'tagged-block-update'
+          }]);
+          setShowUpdateSummary(true);
+          return;
+        }
+
+        // Replace only the inner content (between the opening and closing tags)
+        // with the parsed replacement value, preserving the tag wrapper.
+        const replacement = item.replacement ?? '';
+        const newContent = content.replace(tagPattern, (_match, openTag, _inner, closeTag) => {
+          return openTag + replacement + closeTag;
+        });
+
+        await window.electronAPI.writeFile(absPath, newContent);
+
+        setUpdateResults([{
+          path: absPath,
+          success: true,
+          operation: 'tagged-block-update'
+        }]);
+      } else {
+        // ─── Standard block replacement flow ───
+        // Cast local BlockReplacementItem to the shared utility type (shapes are identical minus `raw`)
+        const results = await applyBlockReplacements(
+          blockItems as UtilBlockReplacementItem[],
+          rootFolder
+        );
+        setUpdateResults(results);
+      }
       setShowUpdateSummary(true);
     } catch (err: any) {
       setUpdateResults([{ path: '(unknown)', success: false, error: err?.message ?? String(err) }]);
@@ -622,7 +664,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
       setIsUpdating(false);
       setUpdateConfirming(false);
     }
-  }, [rootFolder, effectiveResult, blockItems]);
+  }, [rootFolder, effectiveResult, blockItems, isSingleBlockReplacementMode]);
 
   const hasContent = !!(effectiveResult || inferenceReasoning || inferenceError);
 
@@ -642,8 +684,8 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {/* Running indicator */}
             {inferenceStatus === 'running' && (
-              <div className="inference-loading" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div className="spinner" style={{ width: '14px', height: '16px', borderWidth: '2px' }} />
+              <div className="inference-loading" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '5px' }}>
+                <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', position:'relative', top: '4px', marginRight: '5px' }} />
                 Running …
               </div>
             )}
@@ -716,15 +758,15 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
             {!updateConfirming ? (
               <button
                 className="inference-action-button"
-                disabled={!effectiveResult || !rootFolder || blockItems.length === 0 || isSingleBlockReplacementMode}
+                disabled={!effectiveResult || !rootFolder || blockItems.length === 0}
                 onClick={() => setUpdateConfirming(true)}
                 title={
                   isSingleBlockReplacementMode
-                    ? 'Disabled: this result was generated using Single Block Replacement mode'
+                    ? 'Apply the tagged block replacement from the inference result to the file'
                     : 'Apply the block replacements from the inference result to the files'
                 }
               >
-                Update File(s)
+                Update Files
               </button>
             ) : (
               <>

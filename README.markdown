@@ -207,7 +207,7 @@ Once you receive a response from an external service (or from any other source),
    - Read your clipboard content.
    - Parse it for fenced JSON blocks (language “json”).
    - Display the pasted text in the result area.
-   - If valid block replacement items are found, the **“Update File(s)”** button becomes enabled.
+   - If valid block replacement items are found, the **“Update Files”** button becomes enabled.
 
 This allows you to use any AI service you prefer and still leverage Seeker UI’s file‑update workflow.
 
@@ -230,7 +230,7 @@ Each object in the JSON array must have:
 The UI renders each block with the original and replacement side‑by‑side, along with a **copy** button for each snippet.
 
 ### Applying Updates
-1. With a valid set of blocks in the result area, click **“Update File(s)”**.
+1. With a valid set of blocks in the result area, click **“Update Files”**.
 2. A confirmation prompt appears. Click **“OK”** to proceed.
 3. The app will:
    - For each block, attempt to locate the file, read it, find the `original` block, and perform the specified operation.

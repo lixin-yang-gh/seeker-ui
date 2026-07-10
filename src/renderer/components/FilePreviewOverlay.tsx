@@ -11,6 +11,10 @@ import { getMarkdownModulesPromise, MarkdownModules } from '../../shared/markdow
 // a single map entry per file path covers both display modes.
 const scrollPositionMap = new Map<string, number>();
 
+// Maximum number of undo/redo history entries retained per editing session
+// for the FilePreviewOverlay text editor.
+const MAX_UNDO_HISTORY = 200;
+
 interface FilePreviewOverlayProps {
   filePath: string | null;
   rootFolder?: string | null;
@@ -59,6 +63,23 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   const fontSizeLoadedRef = useRef<boolean>(false);
   const wordWrapLoadedRef = useRef<boolean>(false);
   const markdownThemeLoadedRef = useRef<boolean>(false);
+  // ── Manual undo/redo history for the text editor (Ctrl/Cmd+Z / Ctrl/Cmd+Y) ──
+  // A ref mirror of editedContent so undo/redo logic (and the debounced typing
+  // batcher) always reads the latest value without needing editedContent in
+  // every callback's dependency array.
+  const editedContentRef = useRef<string>(initialContent);
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  // Snapshot of the content captured at the start of the current in-progress
+  // typing burst; committed to undoStackRef once the burst pauses (debounced)
+  // or is flushed early (e.g. Undo pressed mid-burst, or a cut/paste occurs).
+  const pendingUndoSnapshotRef = useRef<string | null>(null);
+  const historyTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Keep editedContentRef in sync with the editedContent state.
+  useEffect(() => {
+    editedContentRef.current = editedContent;
+  }, [editedContent]);
 
   // Load persisted font size AND word wrap for this root folder on mount
   // (or when rootFolder changes).
@@ -165,11 +186,20 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
   useEffect(() => {
     setEditedContent(initialContent);
     originalContentRef.current = initialContent;
+    editedContentRef.current = initialContent;
     setIsDirty(false);
     setIsEditable(false);
     setShowUnsavedModal(false);
     setSaveStatus('idle');
     setSaveError(null);
+    // Reset the undo/redo history for the newly (re)opened file/content.
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    pendingUndoSnapshotRef.current = null;
+    if (historyTimerRef.current) {
+      clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+    }
 
     // Restore the memorized scroll position for this file path (if any),
     // applying it to the editor (and its highlight overlay, if present)
@@ -333,14 +363,80 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     [onSave, filePath]
   );
 
+  const pushUndoSnapshot = useCallback((snapshot: string) => {
+    const stack = undoStackRef.current;
+    if (stack.length > 0 && stack[stack.length - 1] === snapshot) return;
+    stack.push(snapshot);
+    if (stack.length > MAX_UNDO_HISTORY) stack.shift();
+  }, []);
+
+  // Flush any in-progress typing burst into a completed undo step.
+  const commitPendingUndoBatch = useCallback(() => {
+    if (historyTimerRef.current) {
+      clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+    }
+    if (pendingUndoSnapshotRef.current !== null) {
+      pushUndoSnapshot(pendingUndoSnapshotRef.current);
+      pendingUndoSnapshotRef.current = null;
+    }
+  }, [pushUndoSnapshot]);
+
   const handleContentChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
+      // Group rapid keystrokes into a single undo step: capture the content
+      // as it was before this typing burst started, then commit it to the
+      // undo stack once the user pauses (or immediately if Undo/Redo is
+      // triggered mid-burst — see commitPendingUndoBatch).
+      if (pendingUndoSnapshotRef.current === null) {
+        pendingUndoSnapshotRef.current = editedContentRef.current;
+        redoStackRef.current = [];
+      }
+      if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = setTimeout(() => {
+        if (pendingUndoSnapshotRef.current !== null) {
+          pushUndoSnapshot(pendingUndoSnapshotRef.current);
+        }
+        pendingUndoSnapshotRef.current = null;
+        historyTimerRef.current = null;
+      }, 600);
       setEditedContent(newValue);
       setIsDirty(newValue !== originalContentRef.current);
     },
-    []
+    [pushUndoSnapshot]
   );
+
+  // Shortcut: Ctrl/Cmd+Z — revert the last change made in the editor.
+  const handleUndo = useCallback(() => {
+    if (!isEditable) return;
+    commitPendingUndoBatch();
+    const stack = undoStackRef.current;
+    if (stack.length === 0) return;
+    const previous = stack.pop()!;
+    redoStackRef.current.push(editedContentRef.current);
+    setEditedContent(previous);
+    setIsDirty(previous !== originalContentRef.current);
+  }, [isEditable, commitPendingUndoBatch]);
+
+  // Shortcut: Ctrl/Cmd+Y — recover the last reverted/deleted change.
+  const handleRedo = useCallback(() => {
+    if (!isEditable) return;
+    // A redo should never fire mid-typing-burst; clear any pending batch so
+    // the stacks stay consistent (the redo stack was already cleared when
+    // the burst began, so this simply discards in-progress bookkeeping).
+    if (historyTimerRef.current) {
+      clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+    }
+    pendingUndoSnapshotRef.current = null;
+    const stack = redoStackRef.current;
+    if (stack.length === 0) return;
+    const next = stack.pop()!;
+    undoStackRef.current.push(editedContentRef.current);
+    setEditedContent(next);
+    setIsDirty(next !== originalContentRef.current);
+  }, [isEditable]);
 
   // Clipboard shortcut handling for the editor textarea.
   //  - Read-only mode: Ctrl/Cmd+C copies the currently highlighted text.
@@ -387,6 +483,10 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
           console.error('FilePreviewOverlay: cut (copy phase) failed', err);
           return; // do not mutate content if clipboard write failed
         }
+        // Record this cut as its own discrete undo step.
+        commitPendingUndoBatch();
+        pushUndoSnapshot(editedContent);
+        redoStackRef.current = [];
         const newValue =
           editedContent.slice(0, selStart) + editedContent.slice(selEnd);
         setEditedContent(newValue);
@@ -414,8 +514,12 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
           return;
         }
         if (!clip) return;
+        // Record this paste as its own discrete undo step.
+        commitPendingUndoBatch();
+        pushUndoSnapshot(editedContent);
+        redoStackRef.current = [];
         const newValue =
-          editedContent.slice(0, selStart) + ' ' + clip + ' ' + editedContent.slice(selEnd);
+          editedContent.slice(0, selStart) + clip + editedContent.slice(selEnd);
         setEditedContent(newValue);
         setIsDirty(newValue !== originalContentRef.current);
         // Place caret at the end of the inserted text.
@@ -430,7 +534,7 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
         return;
       }
     },
-    [editedContent, isEditable]
+    [editedContent, isEditable, commitPendingUndoBatch, pushUndoSnapshot]
   );
 
   // Intercept close attempts to warn about unsaved changes
@@ -510,6 +614,14 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
     setIsEditable(false);
     setSaveStatus('idle');
     setSaveError(null);
+    // Reset the undo/redo history since the content has been fully reloaded.
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    pendingUndoSnapshotRef.current = null;
+    if (historyTimerRef.current) {
+      clearTimeout(historyTimerRef.current);
+      historyTimerRef.current = null;
+    }
   }, [filePath]);
 
   // Handle ESC key to close (also routed through attemptClose), Ctrl/Cmd+S to
@@ -541,11 +653,23 @@ const FilePreviewOverlay: React.FC<FilePreviewOverlayProps> = ({
         if (isEditable && isDirty && saveStatus !== 'saving') {
           handleSave();
         }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        // Ctrl/Cmd+Z — revert the last change made in the editor.
+        if (isEditable) {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        // Ctrl/Cmd+Y — recover the last reverted/deleted change.
+        if (isEditable) {
+          e.preventDefault();
+          handleRedo();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showUnsavedModal, attemptClose, handleCancelClose, isEditable, isDirty, saveStatus, handleSave, showSearch, showMarkdownView]);
+  }, [showUnsavedModal, attemptClose, handleCancelClose, isEditable, isDirty, saveStatus, handleSave, showSearch, showMarkdownView, handleUndo, handleRedo]);
 
   return (
     <div className="file-preview-overlay" onClick={attemptClose}>
