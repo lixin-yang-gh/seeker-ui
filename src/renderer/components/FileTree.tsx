@@ -8,6 +8,7 @@ interface FileTreeProps {
   onBeforeFolderChange?: (newPath: string) => Promise<boolean>;
   onSelectedPathsChange?: (paths: string[]) => void;
   onSingleClickFile?: (filePath: string) => void;
+  onEditFile?: (filePath: string) => void;
 }
 
 const copyToClipboard = async (text: string) => {
@@ -33,6 +34,7 @@ const FileTree: React.FC<FileTreeProps> = ({
   onBeforeFolderChange,
   onSelectedPathsChange,
   onSingleClickFile,
+  onEditFile,
 }) => {
   const [tree, setTree] = useState<FileItem[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -516,6 +518,16 @@ const FileTree: React.FC<FileTreeProps> = ({
         >
           📋
         </span>
+        <span
+          className="file-icon edit-icon copy-path-icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditFile?.(item.path);
+          }}
+          title="Edit file in Editor tab"
+        >
+          ✒️
+        </span>
       </>
     );
   };
@@ -821,6 +833,18 @@ const FileTree: React.FC<FileTreeProps> = ({
             >
               📋 {contextMenu.item.isDirectory ? 'Copy Folder Path' : 'Copy File Path'}
             </button>
+            {contextMenu.item.isFile && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setContextMenu(null);
+                  onEditFile?.(contextMenu.item.path);
+                }}
+                title="Open this file in the Editor tab"
+              >
+                ✒️ Edit
+              </button>
+            )}
             {contextMenu.item.isFile && (
               <button
                 className="context-menu-item"

@@ -88,6 +88,11 @@ const App: React.FC = () => {
     setEditorFilePath(filePath);
   }, []);
 
+  const handleEditFile = useCallback((filePath: string) => {
+    setEditorFilePath(filePath);
+    fileManagerRef.current?.setActiveTab(0);
+  }, []);
+
   const handleBeforeFolderChange = useCallback(async (_newPath: string): Promise<boolean> => {
     const isDirty = fileManagerRef.current?.isEditorDirty() ?? false;
     if (!isDirty) {
@@ -115,6 +120,7 @@ const App: React.FC = () => {
             onBeforeFolderChange={handleBeforeFolderChange}
             onSelectedPathsChange={handleSelectedPathsChange}
             onSingleClickFile={handleSingleClickFile}
+            onEditFile={handleEditFile}
           />
           <div
             className="resizer"

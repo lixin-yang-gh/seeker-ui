@@ -287,6 +287,14 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     const handleFolderChange = async () => {
       if (!rootFolder) return;
 
+      // Reset init refs to prevent auto-save effects from overwriting the new
+      // folder's persisted state with stale values from the previous folder
+      // before the async load completes.
+      systemPromptInitRef.current = true;
+      taskInitRef.current = true;
+      inferenceContextInitRef.current = true;
+      maskedSubstringsInitRef.current = true;
+
       try {
         // Check if state exists for this specific folder
         const savedState = await window.electronAPI.getFolderState(rootFolder);
@@ -295,7 +303,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           // State exists: Load it into the UI
           setSystemPrompt(savedState.systemPrompt || '');
           setTask(savedState.task || '');
-          setInferenceContext(savedState.inferenceContext || savedState.issues || '');
+          setInferenceContext(savedState.inferenceContext ?? savedState.issues ?? '');
           setMaskedSubstrings(savedState.maskedSubstrings || '');
         } else {
           // State does NOT exist: Inherit current values (Inheritance Logic)

@@ -13,6 +13,7 @@ interface FileManagerProps {
 export interface FileManagerRef {
   isEditorDirty: () => boolean;
   requestFolderSwitch: () => Promise<boolean>;
+  setActiveTab: (tabIndex: number) => void;
 }
 
 const FileManager = React.forwardRef(({
@@ -37,7 +38,8 @@ const FileManager = React.forwardRef(({
   useImperativeHandle(ref, () => ({
     isEditorDirty: () => editorRef.current?.getIsDirty() ?? false,
     requestFolderSwitch: () => editorRef.current?.requestFolderSwitch() ?? Promise.resolve(true),
-  }), []);
+    setActiveTab: (tabIndex: number) => { setActiveTab(tabIndex); onTabChange?.(tabIndex); },
+  }), [onTabChange]);
 
   // Dynamic editor tab title: prefer the project-root-relative path (exclusive
   // of "<project_root>" itself), e.g. "folder1/a.txt". Fall back to the bare

@@ -1,9 +1,17 @@
 # Seeker UI – The Visual AI Workspace
 
+**Recent Updates**
+
+The new release provides the following new features.
+
+- Comprehensive text editor available for speedy file editing within the app.
+- Integration with **Venice API** which provides uniquely secure inference endpoints.
+- General overhaul to the UI supporting more smooth user workflow across editing, inferencing and file updating.
+  
+
 **Future Roadmap**
 
-- Add **Venice API** support alongside **OpenRouter**, prioritising guaranteed privacy protection and data security.
-- Migrate inference orchestration to an **agentic** architecture, enabling multi-node workflows.
+- Migrate inference orchestration to an **agentic** architecture, enabling multi-node workflows and providing entry point for integrating external MCP servers.
 - Integrate a remote **web search and scraping MCP server** for **enriched context** in coding (documentation lookup) and writing (live web content) tasks.
 
 ## Introduction

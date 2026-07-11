@@ -7,6 +7,7 @@ interface SidebarProps {
   onBeforeFolderChange?: (newPath: string) => Promise<boolean>;
   onSelectedPathsChange?: (paths: string[]) => void;
   onSingleClickFile?: (filePath: string) => void;
+  onEditFile?: (filePath: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -15,6 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onBeforeFolderChange,
   onSelectedPathsChange,
   onSingleClickFile,
+  onEditFile,
 }) => {
   return (
     <div className="sidebar">
@@ -24,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         onBeforeFolderChange={onBeforeFolderChange}
         onSelectedPathsChange={onSelectedPathsChange}
         onSingleClickFile={onSingleClickFile}
+        onEditFile={onEditFile}
       />
       <div className="sidebar-footer">
         <div className="current-path">

@@ -300,7 +300,7 @@ ipcMain.handle('store:saveSelectedHeader', (_, folderPath: string, value: string
 
 ipcMain.handle('store:getInferenceContext', (_, folderPath: string) => {
   const state = getFolderState(folderPath);
-  return state.inferenceContext || state.issues || '';
+  return state.inferenceContext ?? state.issues ?? '';
 });
 
 ipcMain.handle('store:saveInferenceContext', (_, folderPath: string, value: string) => {
