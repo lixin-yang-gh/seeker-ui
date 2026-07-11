@@ -15,6 +15,7 @@ export interface EditorTabRef {
   getIsDirty: () => boolean;
   requestTabSwitch: (callback: () => void) => void;
   requestFolderSwitch: () => Promise<boolean>;
+  reloadFile: () => void;
 }
 
 const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: React.ForwardedRef<EditorTabRef>) => {
@@ -57,6 +58,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
   const pendingUndoSnapshotRef = useRef<string | null>(null);
+  const pendingScrollRestoreRef = useRef<number | null>(null);
   const historyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -174,10 +176,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
         pendingUndoSnapshotRef.current = null;
         if (historyTimerRef.current) { clearTimeout(historyTimerRef.current); historyTimerRef.current = null; }
         const savedScrollTop = scrollPositionMap.get(targetPath) ?? 0;
-        requestAnimationFrame(() => {
-          if (editorRef.current) editorRef.current.scrollTop = savedScrollTop;
-          if (highlightLayerRef.current) highlightLayerRef.current.scrollTop = savedScrollTop;
-        });
+        pendingScrollRestoreRef.current = savedScrollTop;
       } catch (err: any) {
         if (!cancelled) setLoadError('Error loading file: ' + (err?.message ?? String(err)));
       } finally {
@@ -207,6 +206,23 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filePath, loadFileFromDisk]);
+
+  // Restore pending scroll position whenever the editor becomes visible.
+  // This handles both the initial load (when loading flips to false) and the
+  // case where the editor was hidden during load and becomes visible later
+  // (e.g. when the user switches back to the Editor tab after a file update).
+  useEffect(() => {
+    if (pendingScrollRestoreRef.current !== null) {
+      const scrollTop = pendingScrollRestoreRef.current;
+      if (editorRef.current && editorRef.current.offsetParent !== null) {
+        pendingScrollRestoreRef.current = null;
+        requestAnimationFrame(() => {
+          if (editorRef.current) editorRef.current.scrollTop = scrollTop;
+          if (highlightLayerRef.current) highlightLayerRef.current.scrollTop = scrollTop;
+        });
+      }
+    }
+  });
 
   // Markdown modules
   useEffect(() => {
@@ -543,7 +559,17 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
         setPendingAction({ type: 'folder' });
       });
     },
-  }), [isDirtyRef, setPendingAction]);
+    reloadFile: () => {
+      if (!loadedFilePathRef.current) return;
+      // Save scroll position before reloading (use editor value when visible,
+      // otherwise preserve the existing scrollPositionMap entry)
+      const editorEl = editorRef.current;
+      if (editorEl && editorEl.offsetParent !== null) {
+        scrollPositionMap.set(loadedFilePathRef.current, editorEl.scrollTop);
+      }
+      loadFileFromDisk(loadedFilePathRef.current);
+    },
+  }), [isDirtyRef, setPendingAction, loadFileFromDisk]);
 
   // Keyboard shortcuts
   useEffect(() => {

@@ -234,6 +234,7 @@ const FileManager = React.forwardRef(({
               onSwitchToPrompt={handleSwitchToPrompt}
               inferenceLastSavedTimestamp={inferenceLastSaveTime}
               isSingleBlockReplacementMode={isSingleBlockReplacementMode}
+              onFilesUpdated={() => editorRef.current?.reloadFile()}
             />
           )}
 

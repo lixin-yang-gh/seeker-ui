@@ -23,6 +23,8 @@ interface InferenceTabProps {
    * and its output is not intended to be auto-applied via this flow.
    */
   isSingleBlockReplacementMode?: boolean;
+  /** Called after files have been updated via the "Update Files" button */
+  onFilesUpdated?: () => void;
 }
 
 // ─── Block Replacement Parser ─────────────────────────────────────
@@ -513,6 +515,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
   onSwitchToPrompt,
   inferenceLastSavedTimestamp,
   isSingleBlockReplacementMode = false,
+  onFilesUpdated,
 }) => {
   const [model, setModel] = useState<string>('');
   const [temperature, setTemperature] = useState<number | undefined>(undefined);
@@ -657,6 +660,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         setUpdateResults(results);
       }
       setShowUpdateSummary(true);
+      onFilesUpdated?.();
     } catch (err: any) {
       setUpdateResults([{ path: '(unknown)', success: false, error: err?.message ?? String(err) }]);
       setShowUpdateSummary(true);
@@ -664,7 +668,7 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
       setIsUpdating(false);
       setUpdateConfirming(false);
     }
-  }, [rootFolder, effectiveResult, blockItems, isSingleBlockReplacementMode]);
+  }, [rootFolder, effectiveResult, blockItems, isSingleBlockReplacementMode, onFilesUpdated]);
 
   const hasContent = !!(effectiveResult || inferenceReasoning || inferenceError);
 

@@ -590,7 +590,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding: 4px 0;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 40%);
+    background: #161616;
 }
 
 .favorite-files-list::-webkit-scrollbar {
@@ -614,11 +614,12 @@
 .favorite-files-item .star-icon,
 .favorite-files-item .copy-path-icon {
     display: inline-block;
-    margin-left: 5px;
+    margin: 0 0 0 2px;
 }
 
 .favorite-files .tree-item {
     background: transparent;
+    border-bottom: 1px dotted #222;
 }
 
 .favorite-files .tree-item:hover {
