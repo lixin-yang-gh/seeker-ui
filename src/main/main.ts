@@ -9,6 +9,10 @@ import { callVenice } from '../shared/venice';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+
+// Set to false to disable logging of system/user prompts before API calls
+const PROMPT_LOGGING_ENABLED = false;
+
 // Define the state structure for a specific folder
 interface FolderSpecificState {
   systemPrompt?: string;
@@ -405,6 +409,10 @@ let activeInferenceAbortController: AbortController | null = null;
 
 // Inference API call — dispatches to OpenRouter or Venice based on apiTarget.
 ipcMain.handle('openRouter:call', async (_, { systemPrompt, userPrompt, model, deepThinking, webSearch, temperature, temperature_claude, apiTarget, maxTokens }) => {
+  if (PROMPT_LOGGING_ENABLED) {
+    console.log('[Prompt Log] System Prompt:', systemPrompt);
+    console.log('[Prompt Log] User Prompt:', userPrompt);
+  }
   const apiSettings = store.get('apiSettings');
   const target: 'OpenRouter' | 'Venice' = apiTarget === 'Venice' ? 'Venice' : 'OpenRouter';
 
