@@ -28,13 +28,13 @@ const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Feasibility', value: 'Please explore feasibility ' },
   { key: 'Analysis', value: 'Please provide analysis ' },
   { key: 'Review', value: 'Please review ' },
-  { key: 'Solution', value: 'Please propose the best solution.' },
-  { key: 'Enhancements', value: 'Please propose enhancement.' },
-  { key: 'Improvements', value: 'Please propose improvement.' },
-  { key: 'Words', value: 'Please propose word changes.' },
-  { key: 'Codes', value: 'Please propose code changes.' },
-  { key: 'Fixes', value: 'Please propose fixes.' },
-  { key: 'Report', value: 'Please create a report.' },
+  { key: 'Solution', value: 'Please propose the best solution ' },
+  { key: 'Enhancement', value: 'Please propose enhancement ' },
+  { key: 'Improvement', value: 'Please propose improvement ' },
+  { key: 'Words', value: 'Please propose word changes ' },
+  { key: 'Codes', value: 'Please propose code changes ' },
+  { key: 'Fixes', value: 'Please propose fixes ' },
+  { key: 'Report', value: 'Please create a report ' },
 ];
 
 const block_replacement_prompt = `
