@@ -245,10 +245,9 @@ const HEADER_OPTIONS: Array<{ display: string; value: string }> = [
   { display: 'Logs', value: 'logs' },
   { display: 'Feedback', value: 'feedback' },
   { display: 'Proposals', value: 'proposals' },
-  { display: 'Third Party Proposals', value: 'third_party_proposals' },
-  { display: 'Analysis', value: 'analysis' },
-  { display: 'Context', value: 'context' },
+  { display: 'Retrieved Context', value: 'retrieved_context' },
   { display: 'Info', value: 'info' },
+  { display: 'Constraints', value: 'constraints' },
 ];
 
 const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
