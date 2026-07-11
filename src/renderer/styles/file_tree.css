@@ -313,6 +313,10 @@
     color: #888;
     flex-shrink: 0;
     /* Prevent shrinking */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
 
 .current-path {
@@ -710,4 +714,117 @@
 .copy-path-icon:hover {
     color: #80e0ff;
     transform: scale(1.18);
+}
+.copy-path-icon:hover {
+    color: #80e0ff;
+    transform: scale(1.18);
+}
+
+/* ─────────────────────────────────────────────
+   Create New File icon (next to folder badge)
+───────────────────────────────────────────── */
+.create-file-icon {
+    display: none;
+    font-size: 12px;
+    color: #80e0ff;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+    margin-left: 4px;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.tree-item:hover .create-file-icon {
+    display: inline-block;
+}
+
+.create-file-icon:hover {
+    color: #a0f0ff;
+    transform: scale(1.18);
+}
+
+/* ─────────────────────────────────────────────
+   File Tree Footer (Create New File in root)
+───────────────────────────────────────────── */
+.file-tree-footer {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border-top: 1px solid #1e1e1e;
+    background: #252526;
+    display: flex;
+    align-items: center;
+}
+
+.create-file-footer-btn {
+    padding: 5px 12px;
+    background: #0e639c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.create-file-footer-btn:hover:not(:disabled) {
+    background: #1177bb;
+}
+
+.create-file-footer-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ─────────────────────────────────────────────
+   Create New File Modal
+───────────────────────────────────────────── */
+.create-file-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.create-file-modal {
+    background: #1e1e1e;
+    border: 1px solid #555;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* ─────────────────────────────────────────────
+   Sidebar Create File Button
+───────────────────────────────────────────── */
+.sidebar-create-file-btn {
+    padding: 8px 10px;
+    background: #0e639c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+.sidebar-create-file-btn:hover:not(:disabled) {
+    background: #1177bb;
+}
+
+.sidebar-create-file-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }

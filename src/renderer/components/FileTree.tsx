@@ -28,14 +28,18 @@ const sortFileItems = (items: FileItem[]): FileItem[] => {
 const getFileNameFromPath = (filePath: string): string =>
   filePath.split(/[\\/]/).pop() || filePath;
 
-const FileTree: React.FC<FileTreeProps> = ({
+export interface FileTreeHandle {
+  openCreateFileModal: (parentPath: string) => void;
+}
+
+const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({ 
   rootPath,
   onFolderOpen,
   onBeforeFolderChange,
   onSelectedPathsChange,
   onSingleClickFile,
   onEditFile,
-}) => {
+}, ref) => {
   const [tree, setTree] = useState<FileItem[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
@@ -62,6 +66,18 @@ const FileTree: React.FC<FileTreeProps> = ({
   selectedFilePathsRef.current = selectedFilePaths;
   const favoriteFilesRef = useRef<string[]>(favoriteFiles);
   favoriteFilesRef.current = favoriteFiles;
+
+  // Create New File modal state
+  const [createFileModal, setCreateFileModal] = useState<{ parentPath: string } | null>(null);
+  const [newFileName, setNewFileName] = useState('');
+
+  // Expose imperative handle for parent components (e.g. Sidebar footer button)
+  React.useImperativeHandle(ref, () => ({
+    openCreateFileModal: (parentPath: string) => {
+      setCreateFileModal({ parentPath });
+      setNewFileName('');
+    },
+  }));
 
   // Show a short-lived notice (auto-dismisses) when a binary file is blocked.
   const showBinaryNotice = useCallback((filePath: string) => {
@@ -455,6 +471,64 @@ const FileTree: React.FC<FileTreeProps> = ({
     setTimeout(() => setRecentlyCopied(null), 1200);
   }, [getProjectRootRelativePath]);
 
+  const handleCreateNewFile = useCallback((parentPath: string) => {
+    setCreateFileModal({ parentPath });
+    setNewFileName('');
+  }, []);
+
+  const handleCreateFileSubmit = useCallback(async () => {
+    if (!createFileModal || !newFileName.trim()) return;
+    const fileName = newFileName.trim();
+    const sep = createFileModal.parentPath.includes('\\') ? '\\' : '/';
+    const filePath = createFileModal.parentPath + sep + fileName;
+    try {
+      await window.electronAPI.writeFile(filePath, '');
+      const parentPath = createFileModal.parentPath;
+      setCreateFileModal(null);
+      setNewFileName('');
+      // Refresh the parent folder in the tree
+      try {
+        if (parentPath === rootPath) {
+          const newTree = await loadAllChildren(rootPath);
+          const applyChecked = (items: FileItem[]): FileItem[] =>
+            items.map(item => ({
+              ...item,
+              isChecked: selectedFilePaths.has(item.path),
+              children: item.children ? applyChecked(item.children) : undefined,
+            }));
+          setTree(applyChecked(newTree));
+        } else {
+          const children = await window.electronAPI.readDirectory(parentPath);
+          const childrenWithState = sortFileItems(children.map(c => ({
+            ...c, isChecked: selectedFilePaths.has(c.path)
+          })));
+          setTree(prev => updateTreeItem(prev, parentPath, { children: childrenWithState }));
+        }
+        // Ensure the parent folder is expanded
+        setExpandedFolders(prev => {
+          const next = new Set(prev);
+          next.add(parentPath);
+          return next;
+        });
+      } catch (refreshError) {
+        console.error('Error refreshing after file creation:', refreshError);
+      }
+    } catch (err: any) {
+      console.error('Failed to create file:', err);
+      alert('Failed to create file: ' + (err?.message || err));
+    }
+  }, [createFileModal, newFileName, rootPath, selectedFilePaths]);
+
+  const handleDeleteFile = useCallback(async (item: FileItem) => {
+    setContextMenu(null);
+    alert('To delete "' + item.name + '", please remove it in File Explorer, Finder, or other file manager.');
+    try {
+      await window.electronAPI.openContainingFolder(item.path);
+    } catch (err) {
+      console.error('Failed to open containing folder:', err);
+    }
+  }, []);
+
   const toggleFolder = async (item: FileItem, expandOnly: boolean = false) => {
     if (item.isDirectory) {
       const newExpanded = new Set(expandedFolders);
@@ -562,6 +636,18 @@ const FileTree: React.FC<FileTreeProps> = ({
             {recentlyCopied === item.path && <span className="copied-indicator">✓ path copied</span>}
             {item.isDirectory && item.children && (
               <span className="selection-badge">{item.children.filter(c => c.isFile).length}</span>
+            )}
+            {item.isDirectory && (
+              <span
+                className="file-icon create-file-icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCreateNewFile(item.path);
+                }}
+                title="Create new file in this folder"
+              >
+                📄+
+              </span>
             )}
           </div>
         </div>
@@ -688,6 +774,18 @@ const FileTree: React.FC<FileTreeProps> = ({
           tree.map(item => renderTreeItem(item))
         )}
       </div>
+
+      {/* Footer bar — Create New File in root folder */}
+      {/* <div className="file-tree-footer">
+        <button
+          className="create-file-footer-btn"
+          onClick={() => handleCreateNewFile(rootPath)}
+          disabled={!rootPath}
+          title="Create a new file in the root folder"
+        >
+          📄+ New File
+        </button>
+      </div> */}
 
       {showOpenFolderModal && (
         <div
@@ -833,6 +931,18 @@ const FileTree: React.FC<FileTreeProps> = ({
             >
               📋 {contextMenu.item.isDirectory ? 'Copy Folder Path' : 'Copy File Path'}
             </button>
+            {contextMenu.item.isDirectory && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setContextMenu(null);
+                  handleCreateNewFile(contextMenu.item.path);
+                }}
+                title="Create a new file in this folder"
+              >
+                📄+ Create New File
+              </button>
+            )}
             {contextMenu.item.isFile && (
               <button
                 className="context-menu-item"
@@ -857,6 +967,15 @@ const FileTree: React.FC<FileTreeProps> = ({
                 {favoriteFiles.includes(contextMenu.item.path) ? '★ Remove Favorite' : '☆ Add Favorite'}
               </button>
             )}
+            {contextMenu.item.isFile && (
+              <button
+                className="context-menu-item"
+                onClick={() => handleDeleteFile(contextMenu.item)}
+                title="Delete this file"
+              >
+                🗑️ Delete File
+              </button>
+            )}
             <button
               className="context-menu-item"
               onClick={() => handleOpenContainingFolder(contextMenu.item)}
@@ -867,8 +986,97 @@ const FileTree: React.FC<FileTreeProps> = ({
           </div>
         </div>
       )}
+
+      {/* Create New File modal */}
+      {createFileModal && (
+        <div
+          className="create-file-modal-backdrop"
+          onClick={() => setCreateFileModal(null)}
+        >
+          <div
+            className="create-file-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#e0e0e0', fontSize: '16px', fontWeight: 500 }}>
+                Create New File
+              </h3>
+              <button
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#ccc',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                }}
+                onClick={() => setCreateFileModal(null)}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ color: '#9cdcfe', fontSize: '12px', marginBottom: '10px', fontFamily: 'Consolas, monospace', wordBreak: 'break-all' }}>
+              {createFileModal.parentPath}
+            </div>
+            <input
+              type="text"
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              placeholder="Enter file name..."
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateFileSubmit();
+                if (e.key === 'Escape') setCreateFileModal(null);
+              }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: '#252526',
+                border: '1px solid #3c3c3c',
+                borderRadius: '4px',
+                color: '#d4d4d4',
+                fontSize: '14px',
+                outline: 'none',
+              }}
+            />
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: '#2a2d2e',
+                  color: '#ccc',
+                  border: '1px solid #444',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setCreateFileModal(null)}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: newFileName.trim() ? '#0e639c' : '#2a2d2e',
+                  color: newFileName.trim() ? 'white' : '#666',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: newFileName.trim() ? 'pointer' : 'not-allowed',
+                }}
+                onClick={handleCreateFileSubmit}
+                disabled={!newFileName.trim()}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+});
 
 export default FileTree;

@@ -1,5 +1,5 @@
-import React from 'react';
-import FileTree from './FileTree';
+import React, { useRef } from 'react';
+import FileTree, { FileTreeHandle } from './FileTree';
 
 interface SidebarProps {
   currentPath: string;
@@ -18,9 +18,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSingleClickFile,
   onEditFile,
 }) => {
+  const fileTreeRef = useRef<FileTreeHandle>(null);
+
   return (
     <div className="sidebar">
       <FileTree
+        ref={fileTreeRef}
         rootPath={currentPath}
         onFolderOpen={onFolderOpen}
         onBeforeFolderChange={onBeforeFolderChange}
@@ -32,6 +35,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="current-path">
           <small>Current: {currentPath || 'No folder open'}</small>
         </div>
+        <button
+          className="sidebar-create-file-btn"
+          onClick={() => fileTreeRef.current?.openCreateFileModal(currentPath)}
+          disabled={!currentPath}
+          title="Create a new file in the root folder"
+        >
+          📄+ New File
+        </button>
       </div>
     </div>
   );
