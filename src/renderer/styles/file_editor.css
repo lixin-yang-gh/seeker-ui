@@ -272,6 +272,77 @@
     color: white;
 }
 
+/* ── Search container (wraps search + replace rows) ── */
+.file-editor__search-container {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.file-editor__search-replace-toggle {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    line-height: 1;
+    transition: background 0.15s ease;
+}
+
+.file-editor__search-replace-toggle:hover {
+    background: #36393f;
+}
+
+/* ── Replace bar ── */
+.file-editor__replace {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #1b2330;
+    border-bottom: 1px solid #333;
+}
+
+.file-editor__replace-input {
+    flex: 1;
+    max-width: 360px;
+    padding: 5px 10px;
+    background: #0f1720;
+    color: #e6edf3;
+    border: 1px solid #3c4a5a;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+}
+
+.file-editor__replace-input:focus {
+    border-color: #0e639c;
+    box-shadow: 0 0 0 1px rgba(14, 99, 156, 0.4);
+}
+
+.file-editor__replace-btn {
+    padding: 4px 10px;
+    background: #2a2d2e;
+    border: 1px solid #444;
+    color: #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.file-editor__replace-btn:hover:not(:disabled) {
+    background: #36393f;
+    border-color: #555;
+}
+
+.file-editor__replace-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 /* ── Highlight overlay layer (mirrors editor content behind the textarea) ── */
 .file-editor__highlight-layer {
     position: absolute;

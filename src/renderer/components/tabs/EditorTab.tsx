@@ -37,6 +37,8 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
   const [activeMatchIndex, setActiveMatchIndex] = useState<number>(0);
+  const [replaceQuery, setReplaceQuery] = useState<string>('');
+  const [showReplace, setShowReplace] = useState<boolean>(false);
 
   // ── Unsaved-changes guard state ──
   // One pending action at a time: either a file switch, a tab switch, or a folder switch.
@@ -279,6 +281,13 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
   }, []);
 
   useEffect(() => { setActiveMatchIndex(0); }, [searchQuery, caseSensitive]);
+  useEffect(() => {
+    if (matchRanges.length === 0) {
+      setActiveMatchIndex(0);
+    } else if (activeMatchIndex >= matchRanges.length) {
+      setActiveMatchIndex(matchRanges.length - 1);
+    }
+  }, [matchRanges.length, activeMatchIndex]);
 
   useEffect(() => {
     if (showSearch) {
@@ -367,6 +376,33 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     setEditedContent(next);
     setIsDirty(next !== originalContentRef.current);
   }, []);
+
+  const handleReplace = useCallback(() => {
+    if (matchRanges.length === 0) return;
+    const range = matchRanges[activeMatchIndex];
+    if (!range) return;
+    commitPendingUndoBatch();
+    pushUndoSnapshot(editedContent);
+    redoStackRef.current = [];
+    const newValue = editedContent.slice(0, range.start) + replaceQuery + editedContent.slice(range.end);
+    setEditedContent(newValue);
+    setIsDirty(newValue !== originalContentRef.current);
+  }, [matchRanges, activeMatchIndex, editedContent, replaceQuery, commitPendingUndoBatch, pushUndoSnapshot]);
+
+  const handleReplaceAll = useCallback(() => {
+    if (matchRanges.length === 0) return;
+    commitPendingUndoBatch();
+    pushUndoSnapshot(editedContent);
+    redoStackRef.current = [];
+    let newValue = editedContent;
+    for (let i = matchRanges.length - 1; i >= 0; i--) {
+      const range = matchRanges[i];
+      newValue = newValue.slice(0, range.start) + replaceQuery + newValue.slice(range.end);
+    }
+    setEditedContent(newValue);
+    setIsDirty(newValue !== originalContentRef.current);
+    setActiveMatchIndex(0);
+  }, [matchRanges, editedContent, replaceQuery, commitPendingUndoBatch, pushUndoSnapshot]);
 
   const handleEditorKeyDown = useCallback(async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const isMod = e.ctrlKey || e.metaKey;
@@ -581,7 +617,19 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
-        setShowSearch((s) => !s);
+        if (showSearch) {
+          setShowSearch(false);
+          setShowReplace(false);
+        } else {
+          setShowSearch(true);
+          setTimeout(() => searchInputRef.current?.focus(), 0);
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        if (!showSearch) setShowSearch(true);
+        setShowReplace((s) => !s);
         if (!showSearch) setTimeout(() => searchInputRef.current?.focus(), 0);
         return;
       }
@@ -724,7 +772,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
           <button
             type="button"
             className={'file-editor__toolbar-btn' + (showSearch ? ' file-editor__toolbar-btn--primary' : ' file-editor__toolbar-btn--secondary')}
-            onClick={() => setShowSearch((s) => !s)}
+            onClick={() => { setShowSearch((s) => !s); if (showSearch) setShowReplace(false); }}
             title="Search (Ctrl/Cmd+F)"
           >
             🔍 Search
@@ -770,31 +818,54 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
 
       {/* Search bar */}
       {showSearch && (
-        <div className="file-editor__search">
-          <span className="file-editor__search-icon" aria-hidden="true">🔍</span>
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="file-editor__search-input"
-            placeholder="Search substring…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) gotoPrevMatch(); else gotoNextMatch(); }
-              else if (e.key === 'Escape') { e.preventDefault(); setShowSearch(false); }
-            }}
-            spellCheck={false}
-          />
-          <span className="file-editor__search-count">
-            {searchQuery ? (matchRanges.length > 0 ? `${activeMatchIndex + 1}/${matchRanges.length}` : '0/0') : ''}
-          </span>
-          <button type="button" className="file-editor__search-btn" onClick={gotoPrevMatch} disabled={matchRanges.length === 0} title="Previous (Shift+Enter)">↑</button>
-          <button type="button" className="file-editor__search-btn" onClick={gotoNextMatch} disabled={matchRanges.length === 0} title="Next (Enter)">↓</button>
-          <label className="file-editor__search-toggle" title="Match case">
-            <input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} />
-            Aa
-          </label>
-          <button type="button" className="file-editor__search-close" onClick={() => setShowSearch(false)} title="Close (Esc)">×</button>
+        <div className="file-editor__search-container">
+          <div className="file-editor__search">
+            <button type="button" className="file-editor__search-replace-toggle" onClick={() => setShowReplace((s) => !s)} title={showReplace ? 'Hide Replace (Ctrl+H)' : 'Show Replace (Ctrl+H)'}>
+              {showReplace ? '▾' : '▸'}
+            </button>
+            <span className="file-editor__search-icon" aria-hidden="true">🔍</span>
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="file-editor__search-input"
+              placeholder="Search substring…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) gotoPrevMatch(); else gotoNextMatch(); }
+                else if (e.key === 'Escape') { e.preventDefault(); setShowSearch(false); setShowReplace(false); }
+              }}
+              spellCheck={false}
+            />
+            <span className="file-editor__search-count">
+              {searchQuery ? (matchRanges.length > 0 ? `${activeMatchIndex + 1}/${matchRanges.length}` : '0/0') : ''}
+            </span>
+            <button type="button" className="file-editor__search-btn" onClick={gotoPrevMatch} disabled={matchRanges.length === 0} title="Previous (Shift+Enter)">↑</button>
+            <button type="button" className="file-editor__search-btn" onClick={gotoNextMatch} disabled={matchRanges.length === 0} title="Next (Enter)">↓</button>
+            <label className="file-editor__search-toggle" title="Match case">
+              <input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} />
+              Aa
+            </label>
+            <button type="button" className="file-editor__search-close" onClick={() => { setShowSearch(false); setShowReplace(false); }} title="Close (Esc)">×</button>
+          </div>
+          {showReplace && (
+            <div className="file-editor__replace">
+              <input
+                type="text"
+                className="file-editor__replace-input"
+                placeholder="Replace with…"
+                value={replaceQuery}
+                onChange={(e) => setReplaceQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); handleReplace(); }
+                  else if (e.key === 'Escape') { e.preventDefault(); setShowSearch(false); setShowReplace(false); }
+                }}
+                spellCheck={false}
+              />
+              <button type="button" className="file-editor__replace-btn" onClick={handleReplace} disabled={matchRanges.length === 0} title="Replace current match (Enter)">Replace</button>
+              <button type="button" className="file-editor__replace-btn" onClick={handleReplaceAll} disabled={matchRanges.length === 0} title="Replace all matches">Replace All</button>
+            </div>
+          )}
         </div>
       )}
 
