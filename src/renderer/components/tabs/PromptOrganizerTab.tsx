@@ -570,6 +570,17 @@ ${tagContent}`;
     });
   };
 
+  // Ref to store pending inference parameters when modal is shown
+  const pendingInferenceRef = React.useRef<{
+    model: string;
+    temperature: number;
+    apiTarget?: 'OpenRouter' | 'Venice';
+    maxTokens?: number;
+  } | null>(null);
+
+  // State for the empty-referenced-files confirmation modal
+  const [showEmptyFilesModal, setShowEmptyFilesModal] = useState(false);
+
   // Handle Get Standalone Prompt from Task button
   const handleGetStandalonePrompt = async () => {
     const taskText = task.trim();
@@ -699,9 +710,14 @@ ${tagContent}`;
 
   const canGeneratePrompt = systemPrompt.trim() && task.trim();
 
-  const handleStartInference = useCallback(async (model: string, temperature: number, apiTarget?: 'OpenRouter' | 'Venice', maxTokens?: number) => {
-    if (!canGeneratePrompt) return;
-
+  // Core inference execution logic (extracted so both handleStartInference and
+  // the modal Continue callback can share it without duplicating the API call).
+  const executeInference = useCallback(async (
+    model: string,
+    temperature: number,
+    apiTarget?: 'OpenRouter' | 'Venice',
+    maxTokens?: number,
+  ) => {
     setInferenceStatus2('running');
     setInferenceResult('');
     setInferenceReasoning('');
@@ -730,9 +746,7 @@ ${tagContent}`;
       const userParts: string[] = [];
       userParts.push(`<task>${processedTask}</task>`);
       if (processedInferenceContext) {
-        userParts.push(`<context>
-${processedInferenceContext}
-</context>`);
+        userParts.push(`<context>\n${processedInferenceContext}\n</context>`);
       }
       if (processedFiles.trim()) {
         userParts.push(`<referenced_files>${processedFiles}</referenced_files>`);
@@ -749,8 +763,6 @@ ${processedInferenceContext}
           console.error('Redaction failed, using unredacted prompt:', e);
         }
       }
-
-      // No longer caching prompts; only the Prompt tab can start inference.
 
       const result = await window.electronAPI.callOpenRouter(
         sysPrompt,
@@ -769,7 +781,53 @@ ${processedInferenceContext}
       setInferenceStatus2('error');
       onInferenceStatusChange?.('error', undefined, undefined, errMsg, hasBlockScanReplace);
     }
-  }, [canGeneratePrompt, systemPrompt, task, inferenceContext, maskedSubstrings, referencedFilesContent, redactionApplied, loadFileContents, hasBlockScanReplace]);
+  }, [
+    canGeneratePrompt,
+    systemPrompt,
+    task,
+    inferenceContext,
+    maskedSubstrings,
+    referencedFilesContent,
+    redactionApplied,
+    loadFileContents,
+    hasBlockScanReplace,
+    onInferenceStatusChange,
+    onSwitchToInference,
+  ]);
+
+  const handleStartInference = useCallback(async (
+    model: string,
+    temperature: number,
+    apiTarget?: 'OpenRouter' | 'Venice',
+    maxTokens?: number,
+  ) => {
+    if (!canGeneratePrompt) return;
+
+    // When no files are referenced, ask the user to confirm before proceeding.
+    if (selectedFilePaths.length === 0) {
+      pendingInferenceRef.current = { model, temperature, apiTarget, maxTokens };
+      setShowEmptyFilesModal(true);
+      return;
+    }
+
+    await executeInference(model, temperature, apiTarget, maxTokens);
+  }, [canGeneratePrompt, selectedFilePaths, executeInference]);
+
+  // Modal confirmation: user chose to continue with empty referenced files.
+  const handleConfirmEmptyFiles = useCallback(async () => {
+    const params = pendingInferenceRef.current;
+    pendingInferenceRef.current = null;
+    setShowEmptyFilesModal(false);
+    if (params) {
+      await executeInference(params.model, params.temperature, params.apiTarget, params.maxTokens);
+    }
+  }, [executeInference]);
+
+  // Modal dismissal: user cancelled — do nothing.
+  const handleCancelEmptyFiles = useCallback(() => {
+    pendingInferenceRef.current = null;
+    setShowEmptyFilesModal(false);
+  }, []);
 
   return (
     <div className="tab-panel prompt-organizer">
@@ -867,6 +925,59 @@ ${processedInferenceContext}
         )}
       </div>
 
+      {/* Empty Referenced Files confirmation modal */}
+      {showEmptyFilesModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            zIndex: 5000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={handleCancelEmptyFiles}
+        >
+          <div
+            style={{
+              background: '#1e1e1e',
+              border: '1px solid #555',
+              borderRadius: 8,
+              padding: '24px 28px',
+              maxWidth: 420,
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 12px 0', color: '#e0e0e0', fontSize: 16, fontWeight: 500 }}>
+              No Referenced Files
+            </h3>
+            <p style={{ margin: '0 0 20px 0', color: '#cccccc', fontSize: 13, lineHeight: 1.5 }}>
+              The referenced files list is currently empty. The inference will run
+              without any file context. Do you want to continue?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                className="file-editor__modal-btn file-editor__modal-btn--secondary"
+                onClick={handleCancelEmptyFiles}
+              >
+                Cancel
+              </button>
+              <button
+                className="file-editor__modal-btn file-editor__modal-btn--primary"
+                onClick={handleConfirmEmptyFiles}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="prompt-organizer-tab">
         <div className="prompt-input-section">
