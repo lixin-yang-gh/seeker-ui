@@ -667,7 +667,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
         <div className="file-editor__toolbar-status">
           {saveError && <span className="file-editor__toolbar-error" title={saveError}>{saveError}</span>}
           {!saveError && isDirty && <span className="file-editor__toolbar-hint">Unsaved changes</span>}
-          {!saveError && !isDirty && <span className="file-editor__toolbar-hint" style={{ color: '#4ec9b0', fontStyle: 'normal' }}>Editing</span>}
+          {!saveError && !isDirty && <span className="file-editor__toolbar-hint" style={{ color: '#4ec9b0', fontStyle: 'normal' }}>No Changes</span>}
         </div>
         <div className="file-editor__toolbar-group">
           <button
