@@ -2,17 +2,16 @@
 
 **Recent Updates**
 
-The new release provides the following new features.
+The latest release introduces several powerful new features and improvements:
 
-- Comprehensive text editor available for speedy file editing within the app.
-- Integration with **Venice API** which provides uniquely secure inference endpoints.
-- General overhaul to the UI supporting more smooth user workflow across editing, inferencing and file updating.
-  
+- **Comprehensive Text Editor**: A fast, full-featured editor for seamless in-app file editing.
+- **Venice API Integration**: Access uniquely secure and private inference endpoints.
+- **UI Overhaul**: A smoother, more intuitive workflow across editing, inferencing, and file management.
 
 **Future Roadmap**
 
-- Migrate inference orchestration to an **agentic** architecture, enabling multi-node workflows and providing entry point for integrating external MCP servers.
-- Integrate a remote **web search and scraping MCP server** for **enriched context** in coding (documentation lookup) and writing (live web content) tasks.
+- Migrate inference orchestration to an **agentic architecture**, enabling complex multi-node workflows and easy integration with external MCP servers.
+- Add a dedicated remote **web search and scraping MCP server** to provide enriched, real-time context for coding (documentation lookup) and writing tasks (live web content).
 
 ## Introduction
 
