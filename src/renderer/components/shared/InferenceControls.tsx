@@ -18,13 +18,13 @@ interface InferenceControlsProps {
   startButtonLabel?: string;
 }
 
-const MAX_TOKEN_CHOICES = ['4096', '8192', '16384', '32768', '65536'] as const;
+const MAX_TOKEN_CHOICES = ['4096', '8192', '16384', '32768', '65536', '102400'] as const;
 type MaxTokenChoice = typeof MAX_TOKEN_CHOICES[number];
 
 const DEFAULT_MODEL_FALLBACK = '';
 const DEFAULT_TEMPERATURE = 0.7;
 const DEFAULT_API_TARGET: 'OpenRouter' | 'Venice' = 'OpenRouter';
-const DEFAULT_MAX_TOKEN_CHOICE: MaxTokenChoice = '32768';
+const DEFAULT_MAX_TOKEN_CHOICE: MaxTokenChoice = '65536';
 
 /**
  * Parse a comma-separated string of quoted model names, e.g.

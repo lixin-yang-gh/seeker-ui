@@ -14,9 +14,10 @@ interface EditorTabProps {
 export interface EditorTabRef {
   getIsDirty: () => boolean;
   requestTabSwitch: (callback: () => void) => void;
+  requestFolderSwitch: () => Promise<boolean>;
 }
 
-const EditorTab = forwardRef<EditorTabRef, EditorTabProps>(({ filePath, rootFolder }, ref) => {
+const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: React.ForwardedRef<EditorTabRef>) => {
   const [content, setContent] = useState<string>('');
   const [editedContent, setEditedContent] = useState<string>('');
   const [isDirty, setIsDirty] = useState<boolean>(false);
@@ -37,8 +38,10 @@ const EditorTab = forwardRef<EditorTabRef, EditorTabProps>(({ filePath, rootFold
   const [activeMatchIndex, setActiveMatchIndex] = useState<number>(0);
 
   // ── Unsaved-changes guard state ──
-  // One pending action at a time: either a file switch or a tab switch.
-  const [pendingAction, setPendingAction] = useState<{ type: 'file'; filePath: string } | { type: 'tab'; callback: () => void } | null>(null);
+  // One pending action at a time: either a file switch, a tab switch, or a folder switch.
+  const [pendingAction, setPendingAction] = useState<{ type: 'file'; filePath: string } | { type: 'tab'; callback: () => void } | { type: 'folder' } | null>(null);
+  // Resolve function for the folder-switch Promise; called with true (proceed) or false (cancel).
+  const folderSwitchResolveRef = useRef<((proceed: boolean) => void) | null>(null);
   // Path currently loaded/displayed in the editor
   const loadedFilePathRef = useRef<string | null>(null);
   const isDirtyRef = useRef<boolean>(false);
@@ -459,6 +462,12 @@ const EditorTab = forwardRef<EditorTabRef, EditorTabProps>(({ filePath, rootFold
     // Save succeeded: execute pending action
     if (action.type === 'file') {
       proceedToPendingFile(action.filePath);
+    } else if (action.type === 'folder') {
+      setPendingAction(null);
+      if (folderSwitchResolveRef.current) {
+        folderSwitchResolveRef.current(true);
+        folderSwitchResolveRef.current = null;
+      }
     } else {
       // tab switch
       setPendingAction(null);
@@ -473,6 +482,22 @@ const EditorTab = forwardRef<EditorTabRef, EditorTabProps>(({ filePath, rootFold
 
     if (action.type === 'file') {
       proceedToPendingFile(action.filePath);
+    } else if (action.type === 'folder') {
+      // Folder switch: discard changes and revert
+      setEditedContent(originalContentRef.current);
+      setIsDirty(false);
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      pendingUndoSnapshotRef.current = null;
+      if (historyTimerRef.current) {
+        clearTimeout(historyTimerRef.current);
+        historyTimerRef.current = null;
+      }
+      setPendingAction(null);
+      if (folderSwitchResolveRef.current) {
+        folderSwitchResolveRef.current(true);
+        folderSwitchResolveRef.current = null;
+      }
     } else {
       // Tab switch: discard changes and revert to last saved/original content
       setEditedContent(originalContentRef.current);
@@ -492,6 +517,10 @@ const EditorTab = forwardRef<EditorTabRef, EditorTabProps>(({ filePath, rootFold
   // Cancel the switch — stay on the current (dirty) file.
   const handleModalCancel = useCallback(() => {
     setPendingAction(null);
+    if (folderSwitchResolveRef.current) {
+      folderSwitchResolveRef.current(false);
+      folderSwitchResolveRef.current = null;
+    }
   }, []);
 
   // ── Expose methods to parent ──
@@ -504,6 +533,15 @@ const EditorTab = forwardRef<EditorTabRef, EditorTabProps>(({ filePath, rootFold
         // Not dirty: execute immediately
         callback();
       }
+    },
+    requestFolderSwitch: (): Promise<boolean> => {
+      if (!isDirtyRef.current) {
+        return Promise.resolve(true);
+      }
+      return new Promise<boolean>((resolve) => {
+        folderSwitchResolveRef.current = resolve;
+        setPendingAction({ type: 'folder' });
+      });
     },
   }), [isDirtyRef, setPendingAction]);
 
@@ -558,6 +596,8 @@ const EditorTab = forwardRef<EditorTabRef, EditorTabProps>(({ filePath, rootFold
           {currentFileName ? `"${currentFileName}" has unsaved changes.` : 'The current file has unsaved changes.'}
           {pendingAction && pendingAction.type === 'file'
             ? ` Do you want to save them before opening "${pendingFileName}"?`
+            : pendingAction.type === 'folder'
+            ? ' Do you want to save them before changing the project folder?'
             : ' Do you want to save them before switching tabs?'}
         </p>
         {saveError && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useImperativeHandle } from 'react';
 import { getRelativePath } from '../../shared/utils';
 import { PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab, EditorTab } from './tabs';
 import { EditorTabRef } from './tabs/EditorTab';
@@ -10,12 +10,17 @@ interface FileManagerProps {
   editorFilePath?: string | null;
 }
 
-const FileManager: React.FC<FileManagerProps> = ({
+export interface FileManagerRef {
+  isEditorDirty: () => boolean;
+  requestFolderSwitch: () => Promise<boolean>;
+}
+
+const FileManager = React.forwardRef(({
   rootFolder,
   selectedFilePaths = [],
   onTabChange,
   editorFilePath,
-}) => {
+}: FileManagerProps, ref: React.ForwardedRef<FileManagerRef>) => {
   // Tab indices: 0=Editor, 1=Prompt, 2=Inference, 3=Settings, 4=About
   const [activeTab, setActiveTab] = useState(1);
   const [inferenceResult, setInferenceResult] = useState('');
@@ -28,6 +33,12 @@ const FileManager: React.FC<FileManagerProps> = ({
   // Ref to EditorTab for unsaved-changes guard
   const editorRef = useRef<EditorTabRef>(null);
 
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    isEditorDirty: () => editorRef.current?.getIsDirty() ?? false,
+    requestFolderSwitch: () => editorRef.current?.requestFolderSwitch() ?? Promise.resolve(true),
+  }), []);
+
   // Dynamic editor tab title: prefer the project-root-relative path (exclusive
   // of "<project_root>" itself), e.g. "folder1/a.txt". Fall back to the bare
   // file name, then to "Editor" when nothing is open.
@@ -35,9 +46,9 @@ const FileManager: React.FC<FileManagerProps> = ({
     ? getRelativePath(editorFilePath, rootFolder).replace(/\\/g, '/')
     : '';
   const editorTabTitle = editorRelativePath
-    ? "Editing: " + editorRelativePath
+    ? "Edit - " + editorRelativePath
     : (editorFilePath
-      ? "Editing: " + (editorFilePath.split(/[\\/]/).pop() || 'Editor')
+      ? "Edit - " + (editorFilePath.split(/[\\/]/).pop() || 'Editor')
       : 'Editor');
 
   // Removed automatic tab switching on single-click file. The editor content still updates, but the user must manually switch to the Editor tab.
@@ -135,11 +146,10 @@ const FileManager: React.FC<FileManagerProps> = ({
         <div className="tab-list">
           {/* Tab 0: Editor */}
           <button
-            className={`tab ${activeTab === 0 ? 'active' : ''}`}
-            style={{ color:'#cfa520' }}
+            className={`tab file-editor-tab-header ${activeTab === 0 ? 'active' : ''} `}
             onClick={() => handleTabChange(0)}
             title={editorFilePath
-              ? `Editing: ${editorRelativePath || editorFilePath}`
+              ? `Editing ${editorRelativePath || editorFilePath}`
               : 'Single-click a file in Explorer to open it for editing'}
           >
             {editorTabTitle}
@@ -234,6 +244,6 @@ const FileManager: React.FC<FileManagerProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default FileManager;

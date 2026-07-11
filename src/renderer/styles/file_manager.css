@@ -443,6 +443,7 @@
     background: #d55;
     border-color: #b44;
 }
+
 .toolbar-button.confirm {
     background: #c44545;
     border-color: #a33;
@@ -492,9 +493,12 @@
 }
 
 @keyframes blockScanReplaceLocked {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 0 1px rgba(177, 131, 232, 0.2);
     }
+
     50% {
         box-shadow: 0 0 0 2px rgba(177, 131, 232, 0.5), 0 0 8px rgba(138, 62, 216, 0.4);
     }
@@ -1137,7 +1141,10 @@ pre::-webkit-scrollbar-thumb:hover,
 ───────────────────────────────────────── */
 
 .file-editor-tab-header {
-    
+    background-color: rgba(255, 140, 0, 0.28);
+    background: linear-gradient(90deg, rgba(255, 140, 0, 0.28) 0%, rgba(255, 193, 7, 0.18) 100%);
+    color: #ccc;
+    border-radius: 6px 6px 0 0;
 }
 
 .file-editor {
@@ -1436,6 +1443,7 @@ pre::-webkit-scrollbar-thumb:hover,
     opacity: 0.5;
     cursor: not-allowed;
 }
+
 .inference-start-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1449,8 +1457,7 @@ pre::-webkit-scrollbar-thumb:hover,
     padding: auto;
 }
 
-.inference-start-button--rerun:hover:not(:disabled) {
-}
+.inference-start-button--rerun:hover:not(:disabled) {}
 
 .inference-controls-button-column {
     display: flex;

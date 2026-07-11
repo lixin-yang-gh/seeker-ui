@@ -5,6 +5,7 @@ import { checkFileExists } from '../../shared/utils';
 interface FileTreeProps {
   rootPath: string;
   onFolderOpen?: (path: string) => void;
+  onBeforeFolderChange?: (newPath: string) => Promise<boolean>;
   onSelectedPathsChange?: (paths: string[]) => void;
   onSingleClickFile?: (filePath: string) => void;
 }
@@ -29,6 +30,7 @@ const getFileNameFromPath = (filePath: string): string =>
 const FileTree: React.FC<FileTreeProps> = ({
   rootPath,
   onFolderOpen,
+  onBeforeFolderChange,
   onSelectedPathsChange,
   onSingleClickFile,
 }) => {
@@ -388,6 +390,10 @@ const FileTree: React.FC<FileTreeProps> = ({
 
   const openFolderPath = useCallback(async (path: string) => {
     if (!path) return;
+    if (onBeforeFolderChange) {
+      const canProceed = await onBeforeFolderChange(path);
+      if (!canProceed) return;
+    }
     try {
       await window.electronAPI.addRecentFolder(path);
     } catch (err) {
@@ -397,7 +403,7 @@ const FileTree: React.FC<FileTreeProps> = ({
     setSelectedFilePaths(new Set());
     setOpenedFilePath(null);
     setExpandedFolders(new Set());
-  }, []);
+  }, [onBeforeFolderChange]);
 
   const handleOpenFolderClick = useCallback(async () => {
     try {
@@ -448,10 +454,6 @@ const FileTree: React.FC<FileTreeProps> = ({
   }, [getProjectRootRelativePath]);
 
   const toggleFolder = async (item: FileItem, expandOnly: boolean = false) => {
-    await copyToClipboard(getProjectRootRelativePath(item.path));
-    setRecentlyCopied(item.path);
-    setTimeout(() => setRecentlyCopied(null), 1200);
-
     if (item.isDirectory) {
       const newExpanded = new Set(expandedFolders);
       if (!expandOnly && newExpanded.has(item.path)) {
@@ -501,6 +503,18 @@ const FileTree: React.FC<FileTreeProps> = ({
           title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
         >
           {isFavorite ? '★' : '☆'}
+        </span>
+        <span
+          className="file-icon copy-path-icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            copyToClipboard(getProjectRootRelativePath(item.path));
+            setRecentlyCopied(item.path);
+            setTimeout(() => setRecentlyCopied(null), 1200);
+          }}
+          title="Copy file path to clipboard"
+        >
+          📋
         </span>
       </>
     );

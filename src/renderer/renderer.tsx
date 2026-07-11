@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import Sidebar from './components/Sidebar';
-import FileManager from './components/FileManager';
+import FileManager, { FileManagerRef } from './components/FileManager';
 import EulaModal from './components/EulaModal';
 import { preloadMarkdownModules } from '../shared/markdown-loader';
 import './styles/main.css';
@@ -20,6 +20,7 @@ const App: React.FC = () => {
   const [eulaAgreed, setEulaAgreed] = useState(false);
   const [editorFilePath, setEditorFilePath] = useState<string | null>(null);
   const fileManagerTabRef = useRef<{ setActiveTab?: (i: number) => void }>(null);
+  const fileManagerRef = useRef<FileManagerRef>(null);
   const isResizingRef = useRef(false);
 
   // Preload the markdown rendering dependencies (react-markdown + remark-gfm)
@@ -87,6 +88,19 @@ const App: React.FC = () => {
     setEditorFilePath(filePath);
   }, []);
 
+  const handleBeforeFolderChange = useCallback(async (_newPath: string): Promise<boolean> => {
+    const isDirty = fileManagerRef.current?.isEditorDirty() ?? false;
+    if (!isDirty) {
+      setEditorFilePath(null);
+      return true;
+    }
+    const proceed = await fileManagerRef.current?.requestFolderSwitch() ?? true;
+    if (proceed) {
+      setEditorFilePath(null);
+    }
+    return proceed;
+  }, []);
+
   return (
     <>
       <EulaModal onAgreed={() => setEulaAgreed(true)} />
@@ -98,6 +112,7 @@ const App: React.FC = () => {
           <Sidebar
             currentPath={currentPath}
             onFolderOpen={setCurrentPath}
+            onBeforeFolderChange={handleBeforeFolderChange}
             onSelectedPathsChange={handleSelectedPathsChange}
             onSingleClickFile={handleSingleClickFile}
           />
@@ -107,6 +122,7 @@ const App: React.FC = () => {
           />
           <div className="main-content">
             <FileManager
+              ref={fileManagerRef}
               rootFolder={currentPath}
               selectedFilePaths={selectedFilePaths}
               editorFilePath={editorFilePath}

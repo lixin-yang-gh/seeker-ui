@@ -214,8 +214,7 @@
 }
 
 .item-name.opened-file-name {
-    color: #ffd54f;
-    font-weight: 700;
+    color: #ddd;
     text-shadow: 0 0 8px rgba(255, 193, 7, 0.45);
 }
 
@@ -613,7 +612,7 @@
 }
 
 .favorite-files-item .star-icon,
-.favorite-files-item .eye-icon {
+.favorite-files-item .copy-path-icon {
     display: inline-block;
     margin-left: 5px;
 }
@@ -682,4 +681,27 @@
     color: #ffe28a;
     transform: scale(1.18);
     text-shadow: 0 0 10px rgba(255, 200, 80, 0.9);
+}
+
+/* ─────────────────────────────────────────────
+   Copy-path icon — right of the star icon
+───────────────────────────────────────────── */
+.copy-path-icon {
+    display: none;
+    font-size: 13px;
+    color: #888888;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.tree-item:hover .copy-path-icon {
+    display: inline-block;
+    margin-left: 5px;
+}
+
+.copy-path-icon:hover {
+    color: #80e0ff;
+    transform: scale(1.18);
 }

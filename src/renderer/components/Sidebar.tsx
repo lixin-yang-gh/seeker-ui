@@ -4,6 +4,7 @@ import FileTree from './FileTree';
 interface SidebarProps {
   currentPath: string;
   onFolderOpen: (path: string) => void;
+  onBeforeFolderChange?: (newPath: string) => Promise<boolean>;
   onSelectedPathsChange?: (paths: string[]) => void;
   onSingleClickFile?: (filePath: string) => void;
 }
@@ -11,6 +12,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({
   currentPath,
   onFolderOpen,
+  onBeforeFolderChange,
   onSelectedPathsChange,
   onSingleClickFile,
 }) => {
@@ -19,6 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <FileTree
         rootPath={currentPath}
         onFolderOpen={onFolderOpen}
+        onBeforeFolderChange={onBeforeFolderChange}
         onSelectedPathsChange={onSelectedPathsChange}
         onSingleClickFile={onSingleClickFile}
       />
