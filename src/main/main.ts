@@ -18,6 +18,7 @@ interface FolderSpecificState {
   systemPrompt?: string;
   task?: string;
   issues?: string;
+  inferenceContext?: string;
   selectedHeader?: string;
   maskedSubstrings?: string;
   inferenceModel?: string;
@@ -297,12 +298,13 @@ ipcMain.handle('store:saveSelectedHeader', (_, folderPath: string, value: string
   return { success: true };
 });
 
-ipcMain.handle('store:getIssues', (_, folderPath: string) => {
-  return getFolderState(folderPath).issues || '';
+ipcMain.handle('store:getInferenceContext', (_, folderPath: string) => {
+  const state = getFolderState(folderPath);
+  return state.inferenceContext || state.issues || '';
 });
 
-ipcMain.handle('store:saveIssues', (_, folderPath: string, value: string) => {
-  saveFolderState(folderPath, { issues: value });
+ipcMain.handle('store:saveInferenceContext', (_, folderPath: string, value: string) => {
+  saveFolderState(folderPath, { inferenceContext: value });
   return { success: true };
 });
 

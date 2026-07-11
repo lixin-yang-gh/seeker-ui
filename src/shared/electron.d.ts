@@ -6,6 +6,7 @@ interface FolderSpecificState {
   systemPrompt?: string;
   task?: string;
   issues?: string;
+  inferenceContext?: string;
   selectedHeader?: string;
   maskedSubstrings?: string;
   inferenceModel?: string;
@@ -82,8 +83,8 @@ declare global {
       saveTask: (folderPath: string, value: string) => Promise<{ success: true }>;
       getSelectedHeader: (folderPath: string) => Promise<string>;
       saveSelectedHeader: (folderPath: string, value: string) => Promise<{ success: true }>;
-      getIssues: (folderPath: string) => Promise<string>;
-      saveIssues: (folderPath: string, value: string) => Promise<{ success: true }>;
+      getInferenceContext: (folderPath: string) => Promise<string>;
+      saveInferenceContext: (folderPath: string, value: string) => Promise<{ success: true }>;
       getMaskedSubstrings: (folderPath: string) => Promise<string>;
       saveMaskedSubstrings: (folderPath: string, value: string) => Promise<{ success: true }>;
 

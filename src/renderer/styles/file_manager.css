@@ -1136,6 +1136,10 @@ pre::-webkit-scrollbar-thumb:hover,
    File Preview Popup
 ───────────────────────────────────────── */
 
+.file-editor-tab-header {
+    
+}
+
 .file-editor {
     position: absolute;
     top: 0;

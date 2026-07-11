@@ -33,8 +33,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSelectedHeader: (folderPath) => ipcRenderer.invoke('store:getSelectedHeader', folderPath),
   saveSelectedHeader: (folderPath, value) => ipcRenderer.invoke('store:saveSelectedHeader', folderPath, value),
 
-  getIssues: (folderPath) => ipcRenderer.invoke('store:getIssues', folderPath),
-  saveIssues: (folderPath, value) => ipcRenderer.invoke('store:saveIssues', folderPath, value),
+  getInferenceContext: (folderPath) => ipcRenderer.invoke('store:getInferenceContext', folderPath),
+  saveInferenceContext: (folderPath, value) => ipcRenderer.invoke('store:saveInferenceContext', folderPath, value),
 
   getMaskedSubstrings: (folderPath) => ipcRenderer.invoke('store:getMaskedSubstrings', folderPath),
   saveMaskedSubstrings: (folderPath, value) => ipcRenderer.invoke('store:saveMaskedSubstrings', folderPath, value),

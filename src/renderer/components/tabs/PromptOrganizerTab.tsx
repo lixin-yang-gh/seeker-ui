@@ -260,15 +260,13 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 }) => {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [task, setTask] = useState('');
-  const [issues, setIssues] = useState('');
-  const [selectedHeader, setSelectedHeader] = useState('issues');
+  const [inferenceContext, setInferenceContext] = useState('');
   const [referencedFilesContent, setReferencedFilesContent] = useState<string>('');
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [lastSavedSystemPrompt, setLastSavedSystemPrompt] = useState<number | null>(null);
   const [lastSavedTask, setLastSavedTask] = useState<number | null>(null);
-  const [lastSavedIssues, setLastSavedIssues] = useState<number | null>(null);
-  const [lastSavedHeader, setLastSavedHeader] = useState<number | null>(null);
+  const [lastSavedInferenceContext, setLastSavedInferenceContext] = useState<number | null>(null);
   const [maskedSubstrings, setMaskedSubstrings] = useState('');
   const [lastSavedMaskedSubstrings, setLastSavedMaskedSubstrings] = useState<number | null>(null);
   const [standaloneCopyStatus, setStandaloneCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -297,8 +295,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           // State exists: Load it into the UI
           setSystemPrompt(savedState.systemPrompt || '');
           setTask(savedState.task || '');
-          setIssues(savedState.issues || '');
-          setSelectedHeader(savedState.selectedHeader || 'issues');
+          setInferenceContext(savedState.inferenceContext || savedState.issues || '');
           setMaskedSubstrings(savedState.maskedSubstrings || '');
         } else {
           // State does NOT exist: Inherit current values (Inheritance Logic)
@@ -308,8 +305,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           const currentStateToInherit = {
             systemPrompt,
             task,
-            issues,
-            selectedHeader,
+            inferenceContext,
             maskedSubstrings
           };
 
@@ -321,8 +317,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
           const now = Date.now();
           setLastSavedSystemPrompt(now);
           setLastSavedTask(now);
-          setLastSavedIssues(now);
-          setLastSavedHeader(now);
+          setLastSavedInferenceContext(now);
           setLastSavedMaskedSubstrings(now);
         }
 
@@ -450,23 +445,13 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     }
   }, [rootFolder]);
 
-  const saveIssues = useCallback(async (value: string) => {
+  const saveInferenceContext = useCallback(async (value: string) => {
     if (!rootFolder) return;
     try {
-      await window.electronAPI.saveIssues(rootFolder, value);
-      setLastSavedIssues(Date.now());
+      await window.electronAPI.saveInferenceContext(rootFolder, value);
+      setLastSavedInferenceContext(Date.now());
     } catch (err) {
-      console.error('Failed to save issues:', err);
-    }
-  }, [rootFolder]);
-
-  const saveHeader = useCallback(async (value: string) => {
-    if (!rootFolder) return;
-    try {
-      await window.electronAPI.saveSelectedHeader(rootFolder, value);
-      setLastSavedHeader(Date.now());
-    } catch (err) {
-      console.error('Failed to save header selection:', err);
+      console.error('Failed to save inference context:', err);
     }
   }, [rootFolder]);
 
@@ -490,24 +475,15 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     return () => clearTimeout(timer);
   }, [task, saveTask, rootFolder]);
 
-  const issuesInitRef = React.useRef(true);
+  const inferenceContextInitRef = React.useRef(true);
   useEffect(() => {
     if (!rootFolder) return;
-    if (issuesInitRef.current) { issuesInitRef.current = false; return; }
+    if (inferenceContextInitRef.current) { inferenceContextInitRef.current = false; return; }
     const timer = setTimeout(() => {
-      saveIssues(issues);
+      saveInferenceContext(inferenceContext);
     }, 800);
     return () => clearTimeout(timer);
-  }, [issues, saveIssues, rootFolder]);
-
-  // Auto-save header selection (debounced)
-  useEffect(() => {
-    if (!selectedHeader || !rootFolder) return;
-    const timer = setTimeout(() => {
-      saveHeader(selectedHeader);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [selectedHeader, saveHeader, rootFolder]);
+  }, [inferenceContext, saveInferenceContext, rootFolder]);
 
   // Load / reload referenced files content.
   // Returns the freshly loaded combined content so that callers (Copy Prompt /
@@ -566,10 +542,25 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     saveTask(''); // Save empty string
   };
 
-  // Handle Clear Issues button - clear Issues textarea
-  const handleClearIssues = () => {
-    setIssues('');
-    saveIssues(''); // Save empty string
+  // Handle Clear Inference Context button - clear Inference Context textarea
+  const handleClearInferenceContext = () => {
+    setInferenceContext('');
+    saveInferenceContext(''); // Save empty string
+  };
+
+  // Handle header option button click - insert sub-tag placeholder into inference context
+  const handleHeaderOptionClick = (tagValue: string) => {
+    const tagContent = `<${tagValue}>
+
+</${tagValue}>`;
+    setInferenceContext(prev => {
+      if (!prev.trim()) {
+        return tagContent;
+      }
+      return `${prev}
+
+${tagContent}`;
+    });
   };
 
   // Handle Get Standalone Prompt from Task button
@@ -642,7 +633,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       // Sanitize all text inputs first
       const sanitizedSystemPrompt = sanitizeText(systemPrompt.trim());
       const sanitizedTask = sanitizeText(task.trim());
-      const sanitizedIssues = issues.trim() ? sanitizeText(issues.trim()) : '';
+      const sanitizedInferenceContext = inferenceContext.trim() ? sanitizeText(inferenceContext.trim()) : '';
       // Prefer the freshly loaded file contents (passed in by the caller after a
       // guaranteed reload); fall back to the state variable only when not
       // provided. referencedFilesContent is already built from files; we treat
@@ -654,7 +645,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       // Apply custom substring masking unconditionally to all fields
       const processedSystemPrompt = applyCustomMasking(sanitizedSystemPrompt, customSubstrings);
       const processedTask = applyCustomMasking(sanitizedTask, customSubstrings);
-      const processedIssues = applyCustomMasking(sanitizedIssues, customSubstrings);
+      const processedInferenceContext = applyCustomMasking(sanitizedInferenceContext, customSubstrings);
       const processedFiles = applyCustomMasking(filesContent, customSubstrings);
 
       // Build the prompt parts
@@ -667,10 +658,8 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
         : `${processedTask}\n${missingFilesNomination}`;
       promptParts.push(`<task content="Task">\n${taskInnerContent}</task>`);
 
-      if (processedIssues) {
-        const displayHeader = HEADER_OPTIONS.find(h => h.value === selectedHeader)?.display || 'Issues';
-        const xmlTag = selectedHeader || 'issues';
-        promptParts.push(`<${xmlTag} content="${displayHeader}">\n${processedIssues}\n</${xmlTag}>`);
+      if (processedInferenceContext) {
+        promptParts.push(`<context content="Context">\n${processedInferenceContext}\n</context>`);
       }
 
       if (processedFiles.trim()) {
@@ -722,20 +711,21 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
       const sanitizedSystemPrompt = sanitizeText(systemPrompt.trim());
       const sanitizedTask = sanitizeText(task.trim());
-      const sanitizedIssues = issues.trim() ? sanitizeText(issues.trim()) : '';
+      const sanitizedInferenceContext = inferenceContext.trim() ? sanitizeText(inferenceContext.trim()) : '';
       const filesContent = freshFilesContent;
       const customSubstrings = parseMaskedSubstrings(maskedSubstrings);
 
       const processedSystemPrompt = applyCustomMasking(sanitizedSystemPrompt, customSubstrings);
       const processedTask = applyCustomMasking(sanitizedTask, customSubstrings);
-      const processedIssues = applyCustomMasking(sanitizedIssues, customSubstrings);
+      const processedInferenceContext = applyCustomMasking(sanitizedInferenceContext, customSubstrings);
       const processedFiles = applyCustomMasking(filesContent, customSubstrings);
 
       const userParts: string[] = [];
       userParts.push(`<task>${processedTask}</task>`);
-      if (processedIssues) {
-        const xmlTag = selectedHeader || 'issues';
-        userParts.push(`<${xmlTag}>${processedIssues}</${xmlTag}>`);
+      if (processedInferenceContext) {
+        userParts.push(`<context>
+${processedInferenceContext}
+</context>`);
       }
       if (processedFiles.trim()) {
         userParts.push(`<referenced_files>${processedFiles}</referenced_files>`);
@@ -772,7 +762,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       setInferenceStatus2('error');
       onInferenceStatusChange?.('error', undefined, undefined, errMsg, hasBlockScanReplace);
     }
-  }, [canGeneratePrompt, systemPrompt, task, issues, selectedHeader, maskedSubstrings, referencedFilesContent, redactionApplied, loadFileContents, hasBlockScanReplace]);
+  }, [canGeneratePrompt, systemPrompt, task, inferenceContext, maskedSubstrings, referencedFilesContent, redactionApplied, loadFileContents, hasBlockScanReplace]);
 
   return (
     <div className="tab-panel prompt-organizer">
@@ -1023,62 +1013,52 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
           <div className="prompt-input-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label htmlFor="issues">
-                {HEADER_OPTIONS.find(h => h.value === selectedHeader)?.display || 'Issues'} (Optional)
+              <label htmlFor="inference-context">
+                Inference Context (Optional)
               </label>
               <button
                 className="toolbar-button green-action"
-                onClick={handleClearIssues}
-                title="Clear issues textarea"
+                onClick={handleClearInferenceContext}
+                title="Clear inference context textarea"
                 disabled={!rootFolder}
               >
                 Clear
               </button>
             </div>
 
-            {/* Section Header Radio Buttons */}
+            {/* Sub-tag insertion buttons */}
             <div style={{ marginBottom: '12px' }}>
-              <span style={{ color: '#888', fontSize: '13px', marginRight: '12px' }}>Section Header:</span>
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: '8px' }}>
+              <span style={{ color: '#888', fontSize: '13px', marginRight: '12px' }}>Insert sub-tag:</span>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
                 {HEADER_OPTIONS.map((option) => (
-                  <label key={option.value} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="header-option"
-                      value={option.value}
-                      checked={selectedHeader === option.value}
-                      onChange={(e) => setSelectedHeader(e.target.value)}
-                      disabled={!rootFolder}
-                      style={{ margin: 0, cursor: 'pointer' }}
-                    />
-                    <span style={{ color: selectedHeader === option.value ? '#ccaa00' : '#ccc' }}>
-                      {option.display}
-                    </span>
-                  </label>
+                  <button
+                    key={option.value}
+                    className="toolbar-button"
+                    onClick={() => handleHeaderOptionClick(option.value)}
+                    title={`Insert <${option.value}> sub-tag into inference context`}
+                    disabled={!rootFolder}
+                  >
+                    ⬇️ {option.display}
+                  </button>
                 ))}
               </div>
             </div>
 
             <textarea
-              id="issues"
+              id="inference-context"
               className="prompt-textarea issues-textarea"
-              placeholder="List any known issues, feedback, logs, errors, or proposals..."
-              value={issues}
-              onChange={(e) => setIssues(e.target.value)}
+              placeholder="Add inference context such as issues, errors, logs, output, feedback, proposals, analysis, or other information..."
+              value={inferenceContext}
+              onChange={(e) => setInferenceContext(e.target.value)}
               disabled={!rootFolder}
-              rows={2}
+              rows={4}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div className="char-counter">{issues.length} characters</div>
+              <div className="char-counter">{inferenceContext.length} characters</div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                {lastSavedIssues && (
+                {lastSavedInferenceContext && (
                   <div style={{ fontSize: '11px', color: '#4ec9b0' }}>
-                    Saved {new Date(lastSavedIssues).toLocaleTimeString()}
-                  </div>
-                )}
-                {lastSavedHeader && (
-                  <div style={{ fontSize: '11px', color: '#4ec9b0' }}>
-                    Header saved {new Date(lastSavedHeader).toLocaleTimeString()}
+                    Saved {new Date(lastSavedInferenceContext).toLocaleTimeString()}
                   </div>
                 )}
               </div>
