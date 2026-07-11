@@ -324,6 +324,13 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     setActiveMatchIndex((i) => (i - 1 + matchRanges.length) % matchRanges.length);
   }, [matchRanges.length]);
 
+  const closeSearch = useCallback(() => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setReplaceQuery('');
+    setActiveMatchIndex(0);
+  }, []);
+
   // Undo/redo
   const pushUndoSnapshot = useCallback((snapshot: string) => {
     const stack = undoStackRef.current;
@@ -617,7 +624,13 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
+        setShowSearch(true);
         setTimeout(() => searchInputRef.current?.focus(), 0);
+        return;
+      }
+      if (e.key === 'Escape' && showSearch) {
+        e.preventDefault();
+        closeSearch();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
@@ -638,7 +651,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDirty, saveStatus, handleSave, handleUndo, handleRedo, showSearch, pendingAction, handleModalCancel]);
+  }, [isDirty, saveStatus, handleSave, handleUndo, handleRedo, showSearch, pendingAction, handleModalCancel, closeSearch]);
 
   // Derive the display name of the pending file for the modal message.
   const pendingFileName = pendingAction && pendingAction.type === 'file'
@@ -797,6 +810,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
       </div>
 
       {/* Search bar */}
+      {showSearch && (
       <div className="file-editor__search-container">
         <div className="file-editor__search">
           <span className="file-editor__search-icon" aria-hidden="true">🔍</span>
@@ -808,6 +822,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
+              if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSearch(); return; }
               if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) gotoPrevMatch(); else gotoNextMatch(); }
             }}
             spellCheck={false}
@@ -821,6 +836,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
             <input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} />
             Aa
           </label>
+          <button type="button" className="file-editor__search-btn" onClick={closeSearch} title="Close search (Esc)">✕</button>
         </div>
         <div className="file-editor__replace">
           <input
@@ -830,6 +846,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
             value={replaceQuery}
             onChange={(e) => setReplaceQuery(e.target.value)}
             onKeyDown={(e) => {
+              if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSearch(); return; }
               if (e.key === 'Enter') { e.preventDefault(); handleReplace(); }
             }}
             spellCheck={false}
@@ -838,6 +855,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
           <button type="button" className="file-editor__replace-btn" onClick={handleReplaceAll} disabled={matchRanges.length === 0} title="Replace all matches">Replace All</button>
         </div>
       </div>
+      )}
 
       {/* Editor body */}
       <div className="file-editor__body" style={{ flex: 1, position: 'relative' }}>
