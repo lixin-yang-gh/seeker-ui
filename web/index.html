@@ -4,21 +4,21 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Seeker UI — Your Visual AI Workspace</title>
+    <title>Seeker UI — The Visual AI Workspace</title>
     <meta name="description"
-        content="Seeker UI puts a full AI-powered workspace at your fingertips. No terminal. No syntax. Just results." />
+        content="A visual, AI-assisted desktop workspace for coding and writing projects. A high-performance file editor, configurable file-explorer context, structured prompt engineering, and inference results in a single application." />
 
     <!-- Open Graph / Social -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Seeker UI — Your Visual AI Workspace" />
+    <meta property="og:title" content="Seeker UI — The Visual AI Workspace" />
     <meta property="og:description"
-        content="Point, tick, and run. A visual, local-first workspace for AI-assisted development." />
-    <meta property="og:image" content="seeker-ui.pic1.jpg" />
+        content="A visual, local-first workspace for AI-assisted coding and writing. Four dedicated tabs: File Editor, Prompt Organizer, Inference, and Settings." />
+    <meta property="og:image" content="file_editor_tab.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Seeker UI — Your Visual AI Workspace" />
+    <meta name="twitter:title" content="Seeker UI — The Visual AI Workspace" />
     <meta name="twitter:description"
-        content="Point, tick, and run. A visual, local-first workspace for AI-assisted development." />
-    <meta name="twitter:image" content="seeker-ui.pic1.jpg" />
+        content="A visual, local-first workspace for AI-assisted coding and writing. Four dedicated tabs: File Editor, Prompt Organizer, Inference, and Settings." />
+    <meta name="twitter:image" content="file_editor_tab.png" />
 
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="shortcut icon" href="favicon.ico" />
@@ -43,6 +43,7 @@
             <a href="#screenshots">See It</a>
             <a href="#features">Features</a>
             <a href="#privacy">Privacy</a>
+            <a href="#roadmap">Roadmap</a>
             <a class="nav-cta" href="https://github.com/lixin-yang-gh/seeker-ui/releases" target="_blank"
                 rel="noopener">Download Free</a>
         </div>
@@ -59,7 +60,7 @@
 
         <div class="hero-badge">
             <span class="hero-badge-dot" aria-hidden="true"></span>
-            Free & Open Source
+            Version 0.9.2 &middot; Free & Open Source
         </div>
 
         <h1 class="hero-h1">
@@ -68,10 +69,10 @@
         </h1>
 
         <p class="hero-sub">
-            Point, tick, and run &mdash; browse your project visually, select the files
-            the AI should see, and compose your prompt in a structured editor.
-            Every change the AI proposes is displayed side-by-side so you can review,
-            approve, or discard it before anything on disk is touched.
+            A visual, AI-assisted desktop workspace for coding and writing projects.
+            Browse files, craft structured prompts, run inference with OpenRouter or Venice,
+            and review block-based file updates &mdash; all in a single application
+            organized across four dedicated tabs: File Editor, Prompt Organizer, Inference, and Settings.
         </p>
 
         <div class="hero-btns">
@@ -132,15 +133,25 @@
         <div class="section-inner">
             <div class="section-label" style="text-align:center">See It In Action</div>
             <h2 class="section-h2 center">A workspace built for <span class="accent-blue">clarity</span><br />and <span class="accent-orange">speed</span></h2>
-            <p class="section-intro center">The screenshots below show the real Seeker UI interface &mdash; file explorer on the left, structured prompt editor in the centre, and AI response with one-click apply on the right. Everything you need, exactly where you expect it.</p>
+            <p class="section-intro center">Four focused tabs keep every stage of the AI-assisted workflow clear: File Editor, Prompt Organizer, Inference, and Settings. Everything you need, exactly where you expect it.</p>
             <div class="mockup-wrap">
-                <a href="seeker-ui.pic1.jpg" target="_blank" rel="noopener" aria-label="Open screenshot 1 in new tab">
-                    <img src="seeker-ui.pic1.jpg" alt="Seeker UI screenshot: file explorer and prompt editor"
+                <a href="file_editor_tab.png" target="_blank" rel="noopener" aria-label="Open File Editor screenshot in new tab">
+                    <img src="file_editor_tab.png" alt="Seeker UI screenshot: File Editor tab with search/replace, undo/redo, word wrap, and Markdown preview"
                         loading="lazy"
                         style="width:100%;height:auto;display:block;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" />
                 </a>
-                <a href="seeker-ui.pic2.jpg" target="_blank" rel="noopener" aria-label="Open screenshot 2 in new tab">
-                    <img src="seeker-ui.pic2.jpg" alt="Seeker UI screenshot: AI response and diff review"
+                <a href="prompt_tab.png" target="_blank" rel="noopener" aria-label="Open Prompt Organizer screenshot in new tab">
+                    <img src="prompt_tab.png" alt="Seeker UI screenshot: Prompt Organizer tab with system prompt, task, context, and referenced files"
+                        loading="lazy"
+                        style="width:100%;height:auto;display:block;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" />
+                </a>
+                <a href="inference_tab.png" target="_blank" rel="noopener" aria-label="Open Inference screenshot in new tab">
+                    <img src="inference_tab.png" alt="Seeker UI screenshot: Inference tab with reasoning, results, and block-based file updates"
+                        loading="lazy"
+                        style="width:100%;height:auto;display:block;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" />
+                </a>
+                <a href="settings_tab.png" target="_blank" rel="noopener" aria-label="Open Settings screenshot in new tab">
+                    <img src="settings_tab.png" alt="Seeker UI screenshot: Settings tab with OpenRouter and Venice API keys and model lists"
                         loading="lazy"
                         style="width:100%;height:auto;display:block;border-radius:6px;border:1px solid rgba(255,255,255,0.1);" />
                 </a>
@@ -157,28 +168,37 @@
             </p>
             <div class="feat-grid">
                 <div class="feat-card">
+                    <div class="feat-icon" aria-hidden="true">📝</div>
+                    <span class="feat-title">High-Performance File Editor</span>
+                    <p class="feat-desc">Always-visible search and replace, undo/redo, word wrap, live Markdown
+                        preview, Unicode-safe copy/cut/paste, font controls, and unsaved-changes protection &mdash;
+                        edit with confidence right next to your AI workflow.</p>
+                </div>
+                <div class="feat-card">
                     <div class="feat-icon" aria-hidden="true">📁</div>
                     <span class="feat-title">File Explorer</span>
-                    <p class="feat-desc">Browse your project, tick the files you need, and they are woven into your
-                        prompt automatically. Subfolder navigation and live preview included.</p>
+                    <p class="feat-desc">Recursive folder selection, per-file checkboxes, binary file detection,
+                        favorites, path utilities, custom masking and redaction, and structured context tags &mdash;
+                        so every inference run receives precisely the intended context.</p>
                 </div>
                 <div class="feat-card">
                     <div class="feat-icon" aria-hidden="true">✏️</div>
-                    <span class="feat-title">Structured Prompts</span>
-                    <p class="feat-desc">Separate sections for system role, task description, known issues, and file
-                        context &mdash; write once, reuse across sessions without reformatting.</p>
+                    <span class="feat-title">Prompt Organizer</span>
+                    <p class="feat-desc">Structured prompts assembled from your system prompt, task description,
+                        optional inference context, and selected files &mdash; all persisted per project folder.</p>
                 </div>
                 <div class="feat-card">
                     <div class="feat-icon" aria-hidden="true">⚡</div>
                     <span class="feat-title">One-Click Inference</span>
-                    <p class="feat-desc">Choose a model, set temperature with a slider, and hit Run. No API boilerplate,
-                        no terminal &mdash; ready to go in seconds.</p>
+                    <p class="feat-desc">Choose OpenRouter or Venice, select a model, set temperature and max tokens,
+                        and hit Run. No hand-crafted curl commands, no manual JSON formatting.</p>
                 </div>
                 <div class="feat-card">
                     <div class="feat-icon" aria-hidden="true">✅</div>
-                    <span class="feat-title">Review Before Applying</span>
-                    <p class="feat-desc">AI-proposed file edits appear as readable blocks. Approve, skip, or copy each
-                        one &mdash; you remain in control of every change.</p>
+                    <span class="feat-title">Inline Block-Based Updates</span>
+                    <p class="feat-desc">Proposed edits render as blocks with side-by-side original-vs-replacement
+                        previews and a copy button for every snippet. Apply reviewed changes with Update Files and
+                        check the file update summary &mdash; you remain in control of every change.</p>
                 </div>
                 <div class="feat-card">
                     <div class="feat-icon" aria-hidden="true">📋</div>
@@ -204,14 +224,38 @@
             <div class="privacy-card">
                 <div class="privacy-icon" aria-hidden="true">🔐</div>
                 <p class="privacy-text">
-                    Seeker UI is <strong>local-first</strong>. Your API keys,
-                    project files, and prompt history are stored only on your own device &mdash;
-                    never uploaded to any server.
+                    Seeker UI is <strong>local-first</strong>. Your API keys, prompts, and folder state are stored
+                    locally via <code>electron-store</code> and never leave your machine, except when you explicitly
+                    run inference against your chosen provider.
                 </p>
                 <p class="privacy-text">
                     There is no telemetry, no analytics, and no tracking of any kind.
                     What you work on is your business alone.
                 </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ROADMAP -->
+    <section id="roadmap" class="section">
+        <div class="section-inner">
+            <div class="section-label" style="text-align:center">Roadmap</div>
+            <h2 class="section-h2 center">What comes<br /><span class="accent-orange">next</span></h2>
+            <p class="section-intro center">Seeker UI is actively evolving. Two directions are planned for upcoming
+                releases.</p>
+            <div class="feat-grid" style="grid-template-columns:repeat(2,1fr)">
+                <div class="feat-card">
+                    <div class="feat-icon" aria-hidden="true">🧩</div>
+                    <span class="feat-title">Agentic Architecture</span>
+                    <p class="feat-desc">Inference orchestration will migrate to an agentic architecture, enabling
+                        complex multi-node workflows and seamless integration with external MCP servers.</p>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" aria-hidden="true">🌐</div>
+                    <span class="feat-title">Web Search &amp; Scraping MCP</span>
+                    <p class="feat-desc">A dedicated remote web search and scraping MCP server will provide enriched,
+                        real-time context for coding (documentation lookup) and writing (live web content) tasks.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -243,7 +287,14 @@
                 </a>
             </div>
             <p class="download-note">
-                Linux users can
+                Windows may show a &ldquo;Windows protected your PC&rdquo; warning because the binary is not code-signed
+                &mdash; select <strong>More info</strong>, then <strong>Run anyway</strong>. On macOS the app is not
+                notarized, so remove the quarantine attribute in Terminal with
+                <code>xattr -rd com.apple.quarantine /Applications/seeker-ui.app</code>.
+            </p>
+            <p class="download-note">
+                There is no pre-compiled Linux binary, but the source is fully Linux-compatible: clone the repository,
+                run <code>npm install</code>, then <code>npm run package:linux</code> to
                 <a href="https://github.com/lixin-yang-gh/seeker-ui" target="_blank" rel="noopener">build from source on
                     GitHub</a>.
             </p>
@@ -257,6 +308,9 @@
             <a href="#why">Why Seeker</a>
             <a href="#features">Features</a>
             <a href="#privacy">Privacy</a>
+            <a href="#roadmap">Roadmap</a>
+            <a href="https://github.com/lixin-yang-gh/seeker-ui/blob/main/user_manual.md" target="_blank"
+                rel="noopener">User Manual &nearr;</a>
             <a href="https://github.com/lixin-yang-gh/seeker-ui" target="_blank" rel="noopener">GitHub &nearr;</a>
             <a href="https://github.com/lixin-yang-gh/seeker-ui/releases" target="_blank" rel="noopener">Releases
                 &nearr;</a>
