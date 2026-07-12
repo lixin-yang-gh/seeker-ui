@@ -478,6 +478,22 @@ a {
     margin-bottom: 0.9rem;
 }
 
+.section-label.center {
+    text-align: center;
+}
+
+.mockup-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.feat-grid.cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
 .section-h2 {
     font-family: 'JetBrains Mono', monospace;
     font-size: clamp(1.75rem, 3.5vw, 2.75rem);
