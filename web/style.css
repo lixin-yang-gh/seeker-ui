@@ -116,6 +116,11 @@ a {
     color: var(--orange);
 }
 
+.nav-logo a {
+    color: #ccc;
+    text-decoration: none;
+}
+
 .nav-links {
     display: flex;
     align-items: center;
