@@ -53,6 +53,7 @@ function normalizeEditorContent(text: string): string {
 interface EditorTabProps {
   filePath: string | null;
   rootFolder?: string | null;
+  onPrepareInference?: () => void;
 }
 
 export interface EditorTabRef {
@@ -62,7 +63,7 @@ export interface EditorTabRef {
   reloadFile: () => void;
 }
 
-const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: React.ForwardedRef<EditorTabRef>) => {
+const EditorTab = forwardRef(({ filePath, rootFolder, onPrepareInference }: EditorTabProps, ref: React.ForwardedRef<EditorTabRef>) => {
   const [content, setContent] = useState<string>('');
   const [editedContent, setEditedContent] = useState<string>('');
   const [isDirty, setIsDirty] = useState<boolean>(false);
@@ -843,6 +844,14 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
             title="View as rendered Markdown in standalone window"
           >
             📄 Preview
+          </button>
+          <button
+            type="button"
+            className="file-editor__toolbar-btn file-editor__toolbar-btn--prepare-inference"
+            onClick={onPrepareInference}
+            title="Switch to the Prompt tab to prepare inference"
+          >
+            ⚡ Prepare Inference
           </button>
         </div>
       </div>

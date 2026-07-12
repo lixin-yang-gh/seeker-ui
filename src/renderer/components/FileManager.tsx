@@ -204,6 +204,7 @@ const FileManager = React.forwardRef(({
               ref={editorRef}
               filePath={editorFilePath ?? null}
               rootFolder={rootFolder}
+              onPrepareInference={() => handleTabChange(1)}
             />
           </div>
 
