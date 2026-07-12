@@ -839,11 +839,11 @@ const EditorTab = forwardRef(({ filePath, rootFolder, onPrepareInference }: Edit
           </button>
           <button
             type="button"
-            className="file-editor__toolbar-btn file-editor__toolbar-btn--secondary"
+            className="file-editor__toolbar-btn file-editor__toolbar-btn--primary"
             onClick={() => window.electronAPI.openMarkdownPreview(editedContent)}
             title="View as rendered Markdown in standalone window"
           >
-            📄 Preview
+            👁️ Preview
           </button>
           <button
             type="button"

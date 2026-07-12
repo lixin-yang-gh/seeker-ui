@@ -226,7 +226,7 @@ const full_file_prompt_conditional = full_file_prompt.replace(
 
 const APPEND_BUTTONS: Array<{ key: string; value: string }> = [
   {
-    key: 'Current File', value: full_file_prompt.replace(
+    key: 'Single File', value: full_file_prompt.replace(
       '\nReturn a JSON array of change objects',
       '\nReturn a JSON array with one object for the updated file'
     )
