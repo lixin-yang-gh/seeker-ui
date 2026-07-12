@@ -60,6 +60,7 @@ interface StoreSchema {
   previewWindowBounds?: { x: number; y: number; width: number; height: number };
   previewTheme?: 'dark' | 'light';
   previewMode?: 'text' | 'markdown';
+  previewZoom?: number;
 }
 
 // Initialize electron-store
@@ -170,7 +171,9 @@ const getValidatedPreviewWindowBounds = () => {
   const { width: screenW, height: screenH } = display.workAreaSize;
 
   // If the intended size or position exceed the current screen resolution,
-  // reset to top-left and spread to 60% of the screen.
+  // reset to top-left and spread to 60% of the screen height. The width is
+  // restricted to 60% of the screen width or 800px, whichever is smaller,
+  // so the preview never becomes excessively wide on large monitors.
   if (
     width > screenW ||
     height > screenH ||
@@ -179,7 +182,7 @@ const getValidatedPreviewWindowBounds = () => {
     x + width > screenW ||
     y + height > screenH
   ) {
-    width = Math.round(screenW * 0.6);
+    width = Math.min(Math.round(screenW * 0.6), 800);
     height = Math.round(screenH * 0.6);
     x = 0;
     y = 0;
@@ -558,12 +561,14 @@ ipcMain.handle('store:getPreviewSettings', () => {
   return {
     theme: store.get('previewTheme') || 'dark',
     mode: store.get('previewMode') || 'markdown',
+    zoom: store.get('previewZoom') || 100,
   };
 });
 
-ipcMain.handle('store:savePreviewSettings', (_, settings: { theme: 'dark' | 'light'; mode: 'text' | 'markdown' }) => {
+ipcMain.handle('store:savePreviewSettings', (_, settings: { theme: 'dark' | 'light'; mode: 'text' | 'markdown'; zoom: number }) => {
   store.set('previewTheme', settings.theme);
   store.set('previewMode', settings.mode);
+  store.set('previewZoom', settings.zoom);
   return { success: true };
 });
 

@@ -523,8 +523,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 16px;
-    background: #0e639c;
-    border-bottom: 1px solid #333;
+    background: #333;
+    border-bottom: 1px solid #222;
     flex-shrink: 0;
 }
 

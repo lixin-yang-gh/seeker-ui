@@ -123,9 +123,9 @@ declare global {
       openMarkdownPreview: (content: string) => Promise<void>;
       updateMarkdownPreview: (content: string) => Promise<void>;
 
-      // Preview settings (theme + view mode) persistence
-      getPreviewSettings: () => Promise<{ theme: 'dark' | 'light'; mode: 'text' | 'markdown' }>;
-      savePreviewSettings: (settings: { theme: 'dark' | 'light'; mode: 'text' | 'markdown' }) => Promise<{ success: boolean }>;
+      // Preview settings (theme + view mode + zoom) persistence
+      getPreviewSettings: () => Promise<{ theme: 'dark' | 'light'; mode: 'text' | 'markdown'; zoom: number }>;
+      savePreviewSettings: (settings: { theme: 'dark' | 'light'; mode: 'text' | 'markdown'; zoom: number }) => Promise<{ success: boolean }>;
 
       // Events
       on: (channel: string, callback: (...args: any[]) => void) => void;
