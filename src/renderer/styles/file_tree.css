@@ -301,6 +301,29 @@
     font-style: italic;
     margin-left: 10px;
 }
+.loading-indicator {
+    color: #4ec9b0;
+    font-style: italic;
+    margin-left: 10px;
+}
+
+/* ─────────────────────────────────────────────
+   Initial loading spinner (centered in tree content)
+───────────────────────────────────────────── */
+.initial-loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #0e639c;
+    border-radius: 50%;
+    animation: initialLoadingSpin 0.8s linear infinite;
+}
+
+@keyframes initialLoadingSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 
 /* ─────────────────────────────────────────────
    Footer

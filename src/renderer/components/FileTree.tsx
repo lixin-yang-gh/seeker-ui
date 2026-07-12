@@ -639,6 +639,18 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
             )}
             {item.isDirectory && (
               <span
+                className="file-icon copy-path-icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopyPath(item);
+                }}
+                title="Copy folder path to clipboard"
+              >
+                📋
+              </span>
+            )}
+            {item.isDirectory && (
+              <span
                 className="file-icon create-file-icon"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -767,9 +779,16 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
 
       <div className="tree-content">
         {tree.length === 0 ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontStyle: 'italic' }}>
-            {isInitialized ? 'No folder opened' : 'Loading...'}
-          </div>
+          isInitialized ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontStyle: 'italic' }}>
+              No folder opened
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: '#888' }}>
+              <div className="initial-loading-spinner" />
+              <span style={{ marginTop: '12px', fontSize: '12px', fontStyle: 'italic' }}>Loading files...</span>
+            </div>
+          )
         ) : (
           tree.map(item => renderTreeItem(item))
         )}
