@@ -3,9 +3,12 @@ import ReactDOM from 'react-dom/client';
 import Sidebar from './components/Sidebar';
 import FileManager, { FileManagerRef } from './components/FileManager';
 import EulaModal from './components/EulaModal';
+import MarkdownPreviewWindow from './components/MarkdownPreviewWindow';
 import { preloadMarkdownModules } from '../shared/markdown-loader';
 import './styles/main.css';
 import './styles/file_tree.css';
+
+const isMarkdownPreviewWindow = new URLSearchParams(window.location.search).get('window') === 'markdown-preview';
 // Forward main-process logs to the renderer DevTools console
 if (window.electronAPI?.onMainLog) {
   window.electronAPI.onMainLog(({ level, msg }: { level: 'log' | 'warn' | 'error'; msg: string }) => {
@@ -139,8 +142,14 @@ const App: React.FC = () => {
     </>
   );
 };
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+if (isMarkdownPreviewWindow) {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <MarkdownPreviewWindow />
+  );
+} else {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}

@@ -57,6 +57,9 @@ interface StoreSchema {
     veniceApiKey: string;
     veniceInferenceModels: string;
   };
+  previewWindowBounds?: { x: number; y: number; width: number; height: number };
+  previewTheme?: 'dark' | 'light';
+  previewMode?: 'text' | 'markdown';
 }
 
 // Initialize electron-store
@@ -124,6 +127,17 @@ async function createWindow() {
   mainWindow.on('close', saveBounds);
 
   console.log(`__dirname=${__dirname}`);
+  mainWindow.on('resize', saveBounds);
+  mainWindow.on('move', saveBounds);
+  mainWindow.on('close', saveBounds);
+  mainWindow.on('closed', () => {
+    if (markdownPreviewWindow && !markdownPreviewWindow.isDestroyed()) {
+      markdownPreviewWindow.close();
+      markdownPreviewWindow = null;
+    }
+  });
+
+  console.log(`__dirname=${__dirname}`);
 }
 
 const getValidatedWindowBounds = () => {
@@ -143,6 +157,32 @@ const getValidatedWindowBounds = () => {
     // Ensure fully visible (clamp position)
     x = Math.max(0, Math.min(x, screenW - width));
     y = Math.max(0, Math.min(y, screenH - height));
+  }
+
+  return { width, height, x, y };
+};
+
+const getValidatedPreviewWindowBounds = () => {
+  const saved = store.get('previewWindowBounds') as { x?: number; y?: number; width?: number; height?: number } || {};
+  let { width = 800, height = 600, x = 100, y = 100 } = saved;
+
+  const display = screen.getPrimaryDisplay();
+  const { width: screenW, height: screenH } = display.workAreaSize;
+
+  // If the intended size or position exceed the current screen resolution,
+  // reset to top-left and spread to 60% of the screen.
+  if (
+    width > screenW ||
+    height > screenH ||
+    x < 0 ||
+    y < 0 ||
+    x + width > screenW ||
+    y + height > screenH
+  ) {
+    width = Math.round(screenW * 0.6);
+    height = Math.round(screenH * 0.6);
+    x = 0;
+    y = 0;
   }
 
   return { width, height, x, y };
@@ -509,6 +549,78 @@ ipcMain.handle('store:setEulaAgreed', (_, value: boolean) => {
 ipcMain.handle('app:quit', () => {
   app.quit();
   return { success: true };
+});
+
+let markdownPreviewWindow: BrowserWindow | null = null;
+
+// Preview settings (theme + view mode) persistence
+ipcMain.handle('store:getPreviewSettings', () => {
+  return {
+    theme: store.get('previewTheme') || 'dark',
+    mode: store.get('previewMode') || 'markdown',
+  };
+});
+
+ipcMain.handle('store:savePreviewSettings', (_, settings: { theme: 'dark' | 'light'; mode: 'text' | 'markdown' }) => {
+  store.set('previewTheme', settings.theme);
+  store.set('previewMode', settings.mode);
+  return { success: true };
+});
+
+ipcMain.handle('markdown-preview:open', async (_, content: string) => {
+  if (markdownPreviewWindow && !markdownPreviewWindow.isDestroyed()) {
+    markdownPreviewWindow.focus();
+    markdownPreviewWindow.webContents.send('markdown-preview:content', content);
+    return;
+  }
+
+  const bounds = getValidatedPreviewWindowBounds();
+
+  markdownPreviewWindow = new BrowserWindow({
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
+    title: 'Markdown Preview',
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    }
+  });
+
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  if (isDev && process.env['ELECTRON_RENDERER_URL']) {
+    markdownPreviewWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] + '?window=markdown-preview');
+  } else {
+    const indexPath = path.join(__dirname, '../renderer/index.html');
+    markdownPreviewWindow.loadFile(indexPath, { query: { window: 'markdown-preview' } });
+  }
+
+  markdownPreviewWindow.webContents.on('did-finish-load', () => {
+    if (markdownPreviewWindow && !markdownPreviewWindow.isDestroyed()) {
+      markdownPreviewWindow.webContents.send('markdown-preview:content', content);
+    }
+  });
+
+  const savePreviewBounds = () => {
+    if (markdownPreviewWindow && !markdownPreviewWindow.isMinimized() && !markdownPreviewWindow.isDestroyed()) {
+      store.set('previewWindowBounds', markdownPreviewWindow.getBounds());
+    }
+  };
+  markdownPreviewWindow.on('resize', savePreviewBounds);
+  markdownPreviewWindow.on('move', savePreviewBounds);
+  markdownPreviewWindow.on('close', savePreviewBounds);
+
+  markdownPreviewWindow.on('closed', () => {
+    markdownPreviewWindow = null;
+  });
+});
+
+ipcMain.handle('markdown-preview:update', (_, content: string) => {
+  if (markdownPreviewWindow && !markdownPreviewWindow.isDestroyed()) {
+    markdownPreviewWindow.webContents.send('markdown-preview:content', content);
+  }
 });
 
 // App lifecycle

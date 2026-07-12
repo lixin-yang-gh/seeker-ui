@@ -33,7 +33,7 @@ const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Improvement', value: 'Please propose improvement ' },
   { key: 'Words', value: 'Please propose word changes ' },
   { key: 'Codes', value: 'Please propose code changes ' },
-  { key: 'Fixes', value: 'Please propose fixes ' },
+  { key: 'Fixes', value: 'Please propose fixes to the following errors/issues ' },
   { key: 'Report', value: 'Please create a report ' },
 ];
 

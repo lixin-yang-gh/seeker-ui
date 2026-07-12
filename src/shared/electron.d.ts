@@ -119,6 +119,14 @@ declare global {
       // Quit application
       quitApp: () => Promise<{ success: boolean }>;
 
+      // Markdown Preview Window
+      openMarkdownPreview: (content: string) => Promise<void>;
+      updateMarkdownPreview: (content: string) => Promise<void>;
+
+      // Preview settings (theme + view mode) persistence
+      getPreviewSettings: () => Promise<{ theme: 'dark' | 'light'; mode: 'text' | 'markdown' }>;
+      savePreviewSettings: (settings: { theme: 'dark' | 'light'; mode: 'text' | 'markdown' }) => Promise<{ success: boolean }>;
+
       // Events
       on: (channel: string, callback: (...args: any[]) => void) => void;
       onMainLog: (callback: (data: { level: 'log' | 'warn' | 'error'; msg: string }) => void) => void;

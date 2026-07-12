@@ -73,4 +73,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Quit application
   quitApp: () => ipcRenderer.invoke('app:quit'),
+
+  // Markdown Preview Window
+  openMarkdownPreview: (content) => ipcRenderer.invoke('markdown-preview:open', content),
+  updateMarkdownPreview: (content) => ipcRenderer.invoke('markdown-preview:update', content),
+
+  // Preview settings (theme + view mode) persistence
+  getPreviewSettings: () => ipcRenderer.invoke('store:getPreviewSettings'),
+  savePreviewSettings: (settings) => ipcRenderer.invoke('store:savePreviewSettings', settings),
 });

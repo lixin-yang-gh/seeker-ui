@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { FileContent } from '../../../shared/types';
-import { getMarkdownModulesPromise, MarkdownModules } from '../../../shared/markdown-loader';
 
 const scrollPositionMap = new Map<string, number>();
 const MAX_UNDO_HISTORY = 200;
@@ -75,9 +74,6 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
   const DEFAULT_FONT_SIZE = 13;
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   const [copiedAll, setCopiedAll] = useState<boolean>(false);
-  const [showMarkdownView, setShowMarkdownView] = useState<boolean>(false);
-  const [markdownModules, setMarkdownModules] = useState<MarkdownModules | null>(null);
-  const [markdownTheme, setMarkdownTheme] = useState<'dark' | 'light'>('dark');
   const [showSearch, setShowSearch] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
@@ -100,7 +96,6 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
   const originalContentRef = useRef<string>('');
   const fontSizeLoadedRef = useRef<boolean>(false);
   const wordWrapLoadedRef = useRef<boolean>(false);
-  const markdownThemeLoadedRef = useRef<boolean>(false);
   const editedContentRef = useRef<string>('');
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
@@ -130,16 +125,12 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
         if (typeof folderState?.previewWordWrap === 'boolean') {
           setWordWrap(folderState.previewWordWrap);
         }
-        if (folderState?.previewMarkdownTheme === 'light' || folderState?.previewMarkdownTheme === 'dark') {
-          setMarkdownTheme(folderState.previewMarkdownTheme);
-        }
       } catch (err) {
         console.error('EditorTab: failed to load preview settings', err);
       } finally {
         if (!cancelled) {
           fontSizeLoadedRef.current = true;
           wordWrapLoadedRef.current = true;
-          markdownThemeLoadedRef.current = true;
         }
       }
     };
@@ -168,17 +159,6 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     }, 400);
     return () => clearTimeout(t);
   }, [wordWrap, rootFolder]);
-
-  useEffect(() => {
-    if (!rootFolder || !markdownThemeLoadedRef.current) return;
-    const t = setTimeout(async () => {
-      try {
-        const currentState = (await window.electronAPI.getFolderState(rootFolder)) || {};
-        await window.electronAPI.saveFolderState(rootFolder, { ...currentState, previewMarkdownTheme: markdownTheme });
-      } catch (err) { console.error('EditorTab: failed to persist markdown theme', err); }
-    }, 400);
-    return () => clearTimeout(t);
-  }, [markdownTheme, rootFolder]);
 
   // Core loader — actually reads a file from disk and populates the editor.
   // Extracted so it can be invoked both by the filePath effect and by the
@@ -271,13 +251,10 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     }
   });
 
-  // Markdown modules
+  // Sync markdown content to standalone preview window
   useEffect(() => {
-    if (!showMarkdownView || markdownModules) return;
-    let cancelled = false;
-    getMarkdownModulesPromise().then((mods) => { if (!cancelled) setMarkdownModules(mods); });
-    return () => { cancelled = true; };
-  }, [showMarkdownView, markdownModules]);
+    window.electronAPI.updateMarkdownPreview(editedContent);
+  }, [editedContent]);
 
   // Search
   // Pure helper — no closure dependencies; defined outside render would be
@@ -833,19 +810,20 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
 
           <button
             type="button"
-            className={'file-editor__toolbar-btn' + (showMarkdownView ? ' file-editor__toolbar-btn--primary' : ' file-editor__toolbar-btn--secondary')}
-            onClick={() => setShowMarkdownView((s) => !s)}
-            title="View as rendered Markdown"
-          >
-            📄 View MD
-          </button>
-          <button
-            type="button"
             className="file-editor__toolbar-btn file-editor__toolbar-btn--secondary"
             onClick={() => navigator.clipboard.writeText(editedContent).then(() => { setCopiedAll(true); setTimeout(() => setCopiedAll(false), 1500); })}
             title="Copy all content"
           >
             {copiedAll ? '✓ Copied' : 'Copy All'}
+          </button>
+          <button
+            type="button"
+            className="file-editor__toolbar-btn file-editor__toolbar-btn--secondary"
+            onClick={handleRevert}
+            disabled={saveStatus === 'saving'}
+            title="Reload file from disk"
+          >
+            Revert All
           </button>
           <button
             type="button"
@@ -861,11 +839,10 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
           <button
             type="button"
             className="file-editor__toolbar-btn file-editor__toolbar-btn--secondary"
-            onClick={handleRevert}
-            disabled={saveStatus === 'saving'}
-            title="Reload file from disk"
+            onClick={() => window.electronAPI.openMarkdownPreview(editedContent)}
+            title="View as rendered Markdown in standalone window"
           >
-            Revert All
+            📄 Preview
           </button>
         </div>
       </div>
@@ -946,57 +923,6 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
           }}
         />
       </div>
-
-      {/* Markdown preview modal */}
-      {showMarkdownView && (
-        <div
-          className="file-editor__markdown-modal"
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5000 }}
-          onClick={() => setShowMarkdownView(false)}
-        >
-          <div
-            className={'file-editor__markdown-modal-content' + (markdownTheme === 'light' ? ' file-editor__markdown-modal-content--light' : '')}
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="file-editor__markdown-modal-header">
-              <span className="file-editor__markdown-modal-title" title={loadedFilePathRef.current ?? ''}>
-                {loadedFilePathRef.current ?? '(untitled)'} — Markdown Preview
-              </span>
-              <div className="file-editor__markdown-modal-header-actions">
-                <button
-                  type="button"
-                  className="file-editor__markdown-modal-theme-btn"
-                  onClick={() => setMarkdownTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-                  title={markdownTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                >
-                  {markdownTheme === 'dark' ? '☀️' : '🌙'}
-                </button>
-                <button
-                  type="button"
-                  className="file-editor__markdown-modal-close"
-                  onClick={() => setShowMarkdownView(false)}
-                  title="Close (Esc)"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-            <div className="file-editor__markdown-modal-body">
-              <div className="file-editor__markdown-content">
-                {markdownModules ? (
-                  <markdownModules.ReactMarkdown remarkPlugins={[markdownModules.remarkGfm]}>
-                    {editedContent}
-                  </markdownModules.ReactMarkdown>
-                ) : (
-                  <div style={{ color: '#888', fontStyle: 'italic', padding: 20 }}>Loading markdown renderer…</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Unsaved-changes confirmation modal (portal) */}
       {unsavedModal}
