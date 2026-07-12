@@ -1,6 +1,6 @@
 # Seeker UI – The Visual AI Workspace
 
-**Current Version: 0.9.2**
+**Current Version: 0.9.2** &nbsp;|&nbsp; **Website: [seeker-ui.app](https://seeker-ui.app/)**
 
 ## Recent Updates
 
