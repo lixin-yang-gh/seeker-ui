@@ -6,6 +6,51 @@ import { getMarkdownModulesPromise, MarkdownModules } from '../../../shared/mark
 const scrollPositionMap = new Map<string, number>();
 const MAX_UNDO_HISTORY = 200;
 
+/**
+ * Snap a selection START offset to a valid Unicode scalar boundary.
+ * If the offset points at a low surrogate (the second half of a surrogate
+ * pair encoding a supplementary character), step back by one so that the
+ * full supplementary character is included in the sliced / clipboard text.
+ */
+function snapStartToUnicodeBoundary(s: string, offset: number): number {
+  if (offset <= 0 || offset >= s.length) return offset;
+  const code = s.charCodeAt(offset);
+  // Low surrogate range: 0xDC00..0xDFFF — step back to the high surrogate
+  if (code >= 0xDC00 && code <= 0xDFFF) return offset - 1;
+  return offset;
+}
+
+/**
+ * Snap a selection END offset to a valid Unicode scalar boundary.
+ * If the offset points at a low surrogate, step forward by one so that
+ * String.prototype.slice(start, end) includes the full surrogate pair
+ * rather than splitting it and producing an unpaired surrogate.
+ */
+function snapEndToUnicodeBoundary(s: string, offset: number): number {
+  if (offset <= 0 || offset >= s.length) return offset;
+  const code = s.charCodeAt(offset);
+  // Low surrogate range: 0xDC00..0xDFFF — step past the low surrogate
+  if (code >= 0xDC00 && code <= 0xDFFF) return offset + 1;
+  return offset;
+}
+
+/**
+ * Normalize file content for consistent processing in the editor.
+ * Converts CRLF and lone CR line endings to LF, and replaces null bytes
+ * with the Unicode replacement character. This ensures that offsets
+ * computed against the JavaScript string (e.g. from textarea
+ * selectionStart/selectionEnd or regex match indices) align with the
+ * actual character positions — which would otherwise diverge for \r\n
+ * sequences because the textarea internally normalizes them to \n while
+ * the raw string retains both code units.
+ */
+function normalizeEditorContent(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\0/g, '\uFFFD');
+}
+
 interface EditorTabProps {
   filePath: string | null;
   rootFolder?: string | null;
@@ -33,7 +78,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
   const [showMarkdownView, setShowMarkdownView] = useState<boolean>(false);
   const [markdownModules, setMarkdownModules] = useState<MarkdownModules | null>(null);
   const [markdownTheme, setMarkdownTheme] = useState<'dark' | 'light'>('dark');
-  const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [showSearch, setShowSearch] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
   const [activeMatchIndex, setActiveMatchIndex] = useState<number>(0);
@@ -164,7 +209,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
         if (stats.size > 10 * 1024 * 1024) { setLoadError('File is too large (max 10MB)'); setLoading(false); return; }
         const fileData = await window.electronAPI.readFile(targetPath);
         if (cancelled) return;
-        const c = fileData.content;
+        const c = normalizeEditorContent(fileData.content);
         setContent(c);
         setEditedContent(c);
         originalContentRef.current = c;
@@ -235,21 +280,35 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
   }, [showMarkdownView, markdownModules]);
 
   // Search
+  // Pure helper — no closure dependencies; defined outside render would be
+  // ideal but kept here to avoid prop-drilling. Memoised with empty deps so
+  // it is never re-created.
   const escapeHtml = useCallback((s: string): string =>
-    s.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>'), []);
+    s.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'), []);
 
   const matchRanges = React.useMemo<Array<{ start: number; end: number }>>(() => {
     if (!showSearch || !searchQuery) return [];
     const ranges: Array<{ start: number; end: number }> = [];
-    const haystack = caseSensitive ? editedContent : editedContent.toLowerCase();
-    const needle = caseSensitive ? searchQuery : searchQuery.toLowerCase();
-    if (needle.length === 0) return [];
-    let from = 0;
-    while (true) {
-      const idx = haystack.indexOf(needle, from);
-      if (idx === -1) break;
-      ranges.push({ start: idx, end: idx + needle.length });
-      from = idx + needle.length;
+    if (searchQuery.length === 0) return [];
+    // Build a regex from the escaped query so that the match object reports
+    // the *actual* UTF-16 length of what was matched in the original haystack,
+    // rather than the length of the potentially-different lowercased needle.
+    // This is the correct fix for characters like ß (U+00DF) whose .toLowerCase()
+    // form ('ss') is a different length, causing range.end to be wrong.
+    try {
+      const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const flags = caseSensitive ? 'gu' : 'giu';
+      const re = new RegExp(escaped, flags);
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(editedContent)) !== null) {
+        const start = m.index;
+        const end = start + m[0].length;
+        ranges.push({ start, end });
+        // Prevent infinite loop on zero-length matches
+        if (m[0].length === 0) re.lastIndex++;
+      }
+    } catch {
+      // If the query is somehow an invalid regex after escaping, return empty
     }
     return ranges;
   }, [showSearch, searchQuery, caseSensitive, editedContent]);
@@ -422,20 +481,27 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     if (key === 'c') {
       if (!hasSelection) return;
       e.preventDefault();
-      try { await navigator.clipboard.writeText(editedContent.slice(selStart, selEnd)); } catch (err) { console.error('EditorTab: copy failed', err); }
+      // Snap offsets to surrogate-pair boundaries so we never split a
+      // Unicode supplementary character (U+10000..U+10FFFF), which JS
+      // encodes as a high+low surrogate pair (two UTF-16 code units).
+      const safeStart = snapStartToUnicodeBoundary(editedContent, selStart);
+      const safeEnd = snapEndToUnicodeBoundary(editedContent, selEnd);
+      try { await navigator.clipboard.writeText(editedContent.slice(safeStart, safeEnd)); } catch (err) { console.error('EditorTab: copy failed', err); }
       return;
     }
     if (key === 'x') {
       if (!hasSelection) return;
       e.preventDefault();
-      try { await navigator.clipboard.writeText(editedContent.slice(selStart, selEnd)); } catch (err) { console.error('EditorTab: cut failed', err); return; }
+      const safeStart = snapStartToUnicodeBoundary(editedContent, selStart);
+      const safeEnd = snapEndToUnicodeBoundary(editedContent, selEnd);
+      try { await navigator.clipboard.writeText(editedContent.slice(safeStart, safeEnd)); } catch (err) { console.error('EditorTab: cut failed', err); return; }
       commitPendingUndoBatch();
       pushUndoSnapshot(editedContent);
       redoStackRef.current = [];
-      const newValue = editedContent.slice(0, selStart) + editedContent.slice(selEnd);
+      const newValue = editedContent.slice(0, safeStart) + editedContent.slice(safeEnd);
       setEditedContent(newValue);
       setIsDirty(newValue !== originalContentRef.current);
-      requestAnimationFrame(() => { const node = editorRef.current; if (node) { node.selectionStart = selStart; node.selectionEnd = selStart; } });
+      requestAnimationFrame(() => { const node = editorRef.current; if (node) { node.selectionStart = safeStart; node.selectionEnd = safeStart; } });
       return;
     }
     if (key === 'v') {
@@ -446,10 +512,11 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
       commitPendingUndoBatch();
       pushUndoSnapshot(editedContent);
       redoStackRef.current = [];
-      const newValue = editedContent.slice(0, selStart) + clip + editedContent.slice(selEnd);
-      setEditedContent(newValue);
-      setIsDirty(newValue !== originalContentRef.current);
-      const caret = selStart + clip.length;
+      const normalizedClip = normalizeEditorContent(clip);
+      const newValue = editedContent.slice(0, selStart) + normalizedClip + editedContent.slice(selEnd);
+        setEditedContent(newValue);
+        setIsDirty(newValue !== originalContentRef.current);
+        const caret = selStart + normalizedClip.length;
       requestAnimationFrame(() => { const node = editorRef.current; if (node) { node.selectionStart = caret; node.selectionEnd = caret; } });
       return;
     }
@@ -480,7 +547,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     if (targetPath) {
       try {
         const fileData = await window.electronAPI.readFile(targetPath);
-        original = fileData?.content ?? original;
+        original = normalizeEditorContent(fileData?.content ?? original);
         originalContentRef.current = original;
       } catch (err) { console.error('EditorTab: revert failed', err); }
     }
@@ -624,13 +691,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
-        setShowSearch(true);
         setTimeout(() => searchInputRef.current?.focus(), 0);
-        return;
-      }
-      if (e.key === 'Escape' && showSearch) {
-        e.preventDefault();
-        closeSearch();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
@@ -651,7 +712,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDirty, saveStatus, handleSave, handleUndo, handleRedo, showSearch, pendingAction, handleModalCancel, closeSearch]);
+  }, [isDirty, saveStatus, handleSave, handleUndo, handleRedo, pendingAction, handleModalCancel]);
 
   // Derive the display name of the pending file for the modal message.
   const pendingFileName = pendingAction && pendingAction.type === 'file'
@@ -671,8 +732,8 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
           {pendingAction && pendingAction.type === 'file'
             ? ` Do you want to save them before opening "${pendingFileName}"?`
             : pendingAction.type === 'folder'
-            ? ' Do you want to save them before changing the project folder?'
-            : ' Do you want to save them before switching tabs?'}
+              ? ' Do you want to save them before changing the project folder?'
+              : ' Do you want to save them before switching tabs?'}
         </p>
         {saveError && (
           <p className="file-editor__modal-message" style={{ color: '#ff8a80' }}>
@@ -809,8 +870,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
         </div>
       </div>
 
-      {/* Search bar */}
-      {showSearch && (
+      {/* Search bar – always visible */}
       <div className="file-editor__search-container">
         <div className="file-editor__search">
           <span className="file-editor__search-icon" aria-hidden="true">🔍</span>
@@ -822,7 +882,6 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSearch(); return; }
               if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) gotoPrevMatch(); else gotoNextMatch(); }
             }}
             spellCheck={false}
@@ -836,7 +895,6 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
             <input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} />
             Aa
           </label>
-          <button type="button" className="file-editor__search-btn" onClick={closeSearch} title="Close search (Esc)">✕</button>
         </div>
         <div className="file-editor__replace">
           <input
@@ -846,7 +904,6 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
             value={replaceQuery}
             onChange={(e) => setReplaceQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSearch(); return; }
               if (e.key === 'Enter') { e.preventDefault(); handleReplace(); }
             }}
             spellCheck={false}
@@ -855,7 +912,6 @@ const EditorTab = forwardRef(({ filePath, rootFolder }: EditorTabProps, ref: Rea
           <button type="button" className="file-editor__replace-btn" onClick={handleReplaceAll} disabled={matchRanges.length === 0} title="Replace all matches">Replace All</button>
         </div>
       </div>
-      )}
 
       {/* Editor body */}
       <div className="file-editor__body" style={{ flex: 1, position: 'relative' }}>
