@@ -32,13 +32,16 @@
     "wait-on": "^7.0.1"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "electron-store": "^8.1.0",
+    "p-queue": "^9.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
     "redactum": "^1.1.0",
     "remark-gfm": "^4.0.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zod": "^4.4.3"
   },
   "build": {
     "appId": "app.seeker-ui",
