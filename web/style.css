@@ -919,6 +919,7 @@ button:focus-visible {
 @media (max-width: 640px) {
     .mockup-grid {
         grid-template-columns: 1fr;
+        max-width: 100%;
     }
 
     .mockup-cell {
