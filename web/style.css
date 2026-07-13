@@ -293,26 +293,25 @@ a {
     border-top: 1px solid var(--border);
 }
 
-/* ── MOCKUP ── */
-.mockup-wrap {
+/* ── MOCKUP GRID ── */
+.mockup-grid {
     width: 100%;
     margin-top: 40px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 48px 120px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
-    animation: fadeUp 0.8s 0.4s ease both;
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 300px));
     gap: 16px;
-    background: #0d0d18;
-    padding: 16px;
-    align-items: flex-start;
+    justify-content: center;
+    animation: fadeUp 0.8s 0.4s ease both;
 }
 
-.mockup-wrap > a {
-    flex: 1 1 0;
-    min-width: 0;
+.mockup-cell {
+    max-width: 300px;
+    width: 100%;
+}
+
+.mockup-cell > a {
+    display: block;
+    width: 100%;
 }
 
 .mockup-titlebar {
@@ -472,6 +471,7 @@ a {
 .section-inner {
     max-width: 1200px;
     margin: 0 auto;
+    text-align: justify;
 }
 
 .section-label {
@@ -497,6 +497,11 @@ a {
 
 .feat-grid.cols-2 {
     grid-template-columns: repeat(2, 1fr);
+}
+
+.roadmap-grid-wrap {
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .section-h2 {
@@ -906,8 +911,26 @@ button:focus-visible {
         display: none;
     }
 
-    .mockup-wrap {
-        flex-direction: column;
+    .mockup-grid {
+        grid-template-columns: repeat(2, minmax(0, 300px));
+    }
+}
+
+@media (max-width: 640px) {
+    .mockup-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .mockup-cell {
+        max-width: 100%;
+    }
+
+    .feat-grid.cols-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .roadmap-grid-wrap {
+        max-width: 100%;
     }
 }
 
