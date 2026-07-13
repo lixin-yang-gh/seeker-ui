@@ -254,15 +254,28 @@
             <div class="feat-grid cols-2 roadmap-grid-wrap">
                 <div class="feat-card">
                     <div class="feat-icon" aria-hidden="true">🧩</div>
-                    <span class="feat-title">Agentic Architecture</span>
-                    <p class="feat-desc">Inference orchestration will migrate to an agentic architecture, enabling
-                        complex multi-node workflows and seamless integration with external MCP servers.</p>
+                    <span class="feat-title">External Knowledge Sources &mdash; at a known, fixed cost</span>
+                    <p class="feat-desc">Connect Seeker UI to remote knowledge services so each inference run can
+                        automatically pull in relevant background information &mdash; documentation, notes, or any
+                        retrieval service you configure. A confirmation step appears every time so you choose exactly
+                        which sources to query, or skip retrieval entirely with one click.</p>
+                    <p class="feat-desc">Crucially, the extra cost per run is <strong>fixed and visible before you confirm</strong>.
+                        Retrieved content is shown in full in your assembled prompt, so you see exactly how many
+                        words the model will receive &mdash; no surprises on your API bill. This is a deliberate
+                        departure from fully automated &ldquo;agentic&rdquo; approaches, where the model decides
+                        how many follow-up calls to make and costs can multiply unpredictably across several
+                        back-and-forth rounds. Here, one retrieval step runs, you see the result, and inference
+                        proceeds &mdash; the bill for that run is settled before it starts.</p>
                 </div>
                 <div class="feat-card">
-                    <div class="feat-icon" aria-hidden="true">🌐</div>
-                    <span class="feat-title">Web Search &amp; Scraping MCP</span>
-                    <p class="feat-desc">A dedicated remote web search and scraping MCP server will provide enriched,
-                        real-time context for coding (documentation lookup) and writing (live web content) tasks.</p>
+                    <div class="feat-icon" aria-hidden="true">🧠</div>
+                    <span class="feat-title">Session Memory & Web Search</span>
+                    <p class="feat-desc">An optional rolling memory will carry a compact summary of your recent
+                        exchanges into each new inference, so you no longer need to re-paste previous results.
+                        The summary is deliberately kept short &mdash; it adds a small, predictable amount to each
+                        prompt rather than growing without bound. A dedicated web search and scraping service will
+                        also provide live, real-time context for coding (documentation lookup) and writing tasks,
+                        again at a single, auditable retrieval cost per run.</p>
                 </div>
             </div>
         </div>
