@@ -39,6 +39,8 @@ declare global {
       // Shell operations
       openContainingFolder: (filePath: string) => Promise<{ success: boolean }>;
 
+      mkdir: (dirPath: string) => Promise<{ success: boolean }>;
+
       // File system operations
       readDirectory: (path: string) => Promise<Array<{
         name: string;

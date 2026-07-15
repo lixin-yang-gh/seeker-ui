@@ -53,6 +53,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openContainingFolder: (filePath) => ipcRenderer.invoke('shell:openContainingFolder', filePath),
 
+  mkdir: (dirPath) => ipcRenderer.invoke('fs:mkdir', dirPath),
+
   redactText: (text) => ipcRenderer.invoke('redact-text', text),
 
   callOpenRouter: (systemPrompt, userPrompt, model, options) =>

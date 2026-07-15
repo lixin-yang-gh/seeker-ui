@@ -288,6 +288,15 @@ ipcMain.handle('write-file', async (_, { path: filePath, content }) => {
   }
 });
 
+ipcMain.handle('fs:mkdir', async (_, dirPath: string) => {
+  try {
+    await fs.mkdir(dirPath, { recursive: true });
+    return { success: true };
+  } catch (err: any) {
+    throw new Error(`Cannot create directory ${dirPath}: ${err.message}`);
+  }
+});
+
 // Store-related IPC handlers
 ipcMain.handle('store:getLastOpenedFolder', () => {
   return store.get('lastOpenedFolder');

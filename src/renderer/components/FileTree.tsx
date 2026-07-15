@@ -71,6 +71,10 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
   const [createFileModal, setCreateFileModal] = useState<{ parentPath: string } | null>(null);
   const [newFileName, setNewFileName] = useState('');
 
+  // Create Subfolder modal state
+  const [createSubfolderModal, setCreateSubfolderModal] = useState<{ parentPath: string } | null>(null);
+  const [newSubfolderName, setNewSubfolderName] = useState('');
+
   // Expose imperative handle for parent components (e.g. Sidebar footer button)
   React.useImperativeHandle(ref, () => ({
     openCreateFileModal: (parentPath: string) => {
@@ -529,6 +533,66 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
     }
   }, []);
 
+  const handleCreateSubfolder = useCallback((parentPath: string) => {
+    setCreateSubfolderModal({ parentPath });
+    setNewSubfolderName('');
+  }, []);
+
+  const handleCreateSubfolderSubmit = useCallback(async () => {
+    if (!createSubfolderModal || !newSubfolderName.trim()) return;
+    const folderName = newSubfolderName.trim();
+    const sep = createSubfolderModal.parentPath.includes('\\') ? '\\' : '/';
+    const folderPath = createSubfolderModal.parentPath + sep + folderName;
+    try {
+      await window.electronAPI.mkdir(folderPath);
+      const parentPath = createSubfolderModal.parentPath;
+      setCreateSubfolderModal(null);
+      setNewSubfolderName('');
+      // Refresh the parent folder
+      try {
+        const children = await window.electronAPI.readDirectory(parentPath);
+        const childrenWithState = sortFileItems(children.map(c => ({
+          ...c, isChecked: selectedFilePaths.has(c.path)
+        })));
+        if (parentPath === rootPath) {
+          const newTree = await loadAllChildren(rootPath);
+          const applyChecked = (items: FileItem[]): FileItem[] =>
+            items.map(item => ({
+              ...item,
+              isChecked: selectedFilePaths.has(item.path),
+              children: item.children ? applyChecked(item.children) : undefined,
+            }));
+          setTree(applyChecked(newTree));
+        } else {
+          setTree(prev => updateTreeItem(prev, parentPath, { children: childrenWithState }));
+        }
+        setExpandedFolders(prev => {
+          const next = new Set(prev);
+          next.add(parentPath);
+          next.add(folderPath);
+          return next;
+        });
+      } catch (refreshError) {
+        console.error('Error refreshing after subfolder creation:', refreshError);
+      }
+    } catch (err: any) {
+      console.error('Failed to create subfolder:', err);
+      alert('Failed to create subfolder: ' + (err?.message || err));
+    }
+  }, [createSubfolderModal, newSubfolderName, rootPath, selectedFilePaths]);
+
+  const handleDeleteFolder = useCallback(async (item: FileItem) => {
+    setContextMenu(null);
+    alert('Deleting folders is not supported within the app. Please delete "' + item.name + '" manually in File Explorer, Finder, or your OS file manager.');
+    // Open the parent folder so the user can delete the target folder directly.
+    const parentPath = item.path.replace(/[\\/][^\\/]+$/, '') || item.path;
+    try {
+      await window.electronAPI.openContainingFolder(parentPath);
+    } catch (err) {
+      console.error('Failed to open parent folder:', err);
+    }
+  }, []);
+
   const toggleFolder = async (item: FileItem, expandOnly: boolean = false) => {
     if (item.isDirectory) {
       const newExpanded = new Set(expandedFolders);
@@ -659,6 +723,18 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
                 title="Create new file in this folder"
               >
                 📄+
+              </span>
+            )}
+            {item.isDirectory && (
+              <span
+                className="file-icon create-file-icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCreateSubfolder(item.path);
+                }}
+                title="Create new subfolder in this folder"
+              >
+                📁+
               </span>
             )}
           </div>
@@ -962,6 +1038,27 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
                 📄+ Create New File
               </button>
             )}
+            {contextMenu.item.isDirectory && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setContextMenu(null);
+                  handleCreateSubfolder(contextMenu.item.path);
+                }}
+                title="Create a new subfolder inside this folder"
+              >
+                📁+ Create Subfolder
+              </button>
+            )}
+            {contextMenu.item.isDirectory && (
+              <button
+                className="context-menu-item"
+                onClick={() => handleDeleteFolder(contextMenu.item)}
+                title="Delete this folder (opens file manager)"
+              >
+                🗑️ Delete Folder
+              </button>
+            )}
             {contextMenu.item.isFile && (
               <button
                 className="context-menu-item"
@@ -1002,6 +1099,95 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
             >
               📂 Open Containing Folder
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create Subfolder modal */}
+      {createSubfolderModal && (
+        <div
+          className="create-file-modal-backdrop"
+          onClick={() => setCreateSubfolderModal(null)}
+        >
+          <div
+            className="create-file-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#e0e0e0', fontSize: '16px', fontWeight: 500 }}>
+                Create New Subfolder
+              </h3>
+              <button
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#ccc',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                }}
+                onClick={() => setCreateSubfolderModal(null)}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ color: '#9cdcfe', fontSize: '12px', marginBottom: '10px', fontFamily: 'Consolas, monospace', wordBreak: 'break-all' }}>
+              {createSubfolderModal.parentPath}
+            </div>
+            <input
+              type="text"
+              value={newSubfolderName}
+              onChange={(e) => setNewSubfolderName(e.target.value)}
+              placeholder="Enter subfolder name..."
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateSubfolderSubmit();
+                if (e.key === 'Escape') setCreateSubfolderModal(null);
+              }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: '#252526',
+                border: '1px solid #3c3c3c',
+                borderRadius: '4px',
+                color: '#d4d4d4',
+                fontSize: '14px',
+                outline: 'none',
+              }}
+            />
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: '#2a2d2e',
+                  color: '#ccc',
+                  border: '1px solid #444',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setCreateSubfolderModal(null)}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: newSubfolderName.trim() ? '#0e639c' : '#2a2d2e',
+                  color: newSubfolderName.trim() ? 'white' : '#666',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: newSubfolderName.trim() ? 'pointer' : 'not-allowed',
+                }}
+                onClick={handleCreateSubfolderSubmit}
+                disabled={!newSubfolderName.trim()}
+              >
+                Create
+              </button>
+            </div>
           </div>
         </div>
       )}
