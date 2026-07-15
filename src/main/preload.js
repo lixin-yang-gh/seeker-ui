@@ -78,7 +78,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Markdown Preview Window
   openMarkdownPreview: (content) => ipcRenderer.invoke('markdown-preview:open', content),
-  updateMarkdownPreview: (content) => ipcRenderer.invoke('markdown-preview:update', content),
+  updateMarkdownPreview: (content, ts) => ipcRenderer.invoke('markdown-preview:update', content, ts),
+  // Send content from preview window back to the main window (2-way sync)
+  updateMarkdownPreviewContent: (content, ts) => ipcRenderer.invoke('markdown-preview:content-from-preview', content, ts),
 
   // Preview settings (theme + view mode) persistence
   getPreviewSettings: () => ipcRenderer.invoke('store:getPreviewSettings'),

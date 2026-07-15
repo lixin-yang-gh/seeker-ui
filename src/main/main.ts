@@ -613,7 +613,7 @@ ipcMain.handle('markdown-preview:open', async (_, content: string) => {
 
   markdownPreviewWindow.webContents.on('did-finish-load', () => {
     if (markdownPreviewWindow && !markdownPreviewWindow.isDestroyed()) {
-      markdownPreviewWindow.webContents.send('markdown-preview:content', content);
+      markdownPreviewWindow.webContents.send('markdown-preview:content', content, Date.now());
     }
   });
 
@@ -631,9 +631,16 @@ ipcMain.handle('markdown-preview:open', async (_, content: string) => {
   });
 });
 
-ipcMain.handle('markdown-preview:update', (_, content: string) => {
+ipcMain.handle('markdown-preview:update', (_, content: string, ts?: number) => {
   if (markdownPreviewWindow && !markdownPreviewWindow.isDestroyed()) {
-    markdownPreviewWindow.webContents.send('markdown-preview:content', content);
+    markdownPreviewWindow.webContents.send('markdown-preview:content', content, ts ?? Date.now());
+  }
+});
+
+// Content pushed from preview window back to main window (2-way sync)
+ipcMain.handle('markdown-preview:content-from-preview', (_, content: string, ts?: number) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('markdown-preview:content-from-preview', content, ts ?? Date.now());
   }
 });
 

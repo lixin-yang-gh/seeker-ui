@@ -103,6 +103,7 @@ const EditorTab = forwardRef(({ filePath, rootFolder, onPrepareInference }: Edit
   const pendingUndoSnapshotRef = useRef<string | null>(null);
   const pendingScrollRestoreRef = useRef<number | null>(null);
   const historyTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastEditorWriteTs = useRef<number>(0);
 
   useEffect(() => {
     editedContentRef.current = editedContent;
@@ -252,10 +253,31 @@ const EditorTab = forwardRef(({ filePath, rootFolder, onPrepareInference }: Edit
     }
   });
 
-  // Sync markdown content to standalone preview window
+  // Sync markdown content to standalone preview window (with logical timestamp)
   useEffect(() => {
-    window.electronAPI.updateMarkdownPreview(editedContent);
+    const ts = Date.now();
+    lastEditorWriteTs.current = ts;
+    window.electronAPI.updateMarkdownPreview(editedContent, ts);
   }, [editedContent]);
+
+  // Receive content pushed back from the preview window
+  useEffect(() => {
+    const handler = (incomingRaw: string, incomingTs?: number) => {
+      const ts = incomingTs ?? Date.now();
+      if (ts <= lastEditorWriteTs.current) return; // our write is newer, ignore echo
+      const incoming = normalizeEditorContent(incomingRaw);
+      lastEditorWriteTs.current = ts;
+      originalContentRef.current = incoming;
+      setContent(incoming);
+      setEditedContent(incoming);
+      setIsDirty(false);
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      pendingUndoSnapshotRef.current = null;
+      if (historyTimerRef.current) { clearTimeout(historyTimerRef.current); historyTimerRef.current = null; }
+    };
+    window.electronAPI.on('markdown-preview:content-from-preview', handler);
+  }, []);
 
   // Search
   // Pure helper — no closure dependencies; defined outside render would be

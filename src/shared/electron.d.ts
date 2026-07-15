@@ -123,7 +123,9 @@ declare global {
 
       // Markdown Preview Window
       openMarkdownPreview: (content: string) => Promise<void>;
-      updateMarkdownPreview: (content: string) => Promise<void>;
+      updateMarkdownPreview: (content: string, ts?: number) => Promise<void>;
+      // Send content from preview window back to editor (2-way sync)
+      updateMarkdownPreviewContent: (content: string, ts: number) => Promise<void>;
 
       // Preview settings (theme + view mode + zoom) persistence
       getPreviewSettings: () => Promise<{ theme: 'dark' | 'light'; mode: 'text' | 'markdown'; zoom: number }>;
