@@ -384,6 +384,13 @@
     outline: 1px solid #ffb300;
 }
 
+/* In markdown mode, search highlight marks are applied directly to the
+   rendered DOM text. Override the transparent color inherited from
+   .file-editor__mark so highlighted text stays visible (white). */
+.file-editor__markdown-content .mpw-mark {
+    color: #ffffff;
+}
+
 .file-editor__editor {
     position: relative;
     z-index: 2;
