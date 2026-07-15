@@ -68,8 +68,8 @@ JSON STRING ESCAPING RULES:
 - Use \\n for newlines, \\t for tabs inside all string values.
 - Do not embed unescaped literal newlines inside JSON string values.
 - Do not wrap "replacement" content in internal markdown code fences.
-- CRITICAL — Escape ALL backtick characters (the \` character) that appear inside any JSON string value (especially "original" and "replacement") as the unicode escape \\u0060. This includes single backticks and fenced code block sequences (three consecutive backticks must be written as \\u0060\\u0060\\u0060). NEVER emit a literal \` inside a JSON string value under any circumstance, even when the source file itself contains fenced code blocks, template literals, or markdown. This prevents any embedded fenced code block from prematurely closing the outer JSON code fence. A standard JSON parser decodes \\u0060 back into a literal backtick, so the file content is restored exactly and applied correctly — no extra unescaping is needed.
-- For example, a string containing a fenced code block should have its backticks escaped: a literal \`\`\` must appear as \\u0060\\u0060\\u0060 in the JSON string.
+- CRITICAL — Escape ALL grave-accent / backtick characters (Unicode U+0060, the \` character used to delimit Markdown code fences and JS template literals) that appear inside any JSON string value (especially "original" and "replacement") as the JSON unicode escape sequence \\u0060. A single backtick must be written as \\u0060; three consecutive backticks (a Markdown fenced-code-block delimiter, i.e. \`\`\`) must be written as \\u0060\\u0060\\u0060. NEVER emit a literal \` inside a JSON string value under any circumstance, even when the source file itself contains fenced code blocks, template literals, or markdown. Failing to escape backticks causes the outer JSON code fence to be prematurely closed, breaking the parser. A standard JSON parser automatically decodes \\u0060 back into a literal backtick character, so the file content is restored exactly and no extra unescaping is needed on the receiving end.
+- For example, a TypeScript file containing the template literal \`hello\` must appear in the JSON string as \\u0060hello\\u0060, and a Markdown file containing the fenced block \`\`\`js\\n...\\n\`\`\` must appear as \\u0060\\u0060\\u0060js\\n...\\n\\u0060\\u0060\\u0060.
 - Output must be immediately parseable by a standard JSON parser.
 
 Guidelines:
@@ -101,7 +101,7 @@ Example:
   {
     "path": "<project_root>/src/code.md",
     "op": "replace",
-    "reason": "Demonstrate proper backtick escaping inside a JSON string",
+    "reason": "Demonstrate proper backtick (U+0060) escaping inside a JSON string",
     "is_full_file": false,
     "original": "This has a code block: \\u0060\\u0060\\u0060js\\ncode here\\n\\u0060\\u0060\\u0060",
     "replacement": "This has a code block: \\u0060\\u0060\\u0060ts\\nupdated code\\n\\u0060\\u0060\\u0060"
@@ -149,8 +149,8 @@ Respond **exclusively** with a single valid JSON array (fenced in a code block) 
 **JSON STRING ESCAPING RULES**:
 - Use \\n for newlines, \\t for tabs inside all string values.
 - Do not embed unescaped literal newlines inside JSON string values.
-- CRITICAL — Escape ALL backtick characters (the \` character) that appear inside any JSON string value (especially "replacement") as the unicode escape \\u0060. This includes single backticks and fenced code block sequences (three consecutive backticks must be written as \\u0060\\u0060\\u0060). NEVER emit a literal \` inside a JSON string value under any circumstance, even when the source file itself contains fenced code blocks, template literals, or markdown. This prevents any embedded fenced code block from prematurely closing the outer JSON code fence. A standard JSON parser decodes \\u0060 back into a literal backtick, so the file content is restored exactly and applied correctly — no extra unescaping is needed.
-- For example, a string containing a fenced code block should have its backticks escaped: a literal \`\`\` must appear as \\u0060\\u0060\\u0060 in the JSON string.
+- CRITICAL — Escape ALL grave-accent / backtick characters (Unicode U+0060, the \` character used to delimit Markdown code fences and JS template literals) that appear inside any JSON string value (especially "replacement") as the JSON unicode escape sequence \\u0060. A single backtick must be written as \\u0060; three consecutive backticks (a Markdown fenced-code-block delimiter, i.e. \`\`\`) must be written as \\u0060\\u0060\\u0060. NEVER emit a literal \` inside a JSON string value under any circumstance, even when the source file itself contains fenced code blocks, template literals, or markdown. Failing to escape backticks causes the outer JSON code fence to be prematurely closed, breaking the parser. A standard JSON parser automatically decodes \\u0060 back into a literal backtick character, so the file content is restored exactly and no extra unescaping is needed on the receiving end.
+- For example, a TypeScript file containing the template literal \`hello\` must appear in the JSON string as \\u0060hello\\u0060, and a Markdown file containing the fenced block \`\`\`js\\n...\\n\`\`\` must appear as \\u0060\\u0060\\u0060js\\n...\\n\\u0060\\u0060\\u0060.
 - Output must be immediately parseable by a standard JSON parser.
 
 Example:
@@ -159,7 +159,7 @@ Example:
   {
     "path": "<project_root>/src/code.md",
     "op": "replace",
-    "reason": "Demonstrate backtick escaping in a full file replacement",
+    "reason": "Demonstrate backtick (U+0060) escaping in a block replacement",
     "is_full_file": false,
     "replacement": "# Example\\n\\nHere is a code block: \\u0060\\u0060\\u0060js\\nconsole.log('escaped');\\n\\u0060\\u0060\\u0060"
   }
@@ -192,8 +192,8 @@ Each object must contain exactly these fields:
 JSON STRING ESCAPING RULES:
 - Use \\n for newlines, \\t for tabs inside all string values.
 - Do not embed unescaped literal newlines inside JSON string values.
-- CRITICAL — Escape ALL backtick characters (the \` character) that appear inside any JSON string value (especially "replacement") as the unicode escape \\u0060. This includes single backticks and fenced code block sequences (three consecutive backticks must be written as \\u0060\\u0060\\u0060). NEVER emit a literal \` inside a JSON string value under any circumstance, even when the source file itself contains fenced code blocks, template literals, or markdown. This prevents any embedded fenced code block from prematurely closing the outer JSON code fence. A standard JSON parser decodes \\u0060 back into a literal backtick, so the file content is restored exactly and applied correctly — no extra unescaping is needed.
-- For example, a string containing a fenced code block should have its backticks escaped: a literal \`\`\` must appear as \\u0060\\u0060\\u0060 in the JSON string.
+- CRITICAL — Escape ALL grave-accent / backtick characters (Unicode U+0060, the \` character used to delimit Markdown code fences and JS template literals) that appear inside any JSON string value (especially "replacement") as the JSON unicode escape sequence \\u0060. A single backtick must be written as \\u0060; three consecutive backticks (a Markdown fenced-code-block delimiter, i.e. \`\`\`) must be written as \\u0060\\u0060\\u0060. NEVER emit a literal \` inside a JSON string value under any circumstance, even when the source file itself contains fenced code blocks, template literals, or markdown. Failing to escape backticks causes the outer JSON code fence to be prematurely closed, breaking the parser. A standard JSON parser automatically decodes \\u0060 back into a literal backtick character, so the file content is restored exactly and no extra unescaping is needed on the receiving end.
+- For example, a TypeScript file containing the template literal \`hello\` must appear in the JSON string as \\u0060hello\\u0060, and a Markdown file containing the fenced block \`\`\`js\\n...\\n\`\`\` must appear as \\u0060\\u0060\\u0060js\\n...\\n\\u0060\\u0060\\u0060.
 - Output must be immediately parseable by a standard JSON parser.
 
 Example:
@@ -210,7 +210,7 @@ Example:
   {
     "path": "<project_root>/src/code.md",
     "op": "replace",
-    "reason": "Demonstrate backtick escaping in a full file replacement",
+    "reason": "Demonstrate backtick (U+0060) escaping in a full file replacement",
     "is_full_file": true,
     "original": null,
     "replacement": "# Example\\n\\nHere is a code block: \\u0060\\u0060\\u0060js\\nconsole.log('escaped');\\n\\u0060\\u0060\\u0060"

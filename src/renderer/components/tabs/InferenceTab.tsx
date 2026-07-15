@@ -169,6 +169,40 @@ function preprocessLlmResponse(text: string): string {
   return result;
 }
 
+/**
+ * Attempt to parse a raw JSON string (array or object) into block items.
+ * Returns the array of BlockReplacementItem on success, or null on failure.
+ * Also tries the tolerant recovery parser as a second pass.
+ */
+function tryParseJsonBody(body: string, raw: string): BlockReplacementItem[] | null {
+  // Pass 1: strict JSON.parse
+  try {
+    const parsed = JSON.parse(body);
+    const items: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
+    const blocks: BlockReplacementItem[] = [];
+    for (const item of items) {
+      if (item && typeof item === 'object' && 'path' in item && 'op' in item) {
+        const rec = item as Record<string, unknown>;
+        blocks.push({
+          path: String(rec.path ?? ''),
+          op: String(rec.op ?? 'replace'),
+          is_full_file: Boolean(rec.is_full_file ?? false),
+          original: rec.original != null ? String(rec.original) : null,
+          replacement: rec.replacement != null ? String(rec.replacement) : null,
+          reason: rec.reason != null ? String(rec.reason) : undefined,
+          raw,
+        });
+      }
+    }
+    if (blocks.length > 0) return blocks;
+    return null;
+  } catch {
+    // Pass 2: tolerant recovery
+    const recovered = recoverMalformedBlockJson(body);
+    return recovered.length > 0 ? recovered : null;
+  }
+}
+
 function parseSegments(text: string): Segment[] {
   const segments: Segment[] = [];
   // Pre-process the full response to escape backticks inside JSON string values
@@ -177,6 +211,7 @@ function parseSegments(text: string): Segment[] {
   const pattern = /```(\w*)\s*\n([\s\S]*?)```/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  let foundAnyBlock = false;
 
   while ((match = pattern.exec(processedText)) !== null) {
     if (match.index > lastIndex) {
@@ -185,53 +220,51 @@ function parseSegments(text: string): Segment[] {
     const lang = match[1];
     const body = match[2];
     if (lang === 'json') {
-      try {
-        const parsed = JSON.parse(body);
-        const items: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
-        let anyBlock = false;
-        for (const item of items) {
-          if (item && typeof item === 'object' && 'path' in item && 'op' in item) {
-            const rec = item as Record<string, unknown>;
-            // JSON.parse already decoded \u0060 back to ` — no extra unescaping needed.
-            segments.push({
-              type: 'block',
-              item: {
-                path: String(rec.path ?? ''),
-                op: String(rec.op ?? 'replace'),
-                is_full_file: Boolean(rec.is_full_file ?? false),
-                original: rec.original != null ? String(rec.original) : null,
-                replacement: rec.replacement != null ? String(rec.replacement) : null,
-                reason: rec.reason != null ? String(rec.reason) : undefined,
-                raw: body,
-              },
-            });
-            anyBlock = true;
-          }
-        }
-        if (!anyBlock) segments.push({ type: 'code', lang, content: body });
-      } catch {
-        // Strict JSON.parse failed. This commonly happens when the LLM did not
-        // follow the escaping rules in PromptOrganizerTab.tsx and emitted string
-        // values containing unescaped double quotes (e.g. HCL resource labels)
-        // or literal backticks. Attempt a tolerant, schema-anchored recovery
-        // before giving up and rendering the fence as raw code.
-        const recovered = recoverMalformedBlockJson(body);
-        if (recovered.length > 0) {
-          for (const item of recovered) {
-            segments.push({ type: 'block', item });
-          }
-        } else {
-          segments.push({ type: 'code', lang, content: body });
-        }
+      const blocks = tryParseJsonBody(body, body);
+      if (blocks && blocks.length > 0) {
+        for (const item of blocks) segments.push({ type: 'block', item });
+        foundAnyBlock = true;
+      } else {
+        segments.push({ type: 'code', lang, content: body });
       }
     } else {
-      // For non-JSON fences, use the original (unprocessed) text slice so that
-      // display is unchanged.
-      segments.push({ type: 'code', lang, content: text.slice(match.index + match[0].indexOf(body), match.index + match[0].indexOf(body) + body.length) });
+      // For non-JSON fences, also try parsing the body as block JSON (tolerates
+      // LLMs that omit the "json" language tag on the fence).
+      const blocks = tryParseJsonBody(body, body);
+      if (blocks && blocks.length > 0) {
+        for (const item of blocks) segments.push({ type: 'block', item });
+        foundAnyBlock = true;
+      } else {
+        // Use the original (unprocessed) text slice so display is unchanged.
+        segments.push({ type: 'code', lang, content: text.slice(match.index + match[0].indexOf(body), match.index + match[0].indexOf(body) + body.length) });
+      }
     }
     lastIndex = match.index + match[0].length;
   }
-  if (lastIndex < processedText.length) {
+
+  const remainder = processedText.slice(lastIndex);
+  if (remainder.length > 0) {
+    // If no fenced block produced any block items, attempt to parse the
+    // entire remaining text (or the whole response when there were no fences)
+    // as a bare JSON array — tolerating LLM outputs that omit fencing entirely.
+    if (!foundAnyBlock) {
+      // Find the first '[' or '{' and last ']' or '}' in the remainder to
+      // extract a candidate JSON substring robustly.
+      const trimmed = remainder.trim();
+      const firstBracket = trimmed.search(/[\[{]/);
+      if (firstBracket !== -1) {
+        // Use the entire trimmed string from the first bracket as the candidate.
+        const candidate = trimmed.slice(firstBracket);
+        const blocks = tryParseJsonBody(candidate, candidate);
+        if (blocks && blocks.length > 0) {
+          // Emit any text before the JSON as a text segment.
+          const beforeJson = text.slice(lastIndex, lastIndex + remainder.indexOf(trimmed.slice(firstBracket)));
+          if (beforeJson) segments.push({ type: 'text', content: beforeJson });
+          for (const item of blocks) segments.push({ type: 'block', item });
+          return segments;
+        }
+      }
+    }
     segments.push({ type: 'text', content: text.slice(lastIndex) });
   }
   return segments;
