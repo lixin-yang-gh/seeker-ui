@@ -410,6 +410,52 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
     }
   }, [rootPath, isRefreshing, onFolderOpen]);
 
+  // Keep a ref to the latest handleRefresh so the file-watching effect can
+  // call it without re-subscribing whenever isRefreshing toggles.
+  const handleRefreshRef = useRef(handleRefresh);
+  handleRefreshRef.current = handleRefresh;
+
+  // ─── File Watching ────────────────────────────────────────────────────
+  // Watch the root folder for file/folder changes and debounce-refresh the
+  // tree. The watcher is managed by the main process (fs.watch with
+  // recursive: true) and communicates via the 'fs:watchEvent' IPC channel.
+  useEffect(() => {
+    if (!rootPath) return;
+
+    let debounceTimer: NodeJS.Timeout | null = null;
+    let cancelled = false;
+
+    const handleWatchEvent = (data: { eventType?: string; filename?: string | null; error?: string }) => {
+      if (data.error) {
+        console.error('Folder watch error:', data.error);
+        return;
+      }
+      // Debounce: wait 500ms after the last event before refreshing to
+      // coalesce rapid bursts of file system notifications.
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!cancelled) {
+          handleRefreshRef.current();
+        }
+      }, 500);
+    };
+
+    // Subscribe to watch events (returns a cleanup function)
+    const removeListener = window.electronAPI.onWatchEvent(handleWatchEvent);
+
+    // Start watching the root folder
+    window.electronAPI.watchFolder(rootPath).catch((err: unknown) => {
+      console.error('Failed to start folder watching:', err);
+    });
+
+    return () => {
+      cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      removeListener();
+      window.electronAPI.stopWatchingFolder().catch(() => {});
+    };
+  }, [rootPath]);
+
   const openFolderPath = useCallback(async (path: string) => {
     if (!path) return;
     if (onBeforeFolderChange) {

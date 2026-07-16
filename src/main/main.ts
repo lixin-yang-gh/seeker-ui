@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, screen, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { watch, type FSWatcher } from 'fs';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { redactContent } from './redaction-config';
@@ -75,6 +76,9 @@ const store = new Store<StoreSchema>({
 });
 
 let mainWindow: BrowserWindow | null = null;
+
+// Active folder watcher for file tree auto-refresh
+let activeFolderWatcher: FSWatcher | null = null;
 
 async function createWindow() {
   const bounds = getValidatedWindowBounds();
@@ -295,6 +299,56 @@ ipcMain.handle('fs:mkdir', async (_, dirPath: string) => {
   } catch (err: any) {
     throw new Error(`Cannot create directory ${dirPath}: ${err.message}`);
   }
+});
+
+// ─── Folder Watching (file tree auto-refresh) ──────────────────────────
+// Watches the root folder recursively for file/folder changes and notifies
+// the renderer via the 'fs:watchEvent' channel so the FileTree component
+// can debounce-refresh its display.
+ipcMain.handle('fs:watchFolder', async (_, folderPath: string) => {
+  // Close any previously active watcher
+  if (activeFolderWatcher) {
+    activeFolderWatcher.close();
+    activeFolderWatcher = null;
+  }
+
+  if (!folderPath) {
+    return { success: false, error: 'No folder path provided' };
+  }
+
+  try {
+    activeFolderWatcher = watch(folderPath, { recursive: true }, (eventType, filename) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('fs:watchEvent', {
+          eventType,
+          filename: filename ?? undefined,
+          folderPath,
+        });
+      }
+    });
+
+    activeFolderWatcher.on('error', (err: Error) => {
+      console.error('Folder watcher error:', err);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('fs:watchEvent', {
+          error: err.message,
+          folderPath,
+        });
+      }
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('fs:stopWatchingFolder', async () => {
+  if (activeFolderWatcher) {
+    activeFolderWatcher.close();
+    activeFolderWatcher = null;
+  }
+  return { success: true };
 });
 
 // Store-related IPC handlers

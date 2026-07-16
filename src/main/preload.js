@@ -55,6 +55,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   mkdir: (dirPath) => ipcRenderer.invoke('fs:mkdir', dirPath),
 
+  // Folder watching for file tree auto-refresh
+  watchFolder: (folderPath) => ipcRenderer.invoke('fs:watchFolder', folderPath),
+  stopWatchingFolder: () => ipcRenderer.invoke('fs:stopWatchingFolder'),
+  onWatchEvent: (callback) => {
+    const handler = (_, data) => callback(data);
+    ipcRenderer.on('fs:watchEvent', handler);
+    return () => ipcRenderer.removeListener('fs:watchEvent', handler);
+  },
+
   redactText: (text) => ipcRenderer.invoke('redact-text', text),
 
   callOpenRouter: (systemPrompt, userPrompt, model, options) =>
