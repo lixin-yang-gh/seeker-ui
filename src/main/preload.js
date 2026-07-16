@@ -85,6 +85,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Quit application
   quitApp: () => ipcRenderer.invoke('app:quit'),
 
+  // App version
+  getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
+
   // Markdown Preview Window
   openMarkdownPreview: (content) => ipcRenderer.invoke('markdown-preview:open', content),
   updateMarkdownPreview: (content, ts) => ipcRenderer.invoke('markdown-preview:update', content, ts),

@@ -30,9 +30,14 @@ const FileManager = React.forwardRef(({
   const [inferenceStatus, setInferenceStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [inferenceLastSaveTime, setInferenceLastSaveTime] = useState<number | null>(null);
   const [isSingleBlockReplacementMode, setIsSingleBlockReplacementMode] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
 
   // Ref to EditorTab for unsaved-changes guard
   const editorRef = useRef<EditorTabRef>(null);
+
+  useEffect(() => {
+    window.electronAPI.getAppVersion().then(setAppVersion).catch(() => {});
+  }, []);
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -138,7 +143,8 @@ const FileManager = React.forwardRef(({
   // Switch to Inference tab (index 2)
   const handleSwitchToInference = () => { handleTabChange(2); };
 
-  const headerText = `Location${rootFolder ? ` - ${rootFolder}` : ''}`;
+  const appTitle = appVersion ? `Seeker UI v${appVersion} - The Visual AI Workspace` : 'Seeker UI - The Visual AI Workspace';
+  const headerText = `${appTitle}${rootFolder ? ` — ${rootFolder}` : ''}`;
 
   return (
     <div className="file-manager" style={{ position: 'relative' }}>

@@ -20,9 +20,15 @@ const openLink = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
 };
 
 const AboutTab: React.FC = () => {
+  const [appVersion, setAppVersion] = React.useState('');
+
+  React.useEffect(() => {
+    window.electronAPI.getAppVersion().then(setAppVersion).catch(() => {});
+  }, []);
+
   return (
     <div className="tab-panel" style={{ padding: '24px', overflowY: 'auto' }}>
-      <h3 style={{ color: '#e0e0e0', margin: 0 }}>About Seeker UI</h3>
+      <h3 style={{ color: '#e0e0e0', margin: 0 }}>Seeker UI{appVersion ? ` v${appVersion}` : ''}</h3>
       <p style={{ color: '#888', fontSize: '13px', margin: '4px 0 20px 0' }}>
         The Visual AI Workspace
       </p>

@@ -617,6 +617,11 @@ ipcMain.handle('app:quit', () => {
   return { success: true };
 });
 
+// ─── App Info IPC ────────────────────────────────────────────────
+ipcMain.handle('app:getVersion', () => {
+  return app.getVersion();
+});
+
 let markdownPreviewWindow: BrowserWindow | null = null;
 
 // Preview settings (theme + view mode) persistence

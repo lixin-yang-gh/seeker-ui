@@ -1,6 +1,6 @@
 # Seeker UI – The Visual AI Workspace
 
-**Current Version: 0.9.2**  |  **Website: [seeker-ui.app](https://seeker-ui.app/)**
+**Current Version: 0.9.3**  |  **Website: [seeker-ui.app](https://seeker-ui.app/)**
 
 ## Recent Updates
 
@@ -10,6 +10,8 @@ The latest release delivers substantial capability and polish across the workspa
 - **Venice API Integration**: Secure, privacy-oriented inference endpoints are now available alongside OpenRouter.
 - **Highly Configurable Inference Context with File Explorer**: Fine-grained control over what each model sees—recursive folder selection, per-file checkboxes, binary file detection, favorites, path utilities, custom masking and redaction, and structured context tags—so every inference run receives precisely the intended context.
 - **UI Overhaul**: A refined, professional workspace organized across four dedicated tabs: File Editor, Prompt Organizer, Inference, and Settings.
+- **Improved File Tree with File Watcher and Subfolder Creation**: The file explorer now automatically refreshes when files change on disk via a recursive folder watcher, and new subfolders can be created directly from the tree or context menu.
+- **Automatic Missing Folder and File Creation for File Updates**: The block-based file update flow in the Inference tab now automatically creates missing parent directories and target files, so AI-proposed changes to new or not-yet-existing paths succeed without manual pre-creation.
 
 **Future Roadmap**
 

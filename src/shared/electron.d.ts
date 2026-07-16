@@ -126,6 +126,9 @@ declare global {
       // Quit application
       quitApp: () => Promise<{ success: boolean }>;
 
+      // App version
+      getAppVersion: () => Promise<string>;
+
       // Markdown Preview Window
       openMarkdownPreview: (content: string) => Promise<void>;
       updateMarkdownPreview: (content: string, ts?: number) => Promise<void>;
