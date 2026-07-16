@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { applyBlockReplacements, BlockReplacementItem as UtilBlockReplacementItem, FileUpdateResult } from '../../../shared/file-updater';
+import { applyBlockReplacements, BlockReplacementItem as UtilBlockReplacementItem, FileUpdateResult, ensureFileAndDirectory } from '../../../shared/file-updater';
 import { resolveProjectPath } from '../../../shared/utils';
 import InferenceControls from '../shared/InferenceControls';
 
@@ -651,6 +651,8 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
         // field contains the new inner text for the <block_to_update> tag.
         const item = blockItems[0];
         const absPath = resolveProjectPath(item.path, rootFolder);
+        // Ensure the directory structure and target file exist before reading.
+        await ensureFileAndDirectory(absPath, true);
         const fileData = await window.electronAPI.readFile(absPath);
         const content = fileData.content;
 

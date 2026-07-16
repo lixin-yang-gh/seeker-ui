@@ -1,7 +1,7 @@
 // src/shared/fileUpdater.ts
 // Shared utility: applies parsed block-replacement items to the file system.
 
-import { resolveProjectPath } from './utils';
+import { resolveProjectPath, checkFileExists } from './utils';
 
 /**
  * Check if a block replacement item has valid, actionable fields.
@@ -257,6 +257,39 @@ function findAndReplaceInContent(
 
 
 /**
+ * Ensure that the directory structure for a file path exists, and that the
+ * target file itself exists (creating an empty file if necessary). This
+ * allows block-replacement items targeting new files or files inside
+ * not-yet-created subfolders to succeed without manual pre-creation.
+ *
+ * @param absPath     Absolute file path to check/create.
+ * @param createFile  When true, also create an empty file if it does not exist.
+ */
+export async function ensureFileAndDirectory(
+  absPath: string,
+  createFile: boolean
+): Promise<void> {
+  // Extract the directory portion of the path. Handle both Windows and POSIX
+  // separators so the utility works cross-platform.
+  const lastSep = Math.max(absPath.lastIndexOf('/'), absPath.lastIndexOf('\\'));
+  const dirPath = lastSep > 0 ? absPath.slice(0, lastSep) : '';
+
+  if (dirPath) {
+    const dirExists = await checkFileExists(dirPath);
+    if (!dirExists) {
+      await window.electronAPI.mkdir(dirPath);
+    }
+  }
+
+  if (createFile) {
+    const fileExists = await checkFileExists(absPath);
+    if (!fileExists) {
+      await window.electronAPI.writeFile(absPath, '');
+    }
+  }
+}
+
+/**
  * Apply a single block replacement item to the file system.
  */
 async function applyItem(
@@ -275,17 +308,25 @@ async function applyItem(
     }
 
     if (op === 'add' && item.is_full_file) {
-      // Create new file with replacement content
+      // Create new file with replacement content.
+      // Ensure the parent directory structure exists before writing.
+      await ensureFileAndDirectory(absPath, false);
       await window.electronAPI.writeFile(absPath, item.replacement ?? '');
       return { path: absPath, success: true, operation: item.op };
     }
 
     if (op === 'replace' && item.is_full_file) {
+      // Ensure the parent directory structure exists before writing.
+      await ensureFileAndDirectory(absPath, false);
       await window.electronAPI.writeFile(absPath, item.replacement ?? '');
       return { path: absPath, success: true, operation: item.op };
     }
 
-    // Partial ops: read → mutate → write
+    // Partial ops: read → mutate → write.
+    // Ensure both the directory structure and the target file exist before
+    // reading. If the file does not exist yet, create an empty one so that
+    // the read/mutate/write cycle can proceed.
+    await ensureFileAndDirectory(absPath, true);
     const fileData = await window.electronAPI.readFile(absPath);
     let content = fileData.content;
 
