@@ -369,6 +369,16 @@ const InferenceTab: React.FC<InferenceTabProps> = ({
             />
             <button
               className={`inference-action-button ${pasteSuccess ? 'success' : ''} ${pasteFailure ? 'failure' : ''}`}
+              style={{
+                background: pasteSuccess
+                  ? '#2e7d32'
+                  : pasteFailure
+                    ? '#c62828'
+                    : 'linear-gradient(135deg, #00695c 0%, #00897b 100%)',
+                border: (pasteSuccess || pasteFailure) ? 'none' : '1px solid #00796b',
+                color: pasteSuccess ? '#a5d6a7' : pasteFailure ? '#ff8a80' : '#e0f2f1',
+                boxShadow: (pasteSuccess || pasteFailure) ? 'none' : '0 0 0 1px rgba(0, 188, 212, 0.2), 0 2px 6px rgba(0, 105, 92, 0.35)',
+              }}
               onClick={async () => {
                 try {
                   const text = await navigator.clipboard.readText();

@@ -6,8 +6,6 @@ import {
   parseMaskedSubstrings,
   applyCustomMasking
 } from '../../../shared/utils';
-import { parseSegments, extractBlockItems } from '../../../shared/block-parser';
-
 import InferenceControls from '../shared/InferenceControls';
 
 interface PromptOrganizerTabProps {
@@ -289,28 +287,99 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   // True while the paste action is in flight (button shows inactive until clipboard is cleared)
   const [pasteInferenceUsed, setPasteInferenceUsed] = useState(false);
 
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    const checkClipboard = async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        const segments = parseSegments(text);
-        const blocks = extractBlockItems(segments);
-        const hasBlocks = blocks.length > 0;
-        setHasBlockInClipboard(hasBlocks);
-        // Re-enable button once clipboard no longer contains blocks
-        if (!hasBlocks) setPasteInferenceUsed(false);
-      } catch {
+  // Tracks whether the mouse pointer is currently hovering over the
+  // tab area. Used to drive continuous clipboard polling for the
+  // "Paste Inference Result" button while it is inactive.
+  const [isHoveringTabArea, setIsHoveringTabArea] = useState(false);
+  const clipboardPollRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Ref to track the last prompt text copied to clipboard by "Copy Prompt".
+  // Used to suppress clipboard block detection when the clipboard contains
+  // our own prompt (which may include JSON examples that parseSegments would
+  // detect as blocks).
+  const lastCopiedPromptRef = React.useRef<string | null>(null);
+
+  // Validate that clipboard text contains typical block update items by
+  // checking for the presence of key field names like "path", "op",
+  // "is_full_file", etc. Unlike a strict JSON parsing approach, this only
+  // checks that the content looks like it contains block update items — the
+  // actual parsing and validation happens later when the user clicks
+  // "Paste Inference Result" and the content is processed by parseSegments /
+  // extractBlockItems.
+  const isClipboardBlockUpdateContent = useCallback((text: string): boolean => {
+    if (!text || !text.trim()) return false;
+
+    // Key field markers typical of block update items
+    const keyFields = ['"path"', '"op"', '"is_full_file"', '"original"', '"replacement"', '"reason"'];
+
+    // Count how many key fields are present in the text
+    const matchCount = keyFields.filter(field => text.includes(field)).length;
+
+    // Activate the button when at least 2 key fields are found, which is
+    // sufficient to distinguish block update content from arbitrary text.
+    return matchCount >= 2;
+  }, []);
+
+  // Check the clipboard for block update items when the mouse pointer hovers
+  // over the "Paste Inference Result" button. Activates the button only when
+  // the clipboard contains typical block update items with key fields like
+  // "path", "op", "is_full_file", etc.
+  const checkClipboardForBlocks = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      // Suppress detection when clipboard contains the prompt we just copied
+      if (text === lastCopiedPromptRef.current) {
         setHasBlockInClipboard(false);
         setPasteInferenceUsed(false);
+        return;
+      }
+      const hasBlocks = isClipboardBlockUpdateContent(text);
+      setHasBlockInClipboard(hasBlocks);
+      // Reset paste-used state so the button reflects the current clipboard
+      if (!hasBlocks) setPasteInferenceUsed(false);
+    } catch {
+      setHasBlockInClipboard(false);
+      setPasteInferenceUsed(false);
+    }
+  }, [isClipboardBlockUpdateContent]);
+
+  // Continuously poll the clipboard for block update items while the mouse
+  // pointer hovers over the Prompt tab area and the "Paste Inference Result"
+  // button is currently inactive. This ensures the button activates as soon as
+  // the user copies valid block update content, even without moving the mouse
+  // over the button itself. The poll also checks that the app window is
+  // focused so we do not read the clipboard while the user is interacting with
+  // another app.
+  useEffect(() => {
+    if (!isHoveringTabArea) {
+      if (clipboardPollRef.current) {
+        clearInterval(clipboardPollRef.current);
+        clipboardPollRef.current = null;
+      }
+      return;
+    }
+
+    const pollClipboard = async () => {
+      if (!document.hasFocus()) return;
+      await checkClipboardForBlocks();
+    };
+
+    // Check immediately on hover
+    pollClipboard();
+
+    // Always start a polling interval so the button state stays in sync with
+    // the clipboard even when hasBlockInClipboard is already true. Without
+    // this, copying non-block content (e.g. "aaaa") while the button is
+    // active would never trigger a re-check because no interval was started.
+    clipboardPollRef.current = setInterval(pollClipboard, 500);
+
+    return () => {
+      if (clipboardPollRef.current) {
+        clearInterval(clipboardPollRef.current);
+        clipboardPollRef.current = null;
       }
     };
-    checkClipboard();
-    intervalId = setInterval(checkClipboard, 2000);
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, []);
+  }, [isHoveringTabArea, checkClipboardForBlocks]);
 
   const handlePasteInferenceClick = useCallback(async () => {
     if (!onPasteInference || !hasBlockInClipboard || pasteInferenceUsed) return;
@@ -325,7 +394,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
       await navigator.clipboard.writeText('');
       setHasBlockInClipboard(false);
     } catch {
-      // Clipboard clear failed — the periodic check will update the state
+      // Clipboard clear failed — the next hover check will update the state
     }
   }, [onPasteInference, onSwitchToInference, hasBlockInClipboard, pasteInferenceUsed]);
 
@@ -677,6 +746,10 @@ ${tagContent}`;
     if (!systemPrompt.trim() || !task.trim()) return;
 
     setGenerationStatus('generating');
+    // Deactivate the "Paste Inference Result" button immediately before
+    // generating the new prompt. No need to clear the clipboard.
+    setHasBlockInClipboard(false);
+    setPasteInferenceUsed(false);
     try {
       // Always reload the full contents of all referenced files first so the
       // copied prompt is guaranteed to contain the latest on-disk content.
@@ -747,6 +820,7 @@ ${tagContent}`;
       }
 
       await navigator.clipboard.writeText(fullPrompt);
+      lastCopiedPromptRef.current = fullPrompt;
       setGenerationStatus('success');
 
       setTimeout(() => setGenerationStatus('idle'), 3000);
@@ -878,7 +952,11 @@ ${tagContent}`;
   }, []);
 
   return (
-    <div className="tab-panel prompt-organizer">
+    <div
+      className="tab-panel prompt-organizer"
+      onMouseEnter={() => setIsHoveringTabArea(true)}
+      onMouseLeave={() => setIsHoveringTabArea(false)}
+    >
       <div className="generate-prompt-section">
         <div className="generate-prompt-header">
           <div className="masked-substrings-container">
