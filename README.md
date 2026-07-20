@@ -13,12 +13,6 @@ The latest release delivers substantial capability and polish across the workspa
 - **Improved File Tree with File Watcher and Subfolder Creation**: The file explorer now automatically refreshes when files change on disk via a recursive folder watcher, and new subfolders can be created directly from the tree or context menu.
 - **Automatic Missing Folder and File Creation for File Updates**: The block-based file update flow in the Inference tab now automatically creates missing parent directories and target files, so AI-proposed changes to new or not-yet-existing paths succeed without manual pre-creation.
 
-**Future Roadmap**
-
-- Connect Seeker UI to **external knowledge sources (MCP servers)** so that each inference run can pull in relevant background information automatically — documentation, notes, or any retrieval service you configure — before sending your prompt to the model. You stay in control: a confirmation step appears every time, you choose which sources to query, and you can skip retrieval entirely with one click. The extra API cost this adds is **fixed and visible before you confirm**: one retrieval step runs, its output appears in full in your assembled prompt, and inference proceeds — the cost for that run is known before it starts. This is **a deliberate design choice over fully automated "agentic" approaches**, where the model decides how many follow-up calls to make and costs can multiply across several unpredictable back-and-forth rounds. Here, you always know what you are paying for.
-- Add **session memory** so Seeker UI can carry a compact rolling summary of your recent exchanges into each new inference, without you having to re-paste previous results. The summary is kept deliberately short — it adds a small, predictable amount to each prompt rather than growing without bound, keeping your per-run cost forecastable.
-- Introduce a dedicated remote **web search and scraping MCP server** to provide enriched, real-time context for coding (documentation lookup) and writing (live web content) tasks, again at a single, auditable retrieval cost per run.
-
 ## Introduction
 
 Seeker UI is a visual, AI-assisted desktop workspace for coding and writing projects. It unifies file browsing, structured prompt engineering, and inference results in a single application for developers, technical writers, and content creators. Rather than relying on command-line tools and separate scripts, Seeker UI provides:

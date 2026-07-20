@@ -887,7 +887,7 @@ ${tagContent}`;
                 disabled={!canGeneratePrompt || generationStatus === 'generating'}
                 title="Copy the combined prompt (system + user) to clipboard"
               >
-                {generationStatus === 'success' ? '✓ Copied!' : 'Copy Prompt'}
+                {generationStatus === 'success' ? '✓ Copied!' : 'Copy Prompt for External Inference'}
               </button>
             </div>
             <InferenceControls
