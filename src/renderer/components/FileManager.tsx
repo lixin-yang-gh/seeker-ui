@@ -165,8 +165,8 @@ const FileManager = React.forwardRef(({
     }
   }, []);
 
-  const appTitle = appVersion ? `Seeker UI v${appVersion} - The Visual AI Workspace` : 'Seeker UI - The Visual AI Workspace';
-  const headerText = `${appTitle}${rootFolder ? ` — ${rootFolder}` : ''}`;
+  const follderInfo=rootFolder??'';
+  const headerText = `Location: ${follderInfo}`;
 
   return (
     <div className="file-manager" style={{ position: 'relative' }}>
