@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useImperativeHandle } from 'react';
 import { getRelativePath } from '../../shared/utils';
+import { parseSegments, extractBlockItems } from '../../shared/block-parser';
 import { PromptOrganizerTab, InferenceTab, SettingsTab, AboutTab, EditorTab } from './tabs';
 import { EditorTabRef } from './tabs/EditorTab';
 
@@ -143,6 +144,27 @@ const FileManager = React.forwardRef(({
   // Switch to Inference tab (index 2)
   const handleSwitchToInference = () => { handleTabChange(2); };
 
+  // Paste inference result from clipboard and update state
+  const handlePasteInference = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const segments = parseSegments(text);
+      const blocks = extractBlockItems(segments);
+      if (blocks.length > 0) {
+        setInferenceResult(text);
+        setInferenceReasoning('');
+        setInferenceError('');
+        setInferenceStatus('success');
+      } else {
+        setInferenceError('Clipboard does not contain valid code update blocks.');
+        setInferenceStatus('error');
+      }
+    } catch (err) {
+      setInferenceError('Failed to read clipboard: ' + String(err));
+      setInferenceStatus('error');
+    }
+  }, []);
+
   const appTitle = appVersion ? `Seeker UI v${appVersion} - The Visual AI Workspace` : 'Seeker UI - The Visual AI Workspace';
   const headerText = `${appTitle}${rootFolder ? ` — ${rootFolder}` : ''}`;
 
@@ -220,6 +242,7 @@ const FileManager = React.forwardRef(({
               rootFolder={rootFolder}
               onBackToOverview={() => handleTabChange(1)}
               onSwitchToInference={handleSwitchToInference}
+              onPasteInference={handlePasteInference}
               onInferenceStatusChange={(status, result, reasoning, error, isSingleBlockReplacement) => {
                 setInferenceStatus(status);
                 setInferenceResult(result ?? '');

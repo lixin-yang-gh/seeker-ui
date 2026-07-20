@@ -6,6 +6,7 @@ import {
   parseMaskedSubstrings,
   applyCustomMasking
 } from '../../../shared/utils';
+import { parseSegments, extractBlockItems } from '../../../shared/block-parser';
 
 import InferenceControls from '../shared/InferenceControls';
 
@@ -14,6 +15,7 @@ interface PromptOrganizerTabProps {
   rootFolder?: string | null;
   onBackToOverview: () => void;
   onSwitchToInference?: () => void;
+  onPasteInference?: () => void;
   onInferenceStatusChange?: (
     status: 'idle' | 'running' | 'success' | 'error',
     result?: string,
@@ -255,6 +257,7 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   rootFolder,
   onBackToOverview,
   onSwitchToInference,
+  onPasteInference,
   onInferenceStatusChange,
 }) => {
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -280,6 +283,51 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   const [inferenceResult, setInferenceResult] = useState('');
   const [inferenceReasoning, setInferenceReasoning] = useState('');
   const [inferenceError, setInferenceError] = useState('');
+
+  // Clipboard block detection for enabling the "Paste Inference" button
+  const [hasBlockInClipboard, setHasBlockInClipboard] = useState(false);
+  // True while the paste action is in flight (button shows inactive until clipboard is cleared)
+  const [pasteInferenceUsed, setPasteInferenceUsed] = useState(false);
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    const checkClipboard = async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        const segments = parseSegments(text);
+        const blocks = extractBlockItems(segments);
+        const hasBlocks = blocks.length > 0;
+        setHasBlockInClipboard(hasBlocks);
+        // Re-enable button once clipboard no longer contains blocks
+        if (!hasBlocks) setPasteInferenceUsed(false);
+      } catch {
+        setHasBlockInClipboard(false);
+        setPasteInferenceUsed(false);
+      }
+    };
+    checkClipboard();
+    intervalId = setInterval(checkClipboard, 2000);
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
+
+  const handlePasteInferenceClick = useCallback(async () => {
+    if (!onPasteInference || !hasBlockInClipboard || pasteInferenceUsed) return;
+    // Mark as used immediately so the button goes inactive
+    setPasteInferenceUsed(true);
+    // Execute the paste action
+    if (onSwitchToInference) onSwitchToInference();
+    onPasteInference();
+    // Clear the clipboard so the button stays inactive and the user
+    // must copy a new result before they can paste again
+    try {
+      await navigator.clipboard.writeText('');
+      setHasBlockInClipboard(false);
+    } catch {
+      // Clipboard clear failed — the periodic check will update the state
+    }
+  }, [onPasteInference, onSwitchToInference, hasBlockInClipboard, pasteInferenceUsed]);
 
   // Load saved data when rootFolder changes
   useEffect(() => {
@@ -866,10 +914,6 @@ ${tagContent}`;
                 </div>
               )}
             </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', whiteSpace: 'nowrap' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#888', fontSize: '13px' }}>
                   <input
@@ -880,14 +924,31 @@ ${tagContent}`;
                   Redaction Applied
                 </label>
               </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <button
                 className={`generate-prompt-button ${!canGeneratePrompt ? 'disabled' : ''} ${generationStatus === 'success' ? 'success' : ''
                   }`}
+                style={{ padding: '7px 5px' }}
                 onClick={handleCopyPrompt}
                 disabled={!canGeneratePrompt || generationStatus === 'generating'}
-                title="Copy the combined prompt (system + user) to clipboard"
+                title="Copy the combined prompt (system + user) to clipboard for external inference"
               >
-                {generationStatus === 'success' ? '✓ Copied!' : 'Copy Prompt for External Inference'}
+                {generationStatus === 'success' ? '✓ Copied!' : 'Copy Prompt'}
+              </button>
+              <button
+                className={`generate-prompt-button paste-inference ${!onPasteInference || !hasBlockInClipboard || pasteInferenceUsed ? 'disabled' : ''}`}
+                onClick={handlePasteInferenceClick}
+                disabled={!onPasteInference || !hasBlockInClipboard || pasteInferenceUsed}
+                title={
+                  pasteInferenceUsed
+                    ? 'Inference result pasted — clipboard cleared. Copy a new result to paste again.'
+                    : 'Switch to Inference tab and paste clipboard content if it contains valid code update blocks'
+                }
+              >
+                {pasteInferenceUsed ? '✓ Pasted' : 'Paste Inference Result'}
               </button>
             </div>
             <InferenceControls

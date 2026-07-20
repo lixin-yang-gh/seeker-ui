@@ -251,17 +251,22 @@ Seeker UI is built to work seamlessly with **outside inference services**, such 
 - You can now paste it into any external chat interface or API client.
 
 ### Pasting a Response
-Once you receive a response from an external service (or from any other source), you can bring it back into Seeker UI:
+Once you receive a response from an external service (or from any other source), you can bring it back into Seeker UI.
 
-1. Copy the response text (including any JSON code fences) to your clipboard.
-2. In the **Inference tab**, click the **"Paste"** button.
-3. The app will:
-   - Read your clipboard content.
-   - Sanitize and parse it for fenced JSON blocks (language "json").
-   - Display the pasted text in the result area.
-   - If valid block replacement items are found, the **"Update Files"** button becomes enabled.
+There are two ways to paste a response:
 
-This allows you to use any AI service you prefer and still leverage Seeker UI's file-update workflow.
+#### Quick Paste from the Prompt Tab
+- In the **Prompt tab**, next to the "Copy Prompt" button, there is a **"Paste Inference Result"** button.
+- This button automatically detects whether your clipboard contains a valid JSON block replacement response. If it does, the button becomes enabled.
+- Click it to paste the result directly into the Inference tab and switch to that tab. The app will parse the response, display it, and enable the **"Update Files"** button if valid blocks are found.
+- After pasting, the button is temporarily disabled and the clipboard is cleared to prevent accidental re-pasting. To paste again, copy a new response to the clipboard.
+
+#### Paste from the Inference Tab
+- Alternatively, switch to the **Inference tab** and click the **"Paste"** button there.
+- This reads your clipboard content, sanitizes it, and parses it for fenced JSON blocks.
+- The result is displayed in the inference result area, and if valid block replacement items are found, the **"Update Files"** button becomes enabled.
+
+Both methods allow you to use any AI service you prefer and still leverage Seeker UI's file-update workflow.
 
 ---
 
