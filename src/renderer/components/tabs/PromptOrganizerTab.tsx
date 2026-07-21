@@ -309,6 +309,10 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
   const isClipboardBlockUpdateContent = useCallback((text: string): boolean => {
     if (!text || !text.trim()) return false;
 
+    if (text.includes('<system_prompt') && text.includes('<user_prompt')) {
+      return false;
+    }
+
     // Key field markers typical of block update items
     const keyFields = ['"path"', '"op"', '"is_full_file"', '"original"', '"replacement"', '"reason"'];
 
@@ -992,16 +996,16 @@ ${tagContent}`;
                 </div>
               )}
             </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', whiteSpace: 'nowrap' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#888', fontSize: '13px' }}>
-                  <input
-                    type="checkbox"
-                    checked={redactionApplied}
-                    onChange={(e) => setRedactionApplied(e.target.checked)}
-                  />
-                  Redaction Applied
-                </label>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', whiteSpace: 'nowrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#888', fontSize: '13px' }}>
+                <input
+                  type="checkbox"
+                  checked={redactionApplied}
+                  onChange={(e) => setRedactionApplied(e.target.checked)}
+                />
+                Redaction Applied
+              </label>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
