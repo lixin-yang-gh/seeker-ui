@@ -338,7 +338,7 @@
     /* Prevent shrinking */
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 8px;
 }
 
@@ -346,6 +346,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-right: 10px;
 }
 
 /* ─────────────────────────────────────────────
@@ -831,7 +832,7 @@
    Sidebar Create File Button
 ───────────────────────────────────────────── */
 .sidebar-create-file-btn {
-    padding: 8px 10px;
+    padding: 8px 4px;
     background: #0e639c;
     color: white;
     border: none;
@@ -839,7 +840,6 @@
     font-size: 11px;
     cursor: pointer;
     transition: background 0.2s;
-    margin-left: 8px;
     white-space: nowrap;
 }
 

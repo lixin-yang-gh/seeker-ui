@@ -37,11 +37,19 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
         <button
           className="sidebar-create-file-btn"
+          onClick={() => fileTreeRef.current?.openCreateSubfolderModal(currentPath)}
+          disabled={!currentPath}
+          title="Create a new subfolder in the root folder"
+        >
+          📁+
+        </button>
+        <button
+          className="sidebar-create-file-btn"
           onClick={() => fileTreeRef.current?.openCreateFileModal(currentPath)}
           disabled={!currentPath}
           title="Create a new file in the root folder"
         >
-          📄+ New File
+          📄+
         </button>
       </div>
     </div>

@@ -30,6 +30,7 @@ const getFileNameFromPath = (filePath: string): string =>
 
 export interface FileTreeHandle {
   openCreateFileModal: (parentPath: string) => void;
+  openCreateSubfolderModal: (parentPath: string) => void;
 }
 
 const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({ 
@@ -80,6 +81,10 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
     openCreateFileModal: (parentPath: string) => {
       setCreateFileModal({ parentPath });
       setNewFileName('');
+    },
+    openCreateSubfolderModal: (parentPath: string) => {
+      setCreateSubfolderModal({ parentPath });
+      setNewSubfolderName('');
     },
   }));
 
@@ -703,14 +708,14 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
           📋
         </span>
         <span
-          className="file-icon edit-icon copy-path-icon"
+          className="file-icon copy-path-icon"
           onClick={(e) => {
             e.stopPropagation();
-            onEditFile?.(item.path);
+            setContextMenu({ x: e.clientX, y: e.clientY, item });
           }}
-          title="Edit file in Editor tab"
+          title="More actions"
         >
-          ✒️
+          ☰
         </span>
       </>
     );
@@ -781,6 +786,18 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
                 title="Create new subfolder in this folder"
               >
                 📁+
+              </span>
+            )}
+            {item.isDirectory && (
+              <span
+                className="file-icon copy-path-icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setContextMenu({ x: e.clientX, y: e.clientY, item });
+                }}
+                title="More actions"
+              >
+                ☰
               </span>
             )}
           </div>
@@ -924,7 +941,7 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
           disabled={!rootPath}
           title="Create a new file in the root folder"
         >
-          📄+ New File
+          📄+
         </button>
       </div> */}
 
@@ -1103,6 +1120,23 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
                 title="Delete this folder (opens file manager)"
               >
                 🗑️ Delete Folder
+              </button>
+            )}
+            {contextMenu.item.isFile && (
+              <button
+                className="context-menu-item"
+                onClick={async () => {
+                  setContextMenu(null);
+                  try {
+                    const fileData = await window.electronAPI.readFile(contextMenu.item.path);
+                    await window.electronAPI.openMarkdownPreview(fileData.content);
+                  } catch (err) {
+                    console.error('Failed to open preview:', err);
+                  }
+                }}
+                title="Preview this file in the Markdown Preview window"
+              >
+                👁️ Preview
               </button>
             )}
             {contextMenu.item.isFile && (
