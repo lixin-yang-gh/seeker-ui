@@ -404,64 +404,53 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
 
   // Load saved data when rootFolder changes
   useEffect(() => {
+    if (!rootFolder) return;
+
+    // Step 1: Immediately clear all fields so the UI shows blank while the
+    // async load for the new folder is in flight. This prevents stale content
+    // from the previous folder being visible during the transition.
+    setSystemPrompt('');
+    setTask('');
+    setInferenceContext('');
+    setMaskedSubstrings('');
+    setLastSavedSystemPrompt(null);
+    setLastSavedTask(null);
+    setLastSavedInferenceContext(null);
+    setLastSavedMaskedSubstrings(null);
+
+    // Step 2: Block auto-save effects from firing with the cleared (empty)
+    // values before the persisted state for the new folder has been loaded.
+    systemPromptInitRef.current = true;
+    taskInitRef.current = true;
+    inferenceContextInitRef.current = true;
+    maskedSubstringsInitRef.current = true;
+
+    let cancelled = false;
+
     const handleFolderChange = async () => {
-      if (!rootFolder) return;
-
-      // Reset init refs to prevent auto-save effects from overwriting the new
-      // folder's persisted state with stale values from the previous folder
-      // before the async load completes.
-      systemPromptInitRef.current = true;
-      taskInitRef.current = true;
-      inferenceContextInitRef.current = true;
-      maskedSubstringsInitRef.current = true;
-
       try {
-        // Check if state exists for this specific folder
         const savedState = await window.electronAPI.getFolderState(rootFolder);
+        if (cancelled) return;
 
         if (savedState) {
-          // State exists: Load it into the UI
           setSystemPrompt(savedState.systemPrompt || '');
           setTask(savedState.task || '');
           setInferenceContext(savedState.inferenceContext ?? savedState.issues ?? '');
           setMaskedSubstrings(savedState.maskedSubstrings || '');
-        } else {
-          // State does NOT exist: Inherit current values (Inheritance Logic)
-          // The current state variables hold values from the previous folder context.
-          // We save these current values to the new folder's key.
-
-          const currentStateToInherit = {
-            systemPrompt,
-            task,
-            inferenceContext,
-            maskedSubstrings
-          };
-
-          // Save to the new folder path
-          await window.electronAPI.saveFolderState(rootFolder, currentStateToInherit);
-
-          // UI remains unchanged (values are inherited). 
-          // Optional: Indicate save time
-          const now = Date.now();
-          setLastSavedSystemPrompt(now);
-          setLastSavedTask(now);
-          setLastSavedInferenceContext(now);
-          setLastSavedMaskedSubstrings(now);
         }
-
-        // Reset timestamps for 'last saved' displays if we loaded old data
-        // (Only relevant if we want to show "Loaded" vs "Saved")
-        // Here we reset them to null to avoid confusion, or leave as is.
-        // For inheritance, we set the timestamps above.
-
+        // If no saved state exists for this folder, leave the fields empty
+        // (already cleared above). Do NOT inherit values from the previous
+        // folder — that would corrupt isolation between concurrent instances.
       } catch (err) {
-        console.error('Failed to handle folder change:', err);
+        if (!cancelled) console.error('Failed to handle folder change:', err);
       }
     };
 
     handleFolderChange();
-    // Note: We intentionally only depend on rootFolder. 
-    // We want to capture the *current* state (from previous render) when folder changes.
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootFolder]);
 
