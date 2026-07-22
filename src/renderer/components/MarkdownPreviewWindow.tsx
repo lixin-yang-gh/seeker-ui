@@ -26,6 +26,7 @@ const MarkdownPreviewWindow: React.FC = () => {
   const [viewMode, setViewMode] = useState<'text' | 'markdown'>('markdown');
   const [zoom, setZoom] = useState<number>(100);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,14 +62,25 @@ const MarkdownPreviewWindow: React.FC = () => {
   }, []);
 
   // Receive content updates — always apply if newer (last-write-wins, no prompt)
+  // When new content arrives, first clear the previous file's content and show
+  // a loading spinner so the user sees a blank preview before the new content
+  // is rendered.
   useEffect(() => {
     const handler = (incomingRaw: string, incomingTs?: number) => {
       const ts = incomingTs ?? Date.now();
       if (ts <= lastWriteTs.current) return;
       const incoming = normalizeContent(incomingRaw);
       lastWriteTs.current = ts;
-      setEditedContent(incoming);
+      // Phase 1 — clear previous content and show loading spinner
+      setIsLoading(true);
+      setEditedContent('');
       clearHistory();
+      // Phase 2 — render the new content on the next macrotask so the blank
+      // state and spinner have a chance to paint first.
+      setTimeout(() => {
+        setEditedContent(incoming);
+        setIsLoading(false);
+      }, 0);
     };
     window.electronAPI.on('markdown-preview:content', handler);
   }, []);
@@ -494,6 +506,29 @@ const MarkdownPreviewWindow: React.FC = () => {
 
       {/* ── Body ── */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {isLoading && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: theme === 'light' ? 'rgba(255,255,255,0.85)' : 'rgba(30,30,30,0.85)',
+              zIndex: 10,
+              color: '#888',
+              fontSize: '13px',
+              gap: '12px',
+            }}
+          >
+            <div className="spinner" style={{ margin: 0 }} />
+            <span style={{ fontStyle: 'italic' }}>Loading file...</span>
+          </div>
+        )}
         {isTextMode ? (
           <div className="file-editor__body" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             {showHighlight && (
