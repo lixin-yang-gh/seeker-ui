@@ -1226,8 +1226,7 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
               >📂</button>
               <div style={{ display: 'inline-block', borderLeft: '1px solid #444', margin: '0 4px' }}>
               <button
-                className="context-menu-item"
-                style={{ position: 'relative', top: '4px', width: 'auto', height: '20px', padding: '0 6px 1px 6px', fontSize: '9px', flexShrink: 0, background: '#800', color: '#ccc', margin: '0 0 0 8px', borderRadius: '4px', fontWeight: 500 }}
+                className={'context-menu-item close-context-menu'}
                 onClick={() => setContextMenu(null)}
                 title="Close menu"
               >✕</button>

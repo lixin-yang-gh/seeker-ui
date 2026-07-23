@@ -251,14 +251,14 @@
 
 /* Previewed file icon – always visible, indicates close action */
 .eye-icon.previewed {
-  display: inline-block;
-  margin-left: 5px;
-  font-size: 8px;
-  border: 1px dotted #ff6b6b;
-  padding: 2px 0;
-  border-radius: 4px;
-  background: #a04040;
-  color: #ffffff;
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 8px;
+    border: 1px dotted #ff6b6b;
+    padding: 2px 0;
+    border-radius: 4px;
+    background: #a04040;
+    color: #ffffff;
 }
 
 .item-name {
@@ -301,6 +301,7 @@
     font-style: italic;
     margin-left: 10px;
 }
+
 .loading-indicator {
     color: #4ec9b0;
     font-style: italic;
@@ -535,6 +536,25 @@
     color: #ffffff;
 }
 
+.close-context-menu {
+    position: relative;
+    top: 4px;
+    width: auto;
+    height: 20px;
+    padding: 0 6px 1px 6px;
+    font-size: 9px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #a33 0%, #800 100%);
+    color: #ccc;
+    margin: 0 0 0 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.close-context-menu:hover {
+    background: linear-gradient(135deg, #c44 0%, #a00 100%);
+}
+
 /* ─────────────────────────────────────────────
    Favorite Files box (above the file tree)
    Greyscale scheme with tonal variation across classes
@@ -739,6 +759,7 @@
     color: #80e0ff;
     transform: scale(1.18);
 }
+
 .copy-path-icon:hover {
     color: #80e0ff;
     transform: scale(1.18);
