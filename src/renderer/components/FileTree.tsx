@@ -33,7 +33,7 @@ export interface FileTreeHandle {
   openCreateSubfolderModal: (parentPath: string) => void;
 }
 
-const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({ 
+const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
   rootPath,
   onFolderOpen,
   onBeforeFolderChange,
@@ -67,6 +67,7 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
   selectedFilePathsRef.current = selectedFilePaths;
   const favoriteFilesRef = useRef<string[]>(favoriteFiles);
   favoriteFilesRef.current = favoriteFiles;
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   // Create New File modal state
   const [createFileModal, setCreateFileModal] = useState<{ parentPath: string } | null>(null);
@@ -457,7 +458,7 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
       cancelled = true;
       if (debounceTimer) clearTimeout(debounceTimer);
       removeListener();
-      window.electronAPI.stopWatchingFolder().catch(() => {});
+      window.electronAPI.stopWatchingFolder().catch(() => { });
     };
   }, [rootPath]);
 
@@ -507,6 +508,28 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
     e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY, item });
   }, []);
+
+  // Close the context menu instantly when the mouse pointer moves outside
+  // the menu's bounding rectangle. This is more sensitive than onMouseLeave
+  // alone, which can miss rapid pointer movements or edge cases.
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const menu = contextMenuRef.current;
+      if (!menu) return;
+      const rect = menu.getBoundingClientRect();
+      if (
+        e.clientX < rect.left ||
+        e.clientX > rect.right ||
+        e.clientY < rect.top ||
+        e.clientY > rect.bottom
+      ) {
+        setContextMenu(null);
+      }
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, [contextMenu]);
 
   const handleOpenContainingFolder = useCallback(async (item: FileItem) => {
     setContextMenu(null);
@@ -1090,6 +1113,7 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
           onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
         >
           <div
+            ref={contextMenuRef}
             className="context-menu"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(e) => e.stopPropagation()}
@@ -1173,6 +1197,14 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
                 onClick={() => handleOpenContainingFolder(contextMenu.item)}
                 title="Open Containing Folder"
               >📂</button>
+              <div style={{ display: 'inline-block', borderLeft: '1px solid #444', margin: '0 4px' }}>
+              <button
+                className="context-menu-item"
+                style={{ position: 'relative', top: '4px', width: 'auto', height: '20px', padding: '0 6px 1px 6px', fontSize: '9px', flexShrink: 0, background: '#800', color: '#ccc', margin: '0 0 0 8px', borderRadius: '4px', fontWeight: 500 }}
+                onClick={() => setContextMenu(null)}
+                title="Close menu"
+              >✕</button>
+              </div>
             </div>
             <button
               className="context-menu-item"
@@ -1271,6 +1303,25 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
             >
               📂 Open Containing Folder
             </button>
+            {/* Static bottom path bar — path relative to <project_root> (prefix excluded) */}
+            <div
+              style={{
+                padding: '5px 10px',
+                borderTop: '1px solid #454545',
+                fontSize: '14px',
+                color: '#9cdcfe',
+                fontFamily: 'Consolas, Monaco, monospace',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                background: '#1e1e1e',
+                borderRadius: '0 0 6px 6px',
+                userSelect: 'text',
+              }}
+              title={getProjectRootRelativePath(contextMenu.item.path)}
+            >
+              {getProjectRootRelativePath(contextMenu.item.path).replace(/^<project_root>\//, '')}
+            </div>
           </div>
         </div>
       )}
