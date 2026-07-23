@@ -711,7 +711,13 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
           className="file-icon copy-path-icon"
           onClick={(e) => {
             e.stopPropagation();
-            setContextMenu({ x: e.clientX, y: e.clientY, item });
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            setContextMenu({ x: rect.left, y: rect.top, item });
+          }}
+          onMouseEnter={(e) => {
+            e.stopPropagation();
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            setContextMenu({ x: rect.left, y: rect.top, item });
           }}
           title="More actions"
         >
@@ -793,7 +799,13 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
                 className="file-icon copy-path-icon"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setContextMenu({ x: e.clientX, y: e.clientY, item });
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setContextMenu({ x: rect.left, y: rect.top, item });
+                }}
+                onMouseEnter={(e) => {
+                  e.stopPropagation();
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setContextMenu({ x: rect.left, y: rect.top, item });
                 }}
                 title="More actions"
               >
@@ -1081,7 +1093,87 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
             className="context-menu"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(e) => e.stopPropagation()}
+            onMouseLeave={() => setContextMenu(null)}
           >
+            {/* Quick-icon row: one icon per action, no labels */}
+            <div style={{ display: 'flex', gap: '2px', padding: '4px 8px', borderBottom: '1px solid #454545', flexWrap: 'nowrap', overflow: 'visible' }}>
+              <button
+                className="context-menu-item"
+                style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                onClick={() => handleCopyPath(contextMenu.item)}
+                title={contextMenu.item.isDirectory ? 'Copy Folder Path' : 'Copy File Path'}
+              >📋</button>
+              {contextMenu.item.isDirectory && (
+                <button
+                  className="context-menu-item"
+                  style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                  onClick={() => { setContextMenu(null); handleCreateNewFile(contextMenu.item.path); }}
+                  title="Create New File"
+                >📄+</button>
+              )}
+              {contextMenu.item.isDirectory && (
+                <button
+                  className="context-menu-item"
+                  style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                  onClick={() => { setContextMenu(null); handleCreateSubfolder(contextMenu.item.path); }}
+                  title="Create Subfolder"
+                >📁+</button>
+              )}
+              {contextMenu.item.isDirectory && (
+                <button
+                  className="context-menu-item"
+                  style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                  onClick={() => handleDeleteFolder(contextMenu.item)}
+                  title="Delete Folder"
+                >🗑️</button>
+              )}
+              {contextMenu.item.isFile && (
+                <button
+                  className="context-menu-item"
+                  style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                  onClick={async () => {
+                    setContextMenu(null);
+                    try {
+                      const fileData = await window.electronAPI.readFile(contextMenu.item.path);
+                      await window.electronAPI.openMarkdownPreview(fileData.content);
+                    } catch (err) {
+                      console.error('Failed to open preview:', err);
+                    }
+                  }}
+                  title="Preview"
+                >👁️</button>
+              )}
+              {contextMenu.item.isFile && (
+                <button
+                  className="context-menu-item"
+                  style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                  onClick={() => { setContextMenu(null); onEditFile?.(contextMenu.item.path); }}
+                  title="Edit"
+                >✒️</button>
+              )}
+              {contextMenu.item.isFile && (
+                <button
+                  className="context-menu-item"
+                  style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                  onClick={() => { setContextMenu(null); toggleFavorite(contextMenu.item.path); }}
+                  title={favoriteFiles.includes(contextMenu.item.path) ? 'Remove Favorite' : 'Add Favorite'}
+                >{favoriteFiles.includes(contextMenu.item.path) ? '★' : '☆'}</button>
+              )}
+              {contextMenu.item.isFile && (
+                <button
+                  className="context-menu-item"
+                  style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                  onClick={() => handleDeleteFile(contextMenu.item)}
+                  title="Delete File"
+                >🗑️</button>
+              )}
+              <button
+                className="context-menu-item"
+                style={{ padding: '4px 6px', fontSize: '15px', minWidth: 0, width: 'auto', flexShrink: 0 }}
+                onClick={() => handleOpenContainingFolder(contextMenu.item)}
+                title="Open Containing Folder"
+              >📂</button>
+            </div>
             <button
               className="context-menu-item"
               onClick={() => handleCopyPath(contextMenu.item)}
