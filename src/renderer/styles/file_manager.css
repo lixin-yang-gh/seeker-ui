@@ -80,7 +80,7 @@
 .tab-badge {
     position: absolute;
     top: -5px;
-    right: -5px;
+    right: -2px;
     background-color: #007acc;
     color: white;
     height: 20px;
