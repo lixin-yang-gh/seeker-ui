@@ -204,6 +204,11 @@ const FileManager = React.forwardRef(({
             title="Monitor inference process"
           >
             Inference
+            {inferenceStatus === 'running' ? (
+              <span className="tab-badge tab-badge--running" title="Inference running — waiting for API response">🏃</span>
+            ) : (
+              <span className="tab-badge tab-badge--idle" title="No inference running">😴</span>
+            )}
           </button>
 
           {/* Tab 3: Settings */}
