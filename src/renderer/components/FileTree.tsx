@@ -68,6 +68,10 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
   const favoriteFilesRef = useRef<string[]>(favoriteFiles);
   favoriteFilesRef.current = favoriteFiles;
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  // Timer for delaying the context menu visibility when hovering over a
+  // hamburger (☰) button. The menu only appears after the pointer has
+  // remained over the button for 300 ms.
+  const hamburgerHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create New File modal state
   const [createFileModal, setCreateFileModal] = useState<{ parentPath: string } | null>(null);
@@ -101,6 +105,7 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
   useEffect(() => {
     return () => {
       if (binaryNoticeTimerRef.current) clearTimeout(binaryNoticeTimerRef.current);
+      if (hamburgerHoverTimerRef.current) clearTimeout(hamburgerHoverTimerRef.current);
     };
   }, []);
 
@@ -734,13 +739,24 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
           className="file-icon copy-path-icon"
           onClick={(e) => {
             e.stopPropagation();
+            if (hamburgerHoverTimerRef.current) clearTimeout(hamburgerHoverTimerRef.current);
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             setContextMenu({ x: rect.left, y: rect.top, item });
           }}
           onMouseEnter={(e) => {
             e.stopPropagation();
+            if (hamburgerHoverTimerRef.current) clearTimeout(hamburgerHoverTimerRef.current);
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            setContextMenu({ x: rect.left, y: rect.top, item });
+            hamburgerHoverTimerRef.current = setTimeout(() => {
+              setContextMenu({ x: rect.left, y: rect.top, item });
+            }, 500);
+          }}
+          onMouseLeave={(e) => {
+            e.stopPropagation();
+            if (hamburgerHoverTimerRef.current) {
+              clearTimeout(hamburgerHoverTimerRef.current);
+              hamburgerHoverTimerRef.current = null;
+            }
           }}
           title="More actions"
         >
@@ -822,13 +838,24 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
                 className="file-icon copy-path-icon"
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (hamburgerHoverTimerRef.current) clearTimeout(hamburgerHoverTimerRef.current);
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   setContextMenu({ x: rect.left, y: rect.top, item });
                 }}
                 onMouseEnter={(e) => {
                   e.stopPropagation();
+                  if (hamburgerHoverTimerRef.current) clearTimeout(hamburgerHoverTimerRef.current);
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  setContextMenu({ x: rect.left, y: rect.top, item });
+                  hamburgerHoverTimerRef.current = setTimeout(() => {
+                    setContextMenu({ x: rect.left, y: rect.top, item });
+                  }, 500);
+                }}
+                onMouseLeave={(e) => {
+                  e.stopPropagation();
+                  if (hamburgerHoverTimerRef.current) {
+                    clearTimeout(hamburgerHoverTimerRef.current);
+                    hamburgerHoverTimerRef.current = null;
+                  }
                 }}
                 title="More actions"
               >
