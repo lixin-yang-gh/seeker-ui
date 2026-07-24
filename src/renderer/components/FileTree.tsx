@@ -374,6 +374,8 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
       checked ? next.add(item.path) : next.delete(item.path);
       return next;
     });
+    // Update the corresponding tree item's isChecked so the checkbox in the
+    // main file tree is programmatically ticked/unticked in sync.
     setTree(prev => updateTreeItem(prev, item.path, { isChecked: checked }));
   }, [isBinaryFilePath, showBinaryNotice]);
 
@@ -901,11 +903,15 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
     );
   };
 
-  // Favorite list rows mirror tree file-name behavior (copy path, star, context menu)
-  // Selection checkboxes are intentionally omitted from favorites; select files in the main tree.
+  // Favorite list rows mirror tree file-name behavior (copy path, star, context menu).
+  // A checkbox is placed to the right of all icon/emoji buttons so the user can
+  // include the file into the Referenced Files list. Ticking it also programmatically
+  // ticks the corresponding checkbox in the main file tree because both share the
+  // same selectedFilePaths state and handleFileCheckboxChange updates the tree item.
   const renderFavoriteItem = (filePath: string) => {
     const item = toFileItem(filePath);
     const relTitle = getProjectRootRelativePath(filePath);
+    const isChecked = selectedFilePaths.has(filePath);
 
     return (
       <div key={`fav-${filePath}`}>
@@ -922,6 +928,18 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
             <span className="item-name" title={relTitle}>{item.name}</span>
             {renderFileActionIcons(item)}
             {recentlyCopied === item.path && <span className="copied-indicator">✓ path copied</span>}
+            <input
+              type="checkbox"
+              className="tree-checkbox favorite-files-checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                e.stopPropagation();
+                handleFileCheckboxChange(item, e.target.checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              title="Include this file in the Referenced Files list"
+              style={{ marginLeft: '6px', marginRight: 0 }}
+            />
           </div>
         </div>
       </div>
