@@ -421,15 +421,43 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
     }
   }, [rootPath, isRefreshing, onFolderOpen]);
 
-  // Keep a ref to the latest handleRefresh so the file-watching effect can
-  // call it without re-subscribing whenever isRefreshing toggles.
+  // Keep a ref to the latest handleRefresh so the manual Refresh button
+  // can always call the current closure.
   const handleRefreshRef = useRef(handleRefresh);
   handleRefreshRef.current = handleRefresh;
 
+  // Lightweight structural refresh used by the file watcher.
+  // It rebuilds the visible tree shape (new / deleted files) while
+  // PRESERVING the current selectedFilePaths state entirely, so that
+  // checkbox changes made by the user are never overwritten by a
+  // concurrent filesystem notification.
+  const refreshTreeStructureRef = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    refreshTreeStructureRef.current = async () => {
+      if (!rootPath) return;
+      try {
+        const newTree = await loadAllChildren(rootPath);
+        // Re-apply the current selection to the freshly loaded tree without
+        // mutating selectedFilePaths itself.
+        const currentSelected = selectedFilePathsRef.current;
+        const applyChecked = (items: FileItem[]): FileItem[] =>
+          items.map(item => ({
+            ...item,
+            isChecked: item.isFile ? currentSelected.has(item.path) : false,
+            children: item.children ? applyChecked(item.children) : undefined,
+          }));
+        setTree(applyChecked(newTree));
+      } catch (err) {
+        console.error('Lightweight tree structure refresh failed:', err);
+      }
+    };
+  });
+
   // ─── File Watching ────────────────────────────────────────────────────
   // Watch the root folder for file/folder changes and debounce-refresh the
-  // tree. The watcher is managed by the main process (fs.watch with
-  // recursive: true) and communicates via the 'fs:watchEvent' IPC channel.
+  // tree STRUCTURE only (does not touch selectedFilePaths). The watcher is
+  // managed by the main process (fs.watch with recursive: true) and
+  // communicates via the 'fs:watchEvent' IPC channel.
   useEffect(() => {
     if (!rootPath) return;
 
@@ -441,14 +469,14 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
         console.error('Folder watch error:', data.error);
         return;
       }
-      // Debounce: wait 500ms after the last event before refreshing to
+      // Debounce: wait 800ms after the last event before refreshing to
       // coalesce rapid bursts of file system notifications.
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         if (!cancelled) {
-          handleRefreshRef.current();
+          refreshTreeStructureRef.current();
         }
-      }, 500);
+      }, 800);
     };
 
     // Subscribe to watch events (returns a cleanup function)
