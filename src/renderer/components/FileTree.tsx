@@ -81,6 +81,10 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
   const [createSubfolderModal, setCreateSubfolderModal] = useState<{ parentPath: string } | null>(null);
   const [newSubfolderName, setNewSubfolderName] = useState('');
 
+  // Rename modal state
+  const [renameModal, setRenameModal] = useState<{ item: FileItem } | null>(null);
+  const [newItemName, setNewItemName] = useState('');
+
   // Expose imperative handle for parent components (e.g. Sidebar footer button)
   React.useImperativeHandle(ref, () => ({
     openCreateFileModal: (parentPath: string) => {
@@ -702,6 +706,64 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
     }
   }, []);
 
+  const handleRenameFile = useCallback((item: FileItem) => {
+    setContextMenu(null);
+    setRenameModal({ item });
+    setNewItemName(item.name);
+  }, []);
+
+  const handleRenameFolder = useCallback((item: FileItem) => {
+    setContextMenu(null);
+    setRenameModal({ item });
+    setNewItemName(item.name);
+  }, []);
+
+  const handleRenameSubmit = useCallback(async () => {
+    if (!renameModal || !newItemName.trim()) return;
+    const oldPath = renameModal.item.path;
+    const sep = oldPath.includes('\\') ? '\\' : '/';
+    const newPath = oldPath.substring(0, oldPath.lastIndexOf(sep) + 1) + newItemName.trim();
+
+    if (oldPath === newPath) {
+      setRenameModal(null);
+      return;
+    }
+
+    try {
+      await window.electronAPI.rename(oldPath, newPath);
+
+      // Update selected file paths if the renamed item or its children were selected
+      const newSelectedPaths = new Set<string>();
+      for (const p of selectedFilePathsRef.current) {
+        if (p === oldPath) {
+          if (renameModal.item.isFile) newSelectedPaths.add(newPath);
+        } else if (p.startsWith(oldPath + sep)) {
+          newSelectedPaths.add(newPath + p.substring(oldPath.length));
+        } else {
+          newSelectedPaths.add(p);
+        }
+      }
+      selectedFilePathsRef.current = newSelectedPaths;
+      setSelectedFilePaths(newSelectedPaths);
+
+      // Update favorite files similarly
+      const newFavoriteFiles = favoriteFilesRef.current.map(p => {
+        if (p === oldPath) return newPath;
+        if (p.startsWith(oldPath + sep)) return newPath + p.substring(oldPath.length);
+        return p;
+      });
+      favoriteFilesRef.current = newFavoriteFiles;
+      setFavoriteFiles(newFavoriteFiles);
+
+      setRenameModal(null);
+      setNewItemName('');
+      await handleRefresh();
+    } catch (err: any) {
+      console.error('Failed to rename:', err);
+      alert('Failed to rename: ' + (err?.message || err));
+    }
+  }, [renameModal, newItemName, handleRefresh]);
+
   const toggleFolder = async (item: FileItem, expandOnly: boolean = false) => {
     if (item.isDirectory) {
       const newExpanded = new Set(expandedFolders);
@@ -1285,6 +1347,38 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
             >
               📋 {contextMenu.item.isDirectory ? 'Copy Folder Path' : 'Copy File Path'}
             </button>
+            {contextMenu.item.isFile && (
+              <button
+                className="context-menu-item"
+                onClick={() => handleRenameFile(contextMenu.item)}
+                title="Rename this file"
+              >
+                📄✏️ Rename File
+              </button>
+            )}
+            {contextMenu.item.isDirectory && (
+              <button
+                className="context-menu-item"
+                onClick={() => handleRenameFolder(contextMenu.item)}
+                title="Rename this folder"
+              >
+                📁✏️ Rename Folder
+              </button>
+            )}
+            {contextMenu.item.isFile && (
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setContextMenu(null);
+                  const sep = contextMenu.item.path.includes('\\') ? '\\' : '/';
+                  const parentPath = contextMenu.item.path.substring(0, contextMenu.item.path.lastIndexOf(sep));
+                  handleCreateNewFile(parentPath);
+                }}
+                title="Create a new file in this file's folder"
+              >
+                📄+ Create New File
+              </button>
+            )}
             {contextMenu.item.isDirectory && (
               <button
                 className="context-menu-item"
@@ -1570,6 +1664,95 @@ const FileTree = React.forwardRef<FileTreeHandle, FileTreeProps>(({
                 disabled={!newFileName.trim()}
               >
                 Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename modal */}
+      {renameModal && (
+        <div
+          className="create-file-modal-backdrop"
+          onClick={() => setRenameModal(null)}
+        >
+          <div
+            className="create-file-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#e0e0e0', fontSize: '16px', fontWeight: 500 }}>
+                Rename {renameModal.item.isDirectory ? 'Folder' : 'File'}
+              </h3>
+              <button
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#ccc',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                }}
+                onClick={() => setRenameModal(null)}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ color: '#9cdcfe', fontSize: '12px', marginBottom: '10px', fontFamily: 'Consolas, monospace', wordBreak: 'break-all' }}>
+              {renameModal.item.path}
+            </div>
+            <input
+              type="text"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              placeholder="Enter new name..."
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRenameSubmit();
+                if (e.key === 'Escape') setRenameModal(null);
+              }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: '#252526',
+                border: '1px solid #3c3c3c',
+                borderRadius: '4px',
+                color: '#d4d4d4',
+                fontSize: '14px',
+                outline: 'none',
+              }}
+            />
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: '#2a2d2e',
+                  color: '#ccc',
+                  border: '1px solid #444',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setRenameModal(null)}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  background: newItemName.trim() ? '#0e639c' : '#2a2d2e',
+                  color: newItemName.trim() ? 'white' : '#666',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: newItemName.trim() ? 'pointer' : 'not-allowed',
+                }}
+                onClick={handleRenameSubmit}
+                disabled={!newItemName.trim()}
+              >
+                Rename
               </button>
             </div>
           </div>

@@ -301,6 +301,15 @@ ipcMain.handle('fs:mkdir', async (_, dirPath: string) => {
   }
 });
 
+ipcMain.handle('fs:rename', async (_, oldPath: string, newPath: string) => {
+  try {
+    await fs.rename(oldPath, newPath);
+    return { success: true };
+  } catch (err: any) {
+    throw new Error(`Cannot rename ${oldPath} to ${newPath}: ${err.message}`);
+  }
+});
+
 // ─── Folder Watching (file tree auto-refresh) ──────────────────────────
 // Watches the root folder recursively for file/folder changes and notifies
 // the renderer via the 'fs:watchEvent' channel so the FileTree component

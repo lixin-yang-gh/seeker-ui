@@ -55,6 +55,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   mkdir: (dirPath) => ipcRenderer.invoke('fs:mkdir', dirPath),
 
+  rename: (oldPath, newPath) => ipcRenderer.invoke('fs:rename', oldPath, newPath),
+
   // Folder watching for file tree auto-refresh
   watchFolder: (folderPath) => ipcRenderer.invoke('fs:watchFolder', folderPath),
   stopWatchingFolder: () => ipcRenderer.invoke('fs:stopWatchingFolder'),

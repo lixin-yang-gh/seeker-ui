@@ -41,6 +41,8 @@ declare global {
 
       mkdir: (dirPath: string) => Promise<{ success: boolean }>;
 
+      rename: (oldPath: string, newPath: string) => Promise<{ success: boolean }>;
+
       // Folder watching for file tree auto-refresh
       watchFolder: (folderPath: string) => Promise<{ success: boolean; error?: string }>;
       stopWatchingFolder: () => Promise<{ success: boolean }>;
