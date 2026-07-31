@@ -126,42 +126,78 @@ function findBlockByTrimmedLines(
     end: cl.end,
   }));
 
+  /**
+   * Inner helper: attempt a forward scan starting at content index `startI`
+   * against the given (already canonicalized) target line array.
+   * Returns { start, end } offsets (in normalized space) on success, or null.
+   */
+  const tryScan = (
+    startI: number,
+    targets: string[]
+  ): { start: number; end: number } | null => {
+    let ti = 0;
+    let ci = startI;
+    let firstMatchStart = -1;
+    let lastMatchEnd = -1;
+
+    while (ci < canonContent.length && ti < targets.length) {
+      const cLine = canonContent[ci];
+      if (cLine.canon.length === 0) {
+        ci++;
+        continue;
+      }
+      if (cLine.canon === targets[ti]) {
+        if (firstMatchStart === -1) firstMatchStart = cLine.start;
+        lastMatchEnd = cLine.end;
+        ti++;
+        ci++;
+      } else {
+        break;
+      }
+    }
+
+    if (ti === targets.length && firstMatchStart !== -1) {
+      return { start: firstMatchStart, end: lastMatchEnd };
+    }
+    return null;
+  };
+
   // Scan for a window of content lines whose non-empty canonical lines match
   // the target sequence in order.
   for (let i = 0; i < canonContent.length; i++) {
     // Only start a candidate window at a line matching the first target line.
     if (canonContent[i].canon !== targetLines[0]) continue;
 
-    let ti = 0; // target index
-    let ci = i; // content index
-    let firstMatchStart = -1;
-    let lastMatchEnd = -1;
-
-    while (ci < canonContent.length && ti < targetLines.length) {
-      const cLine = canonContent[ci];
-      if (cLine.canon.length === 0) {
-        // Skip blank/whitespace-only content lines within the window.
-        ci++;
-        continue;
-      }
-      if (cLine.canon === targetLines[ti]) {
-        if (firstMatchStart === -1) firstMatchStart = cLine.start;
-        lastMatchEnd = cLine.end;
-        ti++;
-        ci++;
-      } else {
-        break; // mismatch — abandon this candidate window
-      }
-    }
-
-    if (ti === targetLines.length && firstMatchStart !== -1) {
-      // Map offsets from normalizedContent back onto the original content.
-      // Because normalization only removes '\r' characters (never adds any),
-      // offsets can differ. Re-derive offsets against the original content by
-      // counting characters up to the matched normalized offsets.
-      const start = mapNormalizedOffsetToOriginal(content, firstMatchStart);
-      const end = mapNormalizedOffsetToOriginal(content, lastMatchEnd);
+    const result = tryScan(i, targetLines);
+    if (result) {
+      const start = mapNormalizedOffsetToOriginal(content, result.start);
+      const end = mapNormalizedOffsetToOriginal(content, result.end);
       return { start, end };
+    }
+  }
+
+  // Second pass: the LLM-provided anchor may have different indentation than
+  // the actual file (e.g. 12-space vs 16-space leading whitespace). Retry
+  // with a version of targetLines whose words are stripped of leading indent
+  // — canonicalizeLine already collapses all whitespace, so the canonical
+  // forms are identical regardless of indent depth. This means if the first
+  // pass failed, the indentation difference was NOT the cause; the mismatch
+  // must be in the non-whitespace content itself. We therefore attempt one
+  // more pass where we apply a weaker prefix-suffix trim: compare only the
+  // last N–1 and first N–1 lines (dropping the outermost lines which are
+  // most likely to be anchor-context lines that differ between the LLM
+  // response and the file). This is deliberately conservative to avoid false
+  // positives on short blocks.
+  if (targetLines.length >= 4) {
+    const innerTargets = targetLines.slice(1, -1);
+    for (let i = 0; i < canonContent.length; i++) {
+      if (canonContent[i].canon !== innerTargets[0]) continue;
+      const result = tryScan(i, innerTargets);
+      if (result) {
+        const start = mapNormalizedOffsetToOriginal(content, result.start);
+        const end = mapNormalizedOffsetToOriginal(content, result.end);
+        return { start, end };
+      }
     }
   }
 
