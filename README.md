@@ -4,14 +4,7 @@
 
 ## Recent Updates
 
-The latest release delivers substantial capability and polish across the workspace:
-
-- **High-Performance File Editor**: A full-featured code editor with always-visible search and replace, undo/redo, word wrap, live Markdown preview, Unicode-safe copy/cut/paste, font controls, and unsaved-changes protection—designed for rapid, confident iteration alongside your AI workflow.
-- **Venice API Integration**: Secure, privacy-oriented inference endpoints are now available alongside OpenRouter.
-- **Highly Configurable Inference Context with File Explorer**: Fine-grained control over what each model sees—recursive folder selection, per-file checkboxes, binary file detection, favorites, path utilities, custom masking and redaction, and structured context tags—so every inference run receives precisely the intended context.
-- **UI Overhaul**: A refined, professional workspace organized across four dedicated tabs: File Editor, Prompt Organizer, Inference, and Settings.
-- **Improved File Tree with File Watcher and Subfolder Creation**: The file explorer now automatically refreshes when files change on disk via a recursive folder watcher, and new subfolders can be created directly from the tree or context menu.
-- **Automatic Missing Folder and File Creation for File Updates**: The block-based file update flow in the Inference tab now automatically creates missing parent directories and target files, so AI-proposed changes to new or not-yet-existing paths succeed without manual pre-creation.
+The latest release 0.9.4 further improves the file tree by adding more file operations required for daily file management, making it a fully comprehensive file manager.
 
 ## Introduction
 
