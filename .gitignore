@@ -6,6 +6,8 @@ seeker-ui.dmg
 package-lock.json
 api-settings.json
 
+hosting/
+
 # Production build artifacts
 /release
 /dist
