@@ -25,12 +25,12 @@ interface PromptOrganizerTabProps {
 
 // Define prepend and append button configurations for scalability
 const PREPEND_BUTTONS: Array<{ key: string; value: string }> = [
-  { key: 'Feasibility', value: 'Please explore feasibility ' },
+  { key: 'Feasibility', value: 'Please explore feasibility of ' },
   { key: 'Analysis', value: 'Please provide analysis ' },
   { key: 'Review', value: 'Please review ' },
   { key: 'Solution', value: 'Please propose the best solution ' },
-  { key: 'Enhancement', value: 'Please propose enhancement ' },
-  { key: 'Improvement', value: 'Please propose improvement ' },
+  { key: 'Enhancement', value: 'Please propose enhancement to ' },
+  { key: 'Improvement', value: 'Please propose improvement to ' },
   { key: 'Words', value: 'Please propose word changes ' },
   { key: 'Codes', value: 'Please propose code changes ' },
   { key: 'Fixes', value: 'Please propose fixes to the following errors/issues ' },
@@ -238,16 +238,24 @@ const APPEND_BUTTONS: Array<{ key: string; value: string }> = [
   { key: 'Minimal changes', value: '\n---\nPlease try to keep the proposed text/code changes minimal; modify only the essential lines; avoid any unnecessary refactoring or rewriting of surrounding text or code.' }
 ];
 
-const HEADER_OPTIONS: Array<{ display: string; value: string }> = [
-  { display: 'Issues', value: 'issues' },
-  { display: 'Errors', value: 'errors' },
-  { display: 'Output', value: 'output' },
-  { display: 'Logs', value: 'logs' },
-  { display: 'Feedback', value: 'feedback' },
-  { display: 'Proposals', value: 'proposals' },
+// Each entry defines the sub-tag inserted into the Inference Context area.
+// - value: the XML tag name (e.g. 'issues')
+// - attr:  OPTIONAL custom attribute key rendered on the opening tag. The
+//          attribute value is always an empty string, e.g.
+//          <issues where=""> ... </issues>. When 'attr' is omitted/empty, the
+//          tag is emitted WITHOUT any attribute, e.g.
+//          <retrieved_context> ... </retrieved_context>.
+//          Adjust 'attr' per entry to customise the attribute key for each tag.
+const HEADER_OPTIONS: Array<{ display: string; value: string; attr?: string }> = [
+  { display: 'Issues', value: 'issues', attr: 'where' },
+  { display: 'Errors', value: 'errors', attr: 'where' },
+  { display: 'Output', value: 'output', attr: 'from' },
+  { display: 'Logs', value: 'logs', attr: 'what' },
+  { display: 'Feedback', value: 'feedback', attr: 'about' },
+  { display: 'Proposals', value: 'proposals', attr: 'on' },
   { display: 'Retrieved Context', value: 'retrieved_context' },
-  { display: 'Info', value: 'info' },
-  { display: 'Constraints', value: 'constraints' },
+  { display: 'Info', value: 'info', attr: 'what' },
+  { display: 'Constraints', value: 'constraints', attr: 'on' },
 ];
 
 const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
@@ -665,18 +673,23 @@ const PromptOrganizerTab: React.FC<PromptOrganizerTabProps> = ({
     saveInferenceContext(''); // Save empty string
   };
 
-  // Handle header option button click - insert sub-tag placeholder into inference context
-  const handleHeaderOptionClick = (tagValue: string) => {
-    const tagContent = `<${tagValue}>
+  // Handle header option button click - insert sub-tag placeholder into inference context.
+  // The optional attrName is rendered on the opening tag with a fixed empty-string
+  // value, e.g. <issues where=""> ... </issues>. When attrName is omitted/empty,
+  // a plain opening tag without any attribute is emitted, e.g. <retrieved_context>.
+  // The new tag block is PREPENDED to the existing inference context content.
+  const handleHeaderOptionClick = (tagValue: string, attrName?: string) => {
+    const openTag = attrName ? `<${tagValue} ${attrName}="">` : `<${tagValue}>`;
+    const tagContent = `${openTag}
 
 </${tagValue}>`;
     setInferenceContext(prev => {
       if (!prev.trim()) {
         return tagContent;
       }
-      return `${prev}
+      return `${tagContent}
 
-${tagContent}`;
+${prev}`;
     });
   };
 
@@ -1284,8 +1297,8 @@ ${tagContent}`;
                   <button
                     key={option.value}
                     className="toolbar-button"
-                    onClick={() => handleHeaderOptionClick(option.value)}
-                    title={`Insert <${option.value}> sub-tag into inference context`}
+                    onClick={() => handleHeaderOptionClick(option.value, option.attr)}
+                    title={`Insert <${option.value}${option.attr ? ` ${option.attr}=""` : ''}> sub-tag into inference context`}
                     disabled={!rootFolder}
                   >
                     ⬇️ {option.display}
